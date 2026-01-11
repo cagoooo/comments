@@ -131,8 +131,8 @@ const InputPanel = ({
                         className={`flex-1 relative ${isDragOver ? 'ring-4 ring-[#54A0FF] ring-offset-2' : ''}`}
                     >
                         <textarea
-                            className="w-full h-full min-h-[100px] sm:min-h-[120px] p-3 sm:p-4 border-3 border-[#2D3436] rounded-lg outline-none text-sm sm:text-base resize-none font-medium placeholder:text-[#2D3436]/40 text-[#2D3436] leading-relaxed bg-white shadow-[inset_2px_2px_4px_rgba(0,0,0,0.1)]"
-                            placeholder="一行一位學生姓名...&#10;例如：&#10;王小明&#10;李大華&#10;&#10;💡 也可拖拽 Excel 檔案到此處"
+                            className="w-full h-full min-h-[100px] sm:min-h-[120px] p-3 sm:p-4 border-3 border-[#2D3436] rounded-lg outline-none text-sm sm:text-base resize-none font-medium placeholder:text-[#9CA3AF] placeholder:leading-relaxed text-[#2D3436] leading-relaxed bg-white shadow-[inset_2px_2px_4px_rgba(0,0,0,0.1)]"
+                            placeholder="📝 使用方式：&#10;&#10;方法一：手動輸入&#10;一行一位學生姓名，如：&#10;王小明&#10;李大華&#10;&#10;方法二：批次產生&#10;下方輸入座號數量後點「產生」&#10;&#10;方法三：Excel 匯入&#10;拖拽 Excel 到此處或點右上角按鈕"
                             value={rawInput}
                             onChange={(e) => setRawInput(e.target.value)}
                             disabled={isGenerating}
