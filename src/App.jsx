@@ -6,6 +6,9 @@ import { STYLE_DEFINITIONS } from './data/styleDefinitions';
 
 // Utils
 import { callGeminiAPI, hasApiKey } from './utils/geminiApi';
+
+// Context
+import { useToast } from './contexts/ToastContext';
 import { downloadComments } from './utils/downloadHelper';
 
 // Hooks
@@ -39,6 +42,9 @@ import { templateService, classService, historyService, settingsService } from '
  * 主應用元件
  */
 const App = ({ currentUser, onLogout, isAdmin }) => {
+    // --- Toast Hook ---
+    const { toast } = useToast();
+
     // --- 對話框 Hook ---
     const { dialog, closeDialog, showConfirm, showAlert } = useDialog();
 
@@ -265,6 +271,9 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
 
         setIsGenerating(false);
         setProgress({ current: 0, total: 0 });
+
+        // Toast 通知
+        toast.success(`✨ 已完成 ${total} 位學生的評語生成！`);
     };
 
     // 下載處理
@@ -304,6 +313,9 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
         await syncComment(studentId, aiComment);
 
         setIsGeneratingSingle(null);
+
+        // Toast 通知
+        toast.success(`✨ ${student.name} 的評語已生成！`);
     };
 
     // 儲存評語為範本
@@ -315,9 +327,10 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                 tags: student.selectedTags,
                 styles: globalStyles
             });
-            showAlert("❤️ 評語已收藏到範本庫！");
+            toast.success("❤️ 評語已收藏到範本庫！");
         } catch (error) {
             console.error('儲存範本失敗:', error);
+            toast.error('儲存範本失敗，請稍後再試');
         }
     };
 
