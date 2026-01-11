@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 使用者認證檢查
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    // 取得使用者資料
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    // 檢查是否為管理員
+    function isAdmin() {
+      return isSignedIn() && getUserData().role == 'admin';
+    }
+    
+    // 檢查是否已審核通過
+    function isApproved() {
+      return isSignedIn() && (getUserData().role == 'admin' || getUserData().role == 'teacher');
+    }
+    
+    // 檢查是否有權限訪問班級
+    function hasClassAccess(classId) {
+      return isAdmin() || (isApproved() && classId in getUserData().assignedClasses);
+    }
+
+    // 使用者集合
+    match /users/{userId} {
+      // 任何人可以讀取自己的資料
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      // 管理員可以讀取所有使用者
+      allow read: if isAdmin();
+      // 使用者可以建立自己的資料
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      // 管理員可以更新任何使用者
+      allow update: if isAdmin();
+      // 使用者可以更新自己的非敏感欄位
+      allow update: if isSignedIn() && request.auth.uid == userId 
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'assignedClasses', 'approvedAt', 'approvedBy']);
+    }
+
+    // 班級集合
+    match /classes/{classId} {
+      // 已審核使用者可以讀取
+      allow read: if isApproved();
+      // 只有管理員可以寫入
+      allow write: if isAdmin();
+    }
+
+    // 學生集合
+    match /students/{studentId} {
+      // 已審核使用者可以讀取和寫入
+      allow read, write: if isApproved();
+      
+      // 歷史記錄子集合
+      match /history/{historyId} {
+        allow read, write: if isApproved();
+      }
+    }
+
+    // 範本集合
+    match /templates/{templateId} {
+      // 已審核使用者可以讀取和寫入
+      allow read, write: if isApproved();
+    }
+
+    // 設定集合
+    match /settings/{settingId} {
+      // 已審核使用者可以讀取和寫入
+      allow read, write: if isApproved();
+    }
+  }
+}

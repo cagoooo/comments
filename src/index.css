@@ -1,0 +1,264 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* === 手寫普普風字體 === */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+
+/* === 全域樣式 === */
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  /* 普普風調色盤 - 鮮豔活潑 */
+  --pop-pink: #FF6B9D;
+  --pop-orange: #FF9F43;
+  --pop-yellow: #FECA57;
+  --pop-green: #1DD1A1;
+  --pop-blue: #54A0FF;
+  --pop-purple: #A29BFE;
+  --pop-red: #FF6B6B;
+
+  /* 手繪風底色 */
+  --paper-cream: #FFF9E6;
+  --paper-light: #FFFDF5;
+  --paper-lines: #E8DCC8;
+
+  /* 手寫筆觸色 */
+  --ink-dark: #2D3436;
+  --ink-brown: #6D4C41;
+  --pencil-gray: #636E72;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Zen Maru Gothic', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--paper-cream);
+  /* 筆記本線條背景 */
+  background-image:
+    linear-gradient(var(--paper-lines) 1px, transparent 1px);
+  background-size: 100% 28px;
+}
+
+/* === 手繪邊框效果 === */
+.hand-border {
+  border: 3px solid var(--ink-dark);
+  border-radius: 8px 4px 12px 6px;
+  box-shadow: 4px 4px 0 var(--ink-dark);
+}
+
+.hand-border-light {
+  border: 2px dashed var(--ink-brown);
+  border-radius: 12px 6px 8px 10px;
+}
+
+/* === 手繪按鈕效果 === */
+.btn-pop {
+  border: 3px solid var(--ink-dark);
+  border-radius: 8px 4px 10px 6px;
+  box-shadow: 4px 4px 0 var(--ink-dark);
+  transition: all 0.15s ease;
+  font-weight: 700;
+}
+
+.btn-pop:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--ink-dark);
+}
+
+.btn-pop:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--ink-dark);
+}
+
+/* === 手寫標籤樣式 === */
+.tag-handwrite {
+  background: var(--pop-yellow);
+  border: 2px solid var(--ink-dark);
+  border-radius: 6px 3px 8px 4px;
+  box-shadow: 2px 2px 0 var(--ink-dark);
+  padding: 4px 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* === 便利貼效果 === */
+.sticky-note {
+  background: var(--pop-yellow);
+  border: none;
+  box-shadow:
+    3px 3px 0 rgba(0, 0, 0, 0.1),
+    inset 0 -40px 40px -40px rgba(0, 0, 0, 0.05);
+  transform: rotate(-1deg);
+  padding: 16px;
+}
+
+.sticky-note-pink {
+  background: var(--pop-pink);
+  transform: rotate(1deg);
+}
+
+.sticky-note-blue {
+  background: var(--pop-blue);
+  transform: rotate(-0.5deg);
+}
+
+.sticky-note-green {
+  background: var(--pop-green);
+  transform: rotate(0.8deg);
+}
+
+/* === 塗鴉底線效果 === */
+.underline-doodle {
+  position: relative;
+  display: inline-block;
+}
+
+.underline-doodle::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: -4px;
+  right: -4px;
+  height: 8px;
+  background: var(--pop-yellow);
+  z-index: -1;
+  border-radius: 4px;
+  transform: rotate(-0.5deg);
+}
+
+/* === 改善手機端觸控體驗 === */
+@media (max-width: 640px) {
+
+  button,
+  [role="button"],
+  input[type="submit"],
+  input[type="button"] {
+    min-height: 48px;
+    min-width: 48px;
+  }
+
+  button {
+    touch-action: manipulation;
+  }
+
+  body {
+    background-size: 100% 24px;
+  }
+}
+
+/* === 自訂捲軸樣式 (普普風) === */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--paper-cream);
+  border-left: 2px dashed var(--paper-lines);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--pop-orange);
+  border: 2px solid var(--ink-dark);
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--pop-pink);
+}
+
+/* === 動畫效果 === */
+.animate-in {
+  animation: popIn 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8) rotate(-3deg);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.animate-shake-slow {
+  animation: wiggle 2s infinite ease-in-out;
+}
+
+@keyframes wiggle {
+
+  0%,
+  100% {
+    transform: rotate(-2deg);
+  }
+
+  50% {
+    transform: rotate(2deg);
+  }
+}
+
+.animate-bounce-soft {
+  animation: bounceSoft 0.6s infinite alternate ease-in-out;
+}
+
+@keyframes bounceSoft {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(-4px);
+  }
+}
+
+/* === 圓點裝飾背景 === */
+.dots-pattern {
+  background-image: radial-gradient(var(--pop-pink) 2px, transparent 2px);
+  background-size: 20px 20px;
+}
+
+/* === 手機端隱藏捲軸 === */
+@media (max-width: 640px) {
+  .mobile-scroll-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobile-scroll-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* === 輸入框手寫風格 === */
+input,
+textarea {
+  font-family: 'Zen Maru Gothic', 'Noto Sans TC', sans-serif;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--pop-orange) !important;
+  box-shadow: 0 0 0 3px rgba(255, 159, 67, 0.3);
+}
+
+/* === 普普風卡片 === */
+.card-pop {
+  background: var(--paper-light);
+  border: 3px solid var(--ink-dark);
+  border-radius: 12px 6px 16px 8px;
+  box-shadow: 6px 6px 0 var(--ink-dark);
+}
