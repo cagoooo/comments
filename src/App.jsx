@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 
 // Data
 import { IDIOM_CATEGORIES } from './data/idiomData';
@@ -15,26 +15,29 @@ import { downloadComments } from './utils/downloadHelper';
 import { useDialog } from './hooks/useDialog';
 import { useStudents } from './hooks/useStudents';
 
-// Components
+// Components (核心元件 - 同步載入)
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Dialog from './components/Dialog';
 import LoadingOverlay from './components/LoadingOverlay';
-import StyleModal from './components/StyleModal';
 import InputPanel from './components/InputPanel';
 import GeneratePanel from './components/GeneratePanel';
 import StyleBar from './components/StyleBar';
 import StudentTable from './components/StudentTable';
 import IdiomSidebar from './components/IdiomSidebar';
 import DataLoading from './components/DataLoading';
-import ApiKeyModal from './components/ApiKeyModal';
-import TemplateModal from './components/TemplateModal';
 import InstallPrompt from './components/InstallPrompt';
-import ClassModal from './components/ClassModal';
-import HistoryModal from './components/HistoryModal';
-import AdminPanel from './components/AdminPanel';
-import ImportExportModal from './components/ImportExportModal';
-import PrintModal from './components/PrintModal';
+import LazyLoading from './components/LazyLoading';
+
+// Lazy Components (Modal 元件 - 動態載入)
+const StyleModal = lazy(() => import('./components/StyleModal'));
+const ApiKeyModal = lazy(() => import('./components/ApiKeyModal'));
+const TemplateModal = lazy(() => import('./components/TemplateModal'));
+const ClassModal = lazy(() => import('./components/ClassModal'));
+const HistoryModal = lazy(() => import('./components/HistoryModal'));
+const AdminPanel = lazy(() => import('./components/AdminPanel'));
+const ImportExportModal = lazy(() => import('./components/ImportExportModal'));
+const PrintModal = lazy(() => import('./components/PrintModal'));
 
 // Firebase
 import { templateService, classService, historyService, settingsService } from './firebase';
@@ -375,83 +378,86 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
             {/* 生成中載入層 */}
             {isGenerating && <LoadingOverlay progress={progress} />}
 
-            {/* 風格選擇 Modal */}
-            <StyleModal
-                isOpen={isStyleModalOpen}
-                onClose={() => setIsStyleModalOpen(false)}
-                globalStyles={globalStyles}
-                toggleGlobalStyle={toggleGlobalStyle}
-            />
+            {/* Lazy Modal 區塊 - 使用 Suspense 包裹 */}
+            <Suspense fallback={<LazyLoading />}>
+                {/* 風格選擇 Modal */}
+                <StyleModal
+                    isOpen={isStyleModalOpen}
+                    onClose={() => setIsStyleModalOpen(false)}
+                    globalStyles={globalStyles}
+                    toggleGlobalStyle={toggleGlobalStyle}
+                />
 
-            {/* API Key 設定 Modal */}
-            <ApiKeyModal
-                isOpen={isApiKeyModalOpen}
-                onClose={() => {
-                    setIsApiKeyModalOpen(false);
-                    setApiKeyConfigured(hasApiKey());
-                }}
-                currentUser={currentUser}
-            />
+                {/* API Key 設定 Modal */}
+                <ApiKeyModal
+                    isOpen={isApiKeyModalOpen}
+                    onClose={() => {
+                        setIsApiKeyModalOpen(false);
+                        setApiKeyConfigured(hasApiKey());
+                    }}
+                    currentUser={currentUser}
+                />
 
-            {/* 範本庫 Modal */}
-            <TemplateModal
-                isOpen={isTemplateModalOpen}
-                onClose={() => setIsTemplateModalOpen(false)}
-                onApplyTemplate={handleApplyTemplate}
-            />
+                {/* 範本庫 Modal */}
+                <TemplateModal
+                    isOpen={isTemplateModalOpen}
+                    onClose={() => setIsTemplateModalOpen(false)}
+                    onApplyTemplate={handleApplyTemplate}
+                />
 
-            {/* 班級管理 Modal */}
-            <ClassModal
-                isOpen={isClassModalOpen}
-                onClose={() => setIsClassModalOpen(false)}
-                currentClassId={currentClassId}
-                onSelectClass={(classId) => {
-                    setCurrentClassId(classId);
-                    if (!classId) {
-                        setCurrentClassName('全部學生');
-                    }
-                }}
-            />
+                {/* 班級管理 Modal */}
+                <ClassModal
+                    isOpen={isClassModalOpen}
+                    onClose={() => setIsClassModalOpen(false)}
+                    currentClassId={currentClassId}
+                    onSelectClass={(classId) => {
+                        setCurrentClassId(classId);
+                        if (!classId) {
+                            setCurrentClassName('全部學生');
+                        }
+                    }}
+                />
 
-            {/* 歷史記錄 Modal */}
-            <HistoryModal
-                isOpen={isHistoryModalOpen}
-                onClose={() => {
-                    setIsHistoryModalOpen(false);
-                    setHistoryStudent(null);
-                }}
-                student={historyStudent}
-                onRestore={(comment) => {
-                    if (historyStudent) {
-                        updateStudent(historyStudent.id, 'comment', comment);
-                        syncComment(historyStudent.id, comment);
-                    }
-                }}
-            />
+                {/* 歷史記錄 Modal */}
+                <HistoryModal
+                    isOpen={isHistoryModalOpen}
+                    onClose={() => {
+                        setIsHistoryModalOpen(false);
+                        setHistoryStudent(null);
+                    }}
+                    student={historyStudent}
+                    onRestore={(comment) => {
+                        if (historyStudent) {
+                            updateStudent(historyStudent.id, 'comment', comment);
+                            syncComment(historyStudent.id, comment);
+                        }
+                    }}
+                />
 
-            {/* 管理員面板 */}
-            <AdminPanel
-                isOpen={isAdminPanelOpen}
-                onClose={() => setIsAdminPanelOpen(false)}
-                currentUser={currentUser}
-            />
+                {/* 管理員面板 */}
+                <AdminPanel
+                    isOpen={isAdminPanelOpen}
+                    onClose={() => setIsAdminPanelOpen(false)}
+                    currentUser={currentUser}
+                />
 
-            {/* Excel 匯入/匯出 */}
-            <ImportExportModal
-                isOpen={isImportExportOpen}
-                onClose={() => setIsImportExportOpen(false)}
-                students={students}
-                onImport={handleImportStudents}
-                currentClassName={currentClassName}
-            />
+                {/* Excel 匯入/匯出 */}
+                <ImportExportModal
+                    isOpen={isImportExportOpen}
+                    onClose={() => setIsImportExportOpen(false)}
+                    students={students}
+                    onImport={handleImportStudents}
+                    currentClassName={currentClassName}
+                />
 
-            {/* 列印與 PDF 匯出 */}
-            <PrintModal
-                isOpen={isPrintModalOpen}
-                onClose={() => setIsPrintModalOpen(false)}
-                students={students}
-                currentClassName={currentClassName}
-            />
+                {/* 列印與 PDF 匯出 */}
+                <PrintModal
+                    isOpen={isPrintModalOpen}
+                    onClose={() => setIsPrintModalOpen(false)}
+                    students={students}
+                    currentClassName={currentClassName}
+                />
+            </Suspense>
 
             {/* 頁首 */}
             <Header
