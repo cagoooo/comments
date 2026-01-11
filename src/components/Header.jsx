@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, X, Settings, Heart, School, Shield, LogOut } from 'lucide-react';
+import { Menu, X, Settings, Heart, School, Shield, LogOut, FileSpreadsheet } from 'lucide-react';
 
 /**
  * 頁首元件 - 教育手寫普普風
@@ -12,6 +12,7 @@ const Header = ({
     onOpenTemplates,
     onOpenClasses,
     onOpenAdmin,
+    onOpenImportExport,
     onLogout,
     hasApiKey,
     templateCount = 0,
@@ -73,6 +74,16 @@ const Header = ({
                             {templateCount > 9 ? '9+' : templateCount}
                         </span>
                     )}
+                </button>
+
+                {/* Excel 匯入/匯出按鈕 */}
+                <button
+                    onClick={onOpenImportExport}
+                    className="btn-pop p-2 sm:px-3 sm:py-2 bg-[#54A0FF] text-white flex items-center gap-1 text-sm"
+                    title="Excel 匯入/匯出"
+                >
+                    <FileSpreadsheet size={18} />
+                    <span className="hidden sm:inline">Excel</span>
                 </button>
 
                 {/* 設定按鈕 */}

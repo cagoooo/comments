@@ -33,6 +33,7 @@ import InstallPrompt from './components/InstallPrompt';
 import ClassModal from './components/ClassModal';
 import HistoryModal from './components/HistoryModal';
 import AdminPanel from './components/AdminPanel';
+import ImportExportModal from './components/ImportExportModal';
 
 // Firebase
 import { templateService, classService, historyService, settingsService } from './firebase';
@@ -108,6 +109,9 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
     // 歷史記錄
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [historyStudent, setHistoryStudent] = useState(null);
+
+    // Excel 匯入/匯出
+    const [isImportExportOpen, setIsImportExportOpen] = useState(false);
 
     // 從 Firebase 同步 API Key 到 localStorage（使用者隔離）
     useEffect(() => {
@@ -342,6 +346,19 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
         }
     };
 
+    // 處理 Excel 匯入
+    const handleImportStudents = async (newStudents, mode) => {
+        if (mode === 'replace') {
+            // 取代模式：先清空再新增
+            await clearAllStudents();
+        }
+
+        // 批次新增學生
+        for (const student of newStudents) {
+            await addStudent(student.name, student.selectedTags, student.comment);
+        }
+    };
+
     return (
         <div className="min-h-screen text-[#2D3436] font-sans flex flex-col relative">
 
@@ -415,6 +432,15 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                 currentUser={currentUser}
             />
 
+            {/* Excel 匯入/匯出 */}
+            <ImportExportModal
+                isOpen={isImportExportOpen}
+                onClose={() => setIsImportExportOpen(false)}
+                students={students}
+                onImport={handleImportStudents}
+                currentClassName={currentClassName}
+            />
+
             {/* 頁首 */}
             <Header
                 isSidebarOpen={isSidebarOpen}
@@ -423,6 +449,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                 onOpenTemplates={() => setIsTemplateModalOpen(true)}
                 onOpenClasses={() => setIsClassModalOpen(true)}
                 onOpenAdmin={() => setIsAdminPanelOpen(true)}
+                onOpenImportExport={() => setIsImportExportOpen(true)}
                 onLogout={onLogout}
                 hasApiKey={apiKeyConfigured}
                 templateCount={templateCount}
