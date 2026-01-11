@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
-import { studentService } from '../firebase';
+import { studentService, setCurrentUserId } from '../firebase';
 
 /**
  * 學生資料管理 Hook（整合 Firebase）
  * 提供學生資料的 CRUD 操作，即時同步至 Firestore
+ * @param {string} userId - 當前使用者 ID，用於資料隔離
  */
-export const useStudents = () => {
+export const useStudents = (userId) => {
     const [students, setStudents] = useState([]);
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [isLoading, setIsLoading] = useState(true);
@@ -13,6 +14,16 @@ export const useStudents = () => {
 
     // 訂閱 Firestore 即時更新
     useEffect(() => {
+        // 如果沒有 userId，不進行訂閱
+        if (!userId) {
+            setStudents([]);
+            setIsLoading(false);
+            return;
+        }
+
+        // 設定當前使用者 ID（用於資料隔離）
+        setCurrentUserId(userId);
+
         setIsLoading(true);
         const unsubscribe = studentService.subscribe((data) => {
             // 將 Firestore 資料轉換為本地格式
@@ -28,7 +39,7 @@ export const useStudents = () => {
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [userId]);
 
     // 從原始輸入產生學生並儲存至 Firebase
     const generateStudents = useCallback(async (rawInput) => {

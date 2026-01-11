@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, XCircle, Users, School, Shield, Clock } from 'lucide-react';
-import { userService, USER_ROLES, classService } from '../firebase';
+import { X, Check, XCircle, Users, School, Shield, Clock, Building2 } from 'lucide-react';
+import { userService, USER_ROLES, classService, schoolService } from '../firebase';
 
 /**
  * 管理員面板
@@ -9,11 +9,13 @@ import { userService, USER_ROLES, classService } from '../firebase';
 const AdminPanel = ({ isOpen, onClose, currentUser }) => {
     const [users, setUsers] = useState([]);
     const [classes, setClasses] = useState([]);
+    const [schools, setSchools] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState(null);
     const [selectedClasses, setSelectedClasses] = useState([]);
+    const [selectedSchool, setSelectedSchool] = useState(null);
 
-    // 訂閱使用者與班級
+    // 訂閱使用者、班級與學校
     useEffect(() => {
         if (!isOpen) return;
 
@@ -28,9 +30,14 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
             setClasses(data);
         });
 
+        const unsubSchools = schoolService.subscribe((data) => {
+            setSchools(data);
+        });
+
         return () => {
             unsubUsers();
             unsubClasses();
+            unsubSchools();
         };
     }, [isOpen]);
 
@@ -38,6 +45,7 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
     const handleEditUser = (user) => {
         setSelectedUser(user);
         setSelectedClasses(user.assignedClasses || []);
+        setSelectedSchool(user.schoolId || null);
     };
 
     // 切換班級選取
@@ -53,18 +61,20 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
     const handleApprove = async () => {
         if (!selectedUser) return;
 
-        await userService.approve(selectedUser.id, selectedClasses);
+        await userService.approve(selectedUser.id, selectedClasses, selectedSchool);
         setSelectedUser(null);
         setSelectedClasses([]);
+        setSelectedSchool(null);
     };
 
-    // 更新班級指派
+    // 更新學校與班級指派
     const handleUpdateClasses = async () => {
         if (!selectedUser) return;
 
-        await userService.updateAssignedClasses(selectedUser.id, selectedClasses);
+        await userService.updateAssignedClasses(selectedUser.id, selectedClasses, selectedSchool);
         setSelectedUser(null);
         setSelectedClasses([]);
+        setSelectedSchool(null);
     };
 
     // 拒絕/撤銷
@@ -129,28 +139,71 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
                                 {getRoleBadge(selectedUser.role)}
                             </div>
 
+                            {/* 指派學校 */}
+                            <div className="bg-white border-2 border-[#2D3436] rounded-lg p-4">
+                                <h4 className="font-bold text-[#2D3436] mb-3 flex items-center gap-2">
+                                    <Building2 size={18} />
+                                    指派學校
+                                </h4>
+                                {schools.length === 0 ? (
+                                    <QuickAddSchool onAdd={async (name, city, district) => {
+                                        await schoolService.add({ name, city, district });
+                                    }} />
+                                ) : (
+                                    <div className="space-y-3">
+                                        <div className="flex flex-wrap gap-2">
+                                            {schools.map((school) => (
+                                                <button
+                                                    key={school.id}
+                                                    onClick={() => setSelectedSchool(selectedSchool === school.id ? null : school.id)}
+                                                    className={`px-3 py-2 border-2 border-[#2D3436] rounded-lg font-bold text-sm transition-all
+                                                      ${selectedSchool === school.id
+                                                            ? 'bg-[#A29BFE] text-white shadow-[2px_2px_0_#2D3436]'
+                                                            : 'bg-white hover:bg-[#A29BFE]/20'}`}
+                                                >
+                                                    {selectedSchool === school.id && <Check size={14} className="inline mr-1" />}
+                                                    🏫 {school.name}
+                                                    {school.city && <span className="text-xs opacity-70 ml-1">({school.city})</span>}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <QuickAddSchool compact onAdd={async (name, city, district) => {
+                                            await schoolService.add({ name, city, district });
+                                        }} />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* 指派班級 */}
                             <div className="bg-white border-2 border-[#2D3436] rounded-lg p-4">
                                 <h4 className="font-bold text-[#2D3436] mb-3 flex items-center gap-2">
                                     <School size={18} />
                                     指派班級
                                 </h4>
                                 {classes.length === 0 ? (
-                                    <p className="text-sm text-[#636E72]">尚無班級，請先建立班級</p>
+                                    <QuickAddClass onAdd={async (name) => {
+                                        await classService.add({ name });
+                                    }} />
                                 ) : (
-                                    <div className="flex flex-wrap gap-2">
-                                        {classes.map((cls) => (
-                                            <button
-                                                key={cls.id}
-                                                onClick={() => toggleClass(cls.id)}
-                                                className={`px-3 py-2 border-2 border-[#2D3436] rounded-lg font-bold text-sm transition-all
+                                    <div className="space-y-3">
+                                        <div className="flex flex-wrap gap-2">
+                                            {classes.map((cls) => (
+                                                <button
+                                                    key={cls.id}
+                                                    onClick={() => toggleClass(cls.id)}
+                                                    className={`px-3 py-2 border-2 border-[#2D3436] rounded-lg font-bold text-sm transition-all
                           ${selectedClasses.includes(cls.id)
-                                                        ? 'bg-[#54A0FF] text-white shadow-[2px_2px_0_#2D3436]'
-                                                        : 'bg-white hover:bg-[#FECA57]/20'}`}
-                                            >
-                                                {selectedClasses.includes(cls.id) && <Check size={14} className="inline mr-1" />}
-                                                {cls.name}
-                                            </button>
-                                        ))}
+                                                            ? 'bg-[#54A0FF] text-white shadow-[2px_2px_0_#2D3436]'
+                                                            : 'bg-white hover:bg-[#FECA57]/20'}`}
+                                                >
+                                                    {selectedClasses.includes(cls.id) && <Check size={14} className="inline mr-1" />}
+                                                    {cls.name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <QuickAddClass compact onAdd={async (name) => {
+                                            await classService.add({ name });
+                                        }} />
                                     </div>
                                 )}
                             </div>
@@ -303,6 +356,188 @@ const UserRow = ({ user, onEdit, onReject, getRoleBadge, formatTime, classes, is
                         )}
                     </>
                 )}
+            </div>
+        </div>
+    );
+};
+
+// 快速建立班級元件
+const QuickAddClass = ({ onAdd, compact = false }) => {
+    const [newClassName, setNewClassName] = useState('');
+    const [isAdding, setIsAdding] = useState(false);
+
+    const handleAdd = async () => {
+        if (!newClassName.trim()) return;
+        setIsAdding(true);
+        try {
+            await onAdd(newClassName.trim());
+            setNewClassName('');
+        } catch (error) {
+            console.error('建立班級失敗:', error);
+        }
+        setIsAdding(false);
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handleAdd();
+        }
+    };
+
+    if (compact) {
+        return (
+            <div className="flex gap-2 items-center pt-2 border-t border-dashed border-[#2D3436]/20">
+                <input
+                    type="text"
+                    value={newClassName}
+                    onChange={(e) => setNewClassName(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="新增班級..."
+                    className="flex-1 px-3 py-1.5 border-2 border-[#2D3436] rounded-lg text-sm"
+                    disabled={isAdding}
+                />
+                <button
+                    onClick={handleAdd}
+                    disabled={!newClassName.trim() || isAdding}
+                    className="btn-pop px-3 py-1.5 bg-[#1DD1A1] text-white text-xs font-bold disabled:opacity-50"
+                >
+                    {isAdding ? '...' : '+ 新增'}
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-3">
+            <p className="text-sm text-[#636E72]">尚無班級，請建立第一個班級：</p>
+            <div className="flex gap-2">
+                <input
+                    type="text"
+                    value={newClassName}
+                    onChange={(e) => setNewClassName(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="輸入班級名稱 (例如：一年甲班)"
+                    className="flex-1 px-3 py-2 border-2 border-[#2D3436] rounded-lg font-medium"
+                    disabled={isAdding}
+                />
+                <button
+                    onClick={handleAdd}
+                    disabled={!newClassName.trim() || isAdding}
+                    className="btn-pop px-4 py-2 bg-[#1DD1A1] text-white font-bold disabled:opacity-50 flex items-center gap-1"
+                >
+                    {isAdding ? '建立中...' : (
+                        <>
+                            <span>+</span> 建立班級
+                        </>
+                    )}
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// 快速建立學校元件
+const QuickAddSchool = ({ onAdd, compact = false }) => {
+    const [newSchoolName, setNewSchoolName] = useState('');
+    const [newSchoolCity, setNewSchoolCity] = useState('');
+    const [isAdding, setIsAdding] = useState(false);
+
+    const handleAdd = async () => {
+        if (!newSchoolName.trim()) return;
+        setIsAdding(true);
+        try {
+            await onAdd(newSchoolName.trim(), newSchoolCity.trim() || null, null);
+            setNewSchoolName('');
+            setNewSchoolCity('');
+        } catch (error) {
+            console.error('建立學校失敗:', error);
+        }
+        setIsAdding(false);
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handleAdd();
+        }
+    };
+
+    // 台灣縣市列表
+    const cities = [
+        '台北市', '新北市', '桃園市', '台中市', '台南市', '高雄市',
+        '基隆市', '新竹市', '新竹縣', '苗栗縣', '彰化縣', '南投縣',
+        '雲林縣', '嘉義市', '嘉義縣', '屏東縣', '宜蘭縣', '花蓮縣',
+        '台東縣', '澎湖縣', '金門縣', '連江縣'
+    ];
+
+    if (compact) {
+        return (
+            <div className="flex gap-2 items-center pt-2 border-t border-dashed border-[#2D3436]/20">
+                <select
+                    value={newSchoolCity}
+                    onChange={(e) => setNewSchoolCity(e.target.value)}
+                    className="px-2 py-1.5 border-2 border-[#2D3436] rounded-lg text-sm bg-white"
+                    disabled={isAdding}
+                >
+                    <option value="">縣市</option>
+                    {cities.map(city => (
+                        <option key={city} value={city}>{city}</option>
+                    ))}
+                </select>
+                <input
+                    type="text"
+                    value={newSchoolName}
+                    onChange={(e) => setNewSchoolName(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="學校名稱..."
+                    className="flex-1 px-3 py-1.5 border-2 border-[#2D3436] rounded-lg text-sm"
+                    disabled={isAdding}
+                />
+                <button
+                    onClick={handleAdd}
+                    disabled={!newSchoolName.trim() || isAdding}
+                    className="btn-pop px-3 py-1.5 bg-[#A29BFE] text-white text-xs font-bold disabled:opacity-50"
+                >
+                    {isAdding ? '...' : '+ 新增'}
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-3">
+            <p className="text-sm text-[#636E72]">尚無學校，請建立第一個學校：</p>
+            <div className="flex gap-2 flex-wrap">
+                <select
+                    value={newSchoolCity}
+                    onChange={(e) => setNewSchoolCity(e.target.value)}
+                    className="px-3 py-2 border-2 border-[#2D3436] rounded-lg font-medium bg-white"
+                    disabled={isAdding}
+                >
+                    <option value="">選擇縣市</option>
+                    {cities.map(city => (
+                        <option key={city} value={city}>{city}</option>
+                    ))}
+                </select>
+                <input
+                    type="text"
+                    value={newSchoolName}
+                    onChange={(e) => setNewSchoolName(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="輸入學校名稱 (例如：台北市立國語實小)"
+                    className="flex-1 min-w-[200px] px-3 py-2 border-2 border-[#2D3436] rounded-lg font-medium"
+                    disabled={isAdding}
+                />
+                <button
+                    onClick={handleAdd}
+                    disabled={!newSchoolName.trim() || isAdding}
+                    className="btn-pop px-4 py-2 bg-[#A29BFE] text-white font-bold disabled:opacity-50 flex items-center gap-1"
+                >
+                    {isAdding ? '建立中...' : (
+                        <>
+                            <span>🏫</span> 建立學校
+                        </>
+                    )}
+                </button>
             </div>
         </div>
     );

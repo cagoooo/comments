@@ -1,6 +1,13 @@
 /**
  * Firestore 資料服務
  * 學生資料、設定、範本、班級與歷史記錄的 CRUD 操作
+ * 
+ * 資料隔離架構：
+ * - 學生資料: users/{userId}/students/{studentId}
+ * - 範本資料: users/{userId}/templates/{templateId}
+ * - 設定資料: users/{userId}/settings/user
+ * - 歷史記錄: users/{userId}/students/{studentId}/history/{historyId}
+ * - 班級資料: classes/{classId} (全域共用)
  */
 import {
     collection,
@@ -20,12 +27,56 @@ import {
 } from 'firebase/firestore';
 import { db } from './config';
 
+// 當前使用者 ID（用於資料隔離）
+let currentUserId = null;
+
+/**
+ * 設定當前使用者 ID
+ * @param {string} userId - 使用者 UID
+ */
+export const setCurrentUserId = (userId) => {
+    currentUserId = userId;
+};
+
+/**
+ * 取得當前使用者 ID
+ * @returns {string|null}
+ */
+export const getCurrentUserId = () => currentUserId;
+
 // 集合名稱
 const COLLECTIONS = {
+    USERS: 'users',
     STUDENTS: 'students',
     SETTINGS: 'settings',
     TEMPLATES: 'templates',
-    CLASSES: 'classes'
+    CLASSES: 'classes',
+    SCHOOLS: 'schools'
+};
+
+/**
+ * 取得使用者專屬的集合參考
+ * @param {string} collectionName - 集合名稱
+ * @returns {CollectionReference}
+ */
+const getUserCollection = (collectionName) => {
+    if (!currentUserId) {
+        throw new Error('使用者 ID 未設定，請先呼叫 setCurrentUserId()');
+    }
+    return collection(db, COLLECTIONS.USERS, currentUserId, collectionName);
+};
+
+/**
+ * 取得使用者專屬的文件參考
+ * @param {string} collectionName - 集合名稱
+ * @param {string} docId - 文件 ID
+ * @returns {DocumentReference}
+ */
+const getUserDoc = (collectionName, docId) => {
+    if (!currentUserId) {
+        throw new Error('使用者 ID 未設定，請先呼叫 setCurrentUserId()');
+    }
+    return doc(db, COLLECTIONS.USERS, currentUserId, collectionName, docId);
 };
 
 /**
@@ -33,7 +84,13 @@ const COLLECTIONS = {
  */
 export const studentService = {
     subscribe: (callback, classId = null) => {
-        let studentsRef = collection(db, COLLECTIONS.STUDENTS);
+        if (!currentUserId) {
+            console.error('使用者 ID 未設定');
+            callback([]);
+            return () => { };
+        }
+
+        const studentsRef = getUserCollection(COLLECTIONS.STUDENTS);
 
         return onSnapshot(studentsRef, (snapshot) => {
             let students = [];
@@ -48,12 +105,13 @@ export const studentService = {
             callback(students);
         }, (error) => {
             console.error('Firestore 訂閱錯誤:', error);
+            callback([]);
         });
     },
 
     add: async (student) => {
         try {
-            const studentRef = doc(db, COLLECTIONS.STUDENTS, student.id.toString());
+            const studentRef = getUserDoc(COLLECTIONS.STUDENTS, student.id.toString());
             await setDoc(studentRef, {
                 ...student,
                 createdAt: serverTimestamp(),
@@ -69,7 +127,7 @@ export const studentService = {
         try {
             const batch = writeBatch(db);
             students.forEach((student) => {
-                const studentRef = doc(db, COLLECTIONS.STUDENTS, student.id.toString());
+                const studentRef = getUserDoc(COLLECTIONS.STUDENTS, student.id.toString());
                 batch.set(studentRef, {
                     ...student,
                     createdAt: serverTimestamp(),
@@ -85,7 +143,7 @@ export const studentService = {
 
     update: async (id, updates) => {
         try {
-            const studentRef = doc(db, COLLECTIONS.STUDENTS, id.toString());
+            const studentRef = getUserDoc(COLLECTIONS.STUDENTS, id.toString());
             await setDoc(studentRef, {
                 ...updates,
                 updatedAt: serverTimestamp()
@@ -98,7 +156,7 @@ export const studentService = {
 
     delete: async (id) => {
         try {
-            const studentRef = doc(db, COLLECTIONS.STUDENTS, id.toString());
+            const studentRef = getUserDoc(COLLECTIONS.STUDENTS, id.toString());
             await deleteDoc(studentRef);
         } catch (error) {
             console.error('刪除學生失敗:', error);
@@ -110,7 +168,7 @@ export const studentService = {
         try {
             const batch = writeBatch(db);
             ids.forEach((id) => {
-                const studentRef = doc(db, COLLECTIONS.STUDENTS, id.toString());
+                const studentRef = getUserDoc(COLLECTIONS.STUDENTS, id.toString());
                 batch.delete(studentRef);
             });
             await batch.commit();
@@ -122,7 +180,7 @@ export const studentService = {
 
     deleteAll: async () => {
         try {
-            const studentsRef = collection(db, COLLECTIONS.STUDENTS);
+            const studentsRef = getUserCollection(COLLECTIONS.STUDENTS);
             const snapshot = await getDocs(studentsRef);
             const batch = writeBatch(db);
             snapshot.forEach((doc) => {
@@ -137,23 +195,32 @@ export const studentService = {
 };
 
 /**
- * 設定服務
+ * 設定服務（使用者隔離）
  */
 export const settingsService = {
     subscribe: (callback) => {
-        const settingsRef = doc(db, COLLECTIONS.SETTINGS, 'global');
+        if (!currentUserId) {
+            console.error('使用者 ID 未設定');
+            callback({});
+            return () => { };
+        }
+
+        const settingsRef = getUserDoc(COLLECTIONS.SETTINGS, 'user');
         return onSnapshot(settingsRef, (docSnap) => {
             if (docSnap.exists()) {
                 callback(docSnap.data());
+            } else {
+                callback({});
             }
         }, (error) => {
             console.error('設定訂閱錯誤:', error);
+            callback({});
         });
     },
 
     save: async (settings) => {
         try {
-            const settingsRef = doc(db, COLLECTIONS.SETTINGS, 'global');
+            const settingsRef = getUserDoc(COLLECTIONS.SETTINGS, 'user');
             await setDoc(settingsRef, {
                 ...settings,
                 updatedAt: serverTimestamp()
@@ -166,11 +233,17 @@ export const settingsService = {
 };
 
 /**
- * 範本服務
+ * 範本服務（使用者隔離）
  */
 export const templateService = {
     subscribe: (callback) => {
-        const templatesRef = collection(db, COLLECTIONS.TEMPLATES);
+        if (!currentUserId) {
+            console.error('使用者 ID 未設定');
+            callback([]);
+            return () => { };
+        }
+
+        const templatesRef = getUserCollection(COLLECTIONS.TEMPLATES);
         return onSnapshot(templatesRef, (snapshot) => {
             const templates = [];
             snapshot.forEach((doc) => {
@@ -180,13 +253,14 @@ export const templateService = {
             callback(templates);
         }, (error) => {
             console.error('範本訂閱錯誤:', error);
+            callback([]);
         });
     },
 
     add: async (template) => {
         try {
             const templateId = Date.now().toString();
-            const templateRef = doc(db, COLLECTIONS.TEMPLATES, templateId);
+            const templateRef = getUserDoc(COLLECTIONS.TEMPLATES, templateId);
             await setDoc(templateRef, {
                 ...template,
                 createdAt: serverTimestamp(),
@@ -201,7 +275,7 @@ export const templateService = {
 
     delete: async (id) => {
         try {
-            const templateRef = doc(db, COLLECTIONS.TEMPLATES, id.toString());
+            const templateRef = getUserDoc(COLLECTIONS.TEMPLATES, id.toString());
             await deleteDoc(templateRef);
         } catch (error) {
             console.error('刪除範本失敗:', error);
@@ -211,7 +285,7 @@ export const templateService = {
 
     incrementUsage: async (id) => {
         try {
-            const templateRef = doc(db, COLLECTIONS.TEMPLATES, id.toString());
+            const templateRef = getUserDoc(COLLECTIONS.TEMPLATES, id.toString());
             const docSnap = await getDoc(templateRef);
             if (docSnap.exists()) {
                 await setDoc(templateRef, {
@@ -284,12 +358,78 @@ export const classService = {
 };
 
 /**
- * 歷史記錄服務
- * 儲存在 students/{studentId}/history 子集合
+ * 學校服務（全域共用）
+ * 用於多校支援
+ */
+export const schoolService = {
+    subscribe: (callback) => {
+        const schoolsRef = collection(db, COLLECTIONS.SCHOOLS);
+        return onSnapshot(schoolsRef, (snapshot) => {
+            const schools = [];
+            snapshot.forEach((doc) => {
+                schools.push({ id: doc.id, ...doc.data() });
+            });
+            schools.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'zh-TW'));
+            callback(schools);
+        }, (error) => {
+            console.error('學校訂閱錯誤:', error);
+            callback([]);
+        });
+    },
+
+    add: async (schoolData) => {
+        try {
+            const schoolId = Date.now().toString();
+            const schoolRef = doc(db, COLLECTIONS.SCHOOLS, schoolId);
+            await setDoc(schoolRef, {
+                ...schoolData,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            });
+            return schoolId;
+        } catch (error) {
+            console.error('新增學校失敗:', error);
+            throw error;
+        }
+    },
+
+    update: async (id, updates) => {
+        try {
+            const schoolRef = doc(db, COLLECTIONS.SCHOOLS, id.toString());
+            await setDoc(schoolRef, {
+                ...updates,
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+        } catch (error) {
+            console.error('更新學校失敗:', error);
+            throw error;
+        }
+    },
+
+    delete: async (id) => {
+        try {
+            const schoolRef = doc(db, COLLECTIONS.SCHOOLS, id.toString());
+            await deleteDoc(schoolRef);
+        } catch (error) {
+            console.error('刪除學校失敗:', error);
+            throw error;
+        }
+    }
+};
+
+/**
+ * 歷史記錄服務（使用者隔離）
+ * 儲存在 users/{userId}/students/{studentId}/history 子集合
  */
 export const historyService = {
     subscribe: (studentId, callback) => {
-        const historyRef = collection(db, COLLECTIONS.STUDENTS, studentId.toString(), 'history');
+        if (!currentUserId) {
+            console.error('使用者 ID 未設定');
+            callback([]);
+            return () => { };
+        }
+
+        const historyRef = collection(db, COLLECTIONS.USERS, currentUserId, COLLECTIONS.STUDENTS, studentId.toString(), 'history');
         return onSnapshot(historyRef, (snapshot) => {
             const history = [];
             snapshot.forEach((doc) => {
@@ -299,12 +439,16 @@ export const historyService = {
             callback(history);
         }, (error) => {
             console.error('歷史記錄訂閱錯誤:', error);
+            callback([]);
         });
     },
 
     add: async (studentId, comment, styles = []) => {
+        if (!currentUserId) {
+            throw new Error('使用者 ID 未設定');
+        }
         try {
-            const historyRef = collection(db, COLLECTIONS.STUDENTS, studentId.toString(), 'history');
+            const historyRef = collection(db, COLLECTIONS.USERS, currentUserId, COLLECTIONS.STUDENTS, studentId.toString(), 'history');
             await addDoc(historyRef, {
                 comment,
                 styles,
@@ -317,8 +461,12 @@ export const historyService = {
     },
 
     getAll: async (studentId) => {
+        if (!currentUserId) {
+            console.error('使用者 ID 未設定');
+            return [];
+        }
         try {
-            const historyRef = collection(db, COLLECTIONS.STUDENTS, studentId.toString(), 'history');
+            const historyRef = collection(db, COLLECTIONS.USERS, currentUserId, COLLECTIONS.STUDENTS, studentId.toString(), 'history');
             const snapshot = await getDocs(historyRef);
             const history = [];
             snapshot.forEach((doc) => {
@@ -332,8 +480,11 @@ export const historyService = {
     },
 
     delete: async (studentId, historyId) => {
+        if (!currentUserId) {
+            throw new Error('使用者 ID 未設定');
+        }
         try {
-            const historyDocRef = doc(db, COLLECTIONS.STUDENTS, studentId.toString(), 'history', historyId);
+            const historyDocRef = doc(db, COLLECTIONS.USERS, currentUserId, COLLECTIONS.STUDENTS, studentId.toString(), 'history', historyId);
             await deleteDoc(historyDocRef);
         } catch (error) {
             console.error('刪除歷史記錄失敗:', error);
@@ -342,4 +493,4 @@ export const historyService = {
     }
 };
 
-export default { studentService, settingsService, templateService, classService, historyService };
+export default { studentService, settingsService, templateService, classService, schoolService, historyService, setCurrentUserId, getCurrentUserId };

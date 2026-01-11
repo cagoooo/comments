@@ -1,0 +1,29 @@
+{
+    "name": "點石成金蜂",
+    "short_name": "金蜂評語",
+    "description": "AI 學生評語產生器 - 點石成金蜂🐝",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#FFF9E6",
+    "theme_color": "#FECA57",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/bee-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/bee-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": [
+        "education",
+        "productivity"
+    ],
+    "lang": "zh-TW"
+}

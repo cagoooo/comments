@@ -115,12 +115,34 @@ const Header = ({
                         </div>
                     )}
                     {/* 下拉選單 */}
-                    <div className="absolute right-0 top-12 bg-white border-2 border-[#2D3436] rounded-lg shadow-[3px_3px_0_#2D3436] p-3 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                    <div className="absolute right-0 top-12 bg-white border-2 border-[#2D3436] rounded-lg shadow-[3px_3px_0_#2D3436] p-3 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
                         <div className="text-sm font-bold text-[#2D3436] truncate">{currentUser?.displayName}</div>
-                        <div className="text-xs text-[#636E72] truncate mb-3">{currentUser?.email}</div>
+                        <div className="text-xs text-[#636E72] truncate">{currentUser?.email}</div>
+
+                        {/* 學校資訊 */}
+                        {currentUser?.schoolName && (
+                            <div className="mt-2 pt-2 border-t border-dashed border-[#E8DCC8]">
+                                <div className="text-xs text-[#636E72] flex items-center gap-1">
+                                    🏫 <span className="font-bold text-[#A29BFE]">{currentUser.schoolName}</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 班級資訊 */}
+                        {currentUser?.assignedClassNames && currentUser.assignedClassNames.length > 0 && (
+                            <div className={`${currentUser?.schoolName ? 'mt-1' : 'mt-2 pt-2 border-t border-dashed border-[#E8DCC8]'}`}>
+                                <div className="text-xs text-[#636E72] flex items-start gap-1">
+                                    <School size={12} className="mt-0.5 shrink-0" />
+                                    <span className="font-bold text-[#54A0FF]">
+                                        {currentUser.assignedClassNames.join('、')}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+
                         <button
                             onClick={onLogout}
-                            className="w-full btn-pop px-3 py-2 bg-[#636E72] text-white text-xs font-bold flex items-center justify-center gap-2"
+                            className="w-full btn-pop px-3 py-2 bg-[#636E72] text-white text-xs font-bold flex items-center justify-center gap-2 mt-3"
                         >
                             <LogOut size={14} />
                             登出

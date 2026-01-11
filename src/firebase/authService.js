@@ -161,16 +161,23 @@ export const userService = {
 
     /**
      * 審核使用者（管理員用）
+     * @param {string} uid - 使用者 ID
+     * @param {string[]} assignedClasses - 指派的班級 ID 陣列
+     * @param {string|null} schoolId - 指派的學校 ID
      */
-    approve: async (uid, assignedClasses = []) => {
+    approve: async (uid, assignedClasses = [], schoolId = null) => {
         try {
             const userRef = doc(db, COLLECTIONS.USERS, uid);
-            await updateDoc(userRef, {
+            const updateData = {
                 role: USER_ROLES.TEACHER,
                 assignedClasses,
                 approvedAt: serverTimestamp(),
                 approvedBy: auth.currentUser?.uid || 'unknown'
-            });
+            };
+            if (schoolId) {
+                updateData.schoolId = schoolId;
+            }
+            await updateDoc(userRef, updateData);
             return { success: true };
         } catch (error) {
             console.error('審核使用者失敗:', error);
@@ -179,15 +186,22 @@ export const userService = {
     },
 
     /**
-     * 更新使用者班級指派（管理員用）
+     * 更新使用者學校與班級指派（管理員用）
+     * @param {string} uid - 使用者 ID
+     * @param {string[]} assignedClasses - 指派的班級 ID 陣列
+     * @param {string|null} schoolId - 指派的學校 ID
      */
-    updateAssignedClasses: async (uid, assignedClasses) => {
+    updateAssignedClasses: async (uid, assignedClasses, schoolId = null) => {
         try {
             const userRef = doc(db, COLLECTIONS.USERS, uid);
-            await updateDoc(userRef, {
+            const updateData = {
                 assignedClasses,
                 updatedAt: serverTimestamp()
-            });
+            };
+            if (schoolId !== undefined) {
+                updateData.schoolId = schoolId;
+            }
+            await updateDoc(userRef, updateData);
             return { success: true };
         } catch (error) {
             console.error('更新班級指派失敗:', error);

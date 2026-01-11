@@ -45,7 +45,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
     // --- 管理員面板 ---
     const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
 
-    // --- 學生資料 Hook (Firebase 同步) ---
+    // --- 學生資料 Hook (Firebase 同步，使用者資料隔離) ---
     const {
         students,
         setStudents,
@@ -61,7 +61,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
         addTagToStudents,
         removeTag,
         syncComment
-    } = useStudents();
+    } = useStudents(currentUser?.uid);
 
     // --- 本地狀態 ---
     const [rawInput, setRawInput] = useState("王小明\n李大華\n張美麗");
