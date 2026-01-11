@@ -1,183 +1,155 @@
-# 點石成金蜂🐝 開發進度紀錄
+# 點石成金蜂 開發進度記錄
 
-> 最後更新：2026-01-11 12:07 | **v2.0.0** | 13 項功能完成
-
----
-
-## 📊 目前完成進度總覽
-
-### ✅ 已完成功能 (13 項)
-
-| # | 功能 | 說明 | 主要檔案 |
-|---|------|------|----------|
-| 1 | 模組化架構 | React 組件化設計 | `src/components/` |
-| 2 | RWD 響應式設計 | 手機/桌面自適應 | Tailwind CSS |
-| 3 | 教育手寫普普風 UI | 獨特視覺風格 | `index.css` |
-| 4 | AI 評語生成 | Gemini API 整合 | `geminiApi.js` |
-| 5 | Firebase 資料持久化 | Firestore 即時同步 | `firestoreService.js` |
-| 6 | API Key 管理介面 | localStorage 儲存 | `ApiKeyModal.jsx` |
-| 7 | 單一學生即時生成 | 個別學生生成按鈕 | `StudentCard/Table.jsx` |
-| 8 | 評語範本庫 | 收藏/套用評語 | `TemplateModal.jsx` |
-| 9 | 成語搜尋與常用排序 | 搜尋框+使用次數排序 | `IdiomSidebar.jsx` |
-| 10 | 評語字數統計 | 顏色視覺提示 | `StudentCard/Table.jsx` |
-| 11 | PWA 離線支援 | vite-plugin-pwa | `vite.config.js` |
-| 12 | 班級管理系統 | CRUD + Header選擇器 | `ClassModal.jsx` |
-| 13 | 歷史記錄與版本回溯 | 自動儲存+還原 | `HistoryModal.jsx` |
-| 14 | **Google 登入與權限管理** | OAuth + 管理員審核 | `authService.js` |
+> **更新日期**：2026-01-11 18:51
+> **版本**：v2.1.6
+> **GitHub**：https://github.com/cagoooo/comments
 
 ---
 
-## 🔐 Google 登入系統詳情
+## 🎉 今日完成項目（2026-01-11）
 
-### 核心設定
-- **管理員帳號**：`cagooo@gmail.com`（自動成為 admin）
-- **Firebase 專案**：`comments-67079`
-- **Firestore 安全規則**：已部署 ✅
+### ✅ P1 功能
+- [x] Excel 批次匯入/匯出（ImportExportModal）
+- [x] 列印與 PDF 匯出（PrintModal）
 
-### 使用者角色
-```
-admin    → 管理員，可審核使用者、指派班級
-teacher  → 教師，已審核通過，可使用指定班級
-pending  → 待審核，新使用者預設狀態
-```
+### ✅ P2 功能
+- [x] React.lazy 程式碼分割（8 個 Modal）
+- [x] 輸入面板 Excel 拖拽匯入
+- [x] 班級統計儀表板（DashboardModal）
+  - 完成進度條
+  - 字數統計（平均/最大/最小/總計）
+  - 熱門特質 TOP 10
+  - 待完成學生列表
+- [x] Header RWD 響應式優化
+  - 手機版「更多」下拉選單
+  - 按鈕尺寸響應式調整
 
-### 新增檔案清單
-```
-src/firebase/
-├── config.js        # 新增 Auth + GoogleProvider
-└── authService.js   # 認證服務 + userService
-
-src/components/
-├── AuthWrapper.jsx  # 認證狀態包裝 (main.jsx 使用)
-├── LoginPage.jsx    # Google 登入頁面
-├── PendingPage.jsx  # 待審核狀態頁面
-└── AdminPanel.jsx   # 管理員審核面板
-
-根目錄/
-├── firestore.rules  # Firestore 安全規則
-├── firebase.json    # Firebase CLI 設定
-└── .firebaserc      # Firebase 專案連結
-```
+### ✅ 部署與驗證
+- [x] Firebase Hosting 部署：https://comments-67079.web.app
+- [x] GitHub Pages 部署：https://cagoooo.github.io/comments/
+- [x] Google OAuth 品牌驗證頁面
+  - home.html（產品首頁）
+  - privacy.html（隱私權政策）
+  - terms.html（服務條款）
+- [x] **品牌驗證已完成** ✅
 
 ---
 
-## 📁 完整專案結構
+## 📂 新增/修改的檔案
 
+### 新增檔案
 ```
-h:\comments\
-├── src/
-│   ├── components/           # 20+ 個元件
-│   │   ├── AuthWrapper.jsx   ✅ 認證包裝
-│   │   ├── LoginPage.jsx     ✅ 登入頁面
-│   │   ├── PendingPage.jsx   ✅ 待審核頁面
-│   │   ├── AdminPanel.jsx    ✅ 管理員面板
-│   │   ├── Header.jsx        ✅ 使用者頭像+登出+管理
-│   │   ├── StudentCard.jsx   ✅ 生成+收藏+歷史+字數
-│   │   ├── StudentTable.jsx  ✅ 生成+收藏+歷史+字數
-│   │   ├── IdiomSidebar.jsx  ✅ 搜尋+常用成語
-│   │   ├── TemplateModal.jsx ✅ 範本庫
-│   │   ├── ClassModal.jsx    ✅ 班級管理
-│   │   ├── HistoryModal.jsx  ✅ 歷史記錄
-│   │   ├── ApiKeyModal.jsx
-│   │   ├── StyleModal.jsx
-│   │   ├── InstallPrompt.jsx ✅ PWA 安裝提示
-│   │   ├── InputPanel.jsx
-│   │   ├── GeneratePanel.jsx
-│   │   ├── StyleBar.jsx
-│   │   ├── Dialog.jsx
-│   │   ├── LoadingOverlay.jsx
-│   │   ├── DataLoading.jsx
-│   │   └── Footer.jsx
-│   │
-│   ├── firebase/
-│   │   ├── config.js          ✅ Auth + Firestore
-│   │   ├── authService.js     ✅ 認證 + 使用者服務
-│   │   ├── firestoreService.js✅ 學生/班級/範本/歷史
-│   │   └── index.js           ✅ 統一匯出
-│   │
-│   ├── hooks/
-│   │   ├── useStudents.js     ✅ Firebase 同步
-│   │   └── useDialog.js
-│   │
-│   ├── utils/
-│   │   ├── geminiApi.js       ✅ Gemini API
-│   │   └── downloadHelper.js
-│   │
-│   ├── data/
-│   │   ├── idiomData.js       # 成語資料
-│   │   └── styleDefinitions.js
-│   │
-│   ├── App.jsx                ✅ 主應用 (接收 auth props)
-│   ├── main.jsx               ✅ 入口 (AuthWrapper)
-│   └── index.css
-│
-├── public/
-│   └── manifest.json          ✅ PWA manifest
-│
-├── firestore.rules            ✅ 安全規則 (已部署)
-├── firebase.json              ✅ Firebase CLI
-├── .firebaserc                ✅ 專案連結
-├── vite.config.js             ✅ PWA 插件
-├── package.json               ✅ v2.0.0
-├── FUTURE_ROADMAP.md          ✅ 未來發展藍圖
-└── ...
+src/components/ImportExportModal.jsx    - Excel 匯入匯出
+src/components/PrintModal.jsx           - 列印與 PDF
+src/components/DashboardModal.jsx       - 班級統計儀表板
+src/components/LazyLoading.jsx          - 懶載入 Loading
+src/utils/excelHelper.js                - Excel 處理工具
+public/home.html                        - OAuth 首頁
+public/privacy.html                     - 隱私權政策
+public/terms.html                       - 服務條款
+.github/workflows/deploy-gh-pages.yml   - GitHub Pages 自動部署
+vite.config.gh-pages.js                 - GitHub Pages 專用配置
+```
+
+### 修改檔案
+```
+src/App.jsx                - 整合所有 Modal、React.lazy
+src/components/Header.jsx  - RWD 優化、更多選單
+src/components/InputPanel.jsx - Excel 拖拽匯入
+firebase.json              - 加入 Hosting 配置
+package.json               - 加入 build:gh-pages 腳本
 ```
 
 ---
 
-## 🚧 待完成事項
+## 📋 待完成任務
 
-### 優先處理
-1. **Git 推送到 GitHub**
-   ```powershell
-   cd H:\comments
-   git add -A
-   git commit -m "v2.0.0: Google登入與管理員審核系統"
-   git branch -M main
-   git push -u origin main
-   ```
-   - Remote 已設定：`https://github.com/cagoooo/comments.git`
-   - 可能需刪除 `.git/index.lock` 後重試
+### P2 剩餘
+- [ ] AI 評語優化建議（預估 3-4 hr）
 
-### 下一階段功能建議
-| 優先級 | 功能 | 預估時間 |
-|--------|------|----------|
-| ⭐⭐⭐⭐ | 多教師資料隔離 | 4-6 小時 |
-| ⭐⭐⭐ | Excel 批次匯入 | 4-6 小時 |
-| ⭐⭐ | 列印與 PDF 匯出 | 3-4 小時 |
-| ⭐⭐ | AI 評語優化建議 | 2-3 小時 |
+### P3 長期規劃
+- [ ] TypeScript 遷移（12 hr）
+- [ ] 單元測試覆蓋（16 hr）
+- [ ] 多語言 i18n（8 hr）
+- [ ] 深色模式
+- [ ] 鍵盤快捷鍵
 
 ---
 
-## 🔧 環境與設定
+## 🔧 技術架構
 
-### Firebase 設定
-- **專案 ID**：`comments-67079`
-- **Auth**：Google 登入已啟用 ✅
-- **Firestore**：已啟用 ✅
-- **安全規則**：已部署 ✅
+### 前端
+- React 18 + Vite
+- TailwindCSS
+- React.lazy 動態載入
+- PWA 離線支援
 
-### 本地開發
-```powershell
-cd H:\comments
+### 後端
+- Firebase Firestore（使用者隔離）
+- Firebase Auth（Google 登入）
+- Google Gemini AI
+
+### 部署
+- Firebase Hosting（主要）
+- GitHub Pages（備用）
+- GitHub Actions 自動部署
+
+---
+
+## 📦 依賴套件
+```json
+{
+  "firebase": "^12.7.0",
+  "xlsx": "^0.18.5",
+  "file-saver": "^2.0.5",
+  "jspdf": "^4.0.0",
+  "html2canvas": "^1.4.1",
+  "lucide-react": "^0.469.0"
+}
+```
+
+---
+
+## 🚀 部署指令
+
+```bash
+# 開發
 npm run dev
-# 開啟 http://localhost:5173
-```
 
-### 部署 Firestore 規則
-```powershell
-npx firebase deploy --only firestore:rules
+# 建置
+npm run build
+
+# 部署 Firebase
+npx firebase deploy --only hosting
+
+# GitHub Pages 自動部署（push 即可）
+git push
 ```
 
 ---
 
-## 📝 重要注意事項
+## 📝 最新 Git Commits
 
-1. **管理員帳號**：`cagooo@gmail.com` 登入後自動成為管理員
-2. **新使用者流程**：登入 → 待審核頁面 → 管理員審核 → 可使用
-3. **班級權限**：管理員可指派使用者可存取的班級
-4. **歷史記錄**：每次重新生成評語會自動儲存舊版本
+```
+26d820d1 - feat: 新增 Google OAuth 品牌驗證頁面
+1a7f82b2 - style: 優化 Header RWD 響應式設計
+a75d1a1b - fix: 加入 enablement 參數自動啟用 GitHub Pages
+653d1b29 - ci: 新增 GitHub Pages 自動部署配置
+b6f474f1 - deploy: Firebase Hosting 部署配置
+c778e978 - feat: P2 班級統計儀表板
+8af325fe - style: 改善輸入面板 placeholder 教學說明
+efcd0186 - feat: 輸入面板加入 Excel 批次匯入功能
+```
 
 ---
 
-> 📌 **下次開發提示**：直接閱讀此文件即可快速了解專案現狀，FUTURE_ROADMAP.md 有更詳細的功能規劃。
+## 🌐 正式網址
+
+| 平台 | 網址 |
+|------|------|
+| Firebase | https://comments-67079.web.app |
+| GitHub Pages | https://cagoooo.github.io/comments/ |
+
+---
+
+**下次開發建議**：繼續實作「AI 評語優化建議」功能 ⭐
