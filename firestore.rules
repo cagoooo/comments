@@ -67,10 +67,11 @@ service cloud.firestore {
         allow read: if isAdmin();
       }
       
-      // 設定（使用者隔離）
+      // 設定（使用者隔離 - 含 API Key，僅本人可存取）
+      // ⚠️ 安全考量：管理員也無法讀取，保護 API Key 不被洩漏
       match /settings/{settingId} {
         allow read, write: if isOwner(userId);
-        allow read: if isAdmin();
+        // 注意：此處刻意不給管理員讀取權限，保護 API Key
       }
     }
 

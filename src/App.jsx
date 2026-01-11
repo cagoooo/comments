@@ -32,7 +32,7 @@ import HistoryModal from './components/HistoryModal';
 import AdminPanel from './components/AdminPanel';
 
 // Firebase
-import { templateService, classService, historyService } from './firebase';
+import { templateService, classService, historyService, settingsService } from './firebase';
 
 /**
  * 點石成金蜂🐝 - AI 評語產生器
@@ -102,6 +102,19 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
     // 歷史記錄
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [historyStudent, setHistoryStudent] = useState(null);
+
+    // 從 Firebase 同步 API Key 到 localStorage（使用者隔離）
+    useEffect(() => {
+        if (!currentUser) return;
+
+        const unsubscribe = settingsService.subscribe((settings) => {
+            if (settings?.apiKey) {
+                localStorage.setItem('gemini_api_key', settings.apiKey);
+                setApiKeyConfigured(true);
+            }
+        });
+        return () => unsubscribe();
+    }, [currentUser]);
 
     // 訂閱範本數量
     useEffect(() => {
@@ -343,6 +356,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                     setIsApiKeyModalOpen(false);
                     setApiKeyConfigured(hasApiKey());
                 }}
+                currentUser={currentUser}
             />
 
             {/* 範本庫 Modal */}
