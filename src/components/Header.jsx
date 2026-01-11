@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, X, Settings, Heart, School, Shield, LogOut, FileSpreadsheet, Printer } from 'lucide-react';
+import { Menu, X, Settings, Heart, School, Shield, LogOut, FileSpreadsheet, Printer, BarChart3 } from 'lucide-react';
 
 /**
  * 頁首元件 - 教育手寫普普風
@@ -14,6 +14,7 @@ const Header = ({
     onOpenAdmin,
     onOpenImportExport,
     onOpenPrint,
+    onOpenDashboard,
     onLogout,
     hasApiKey,
     templateCount = 0,
@@ -95,6 +96,16 @@ const Header = ({
                 >
                     <Printer size={18} />
                     <span className="hidden sm:inline">列印</span>
+                </button>
+
+                {/* 統計儀表板按鈕 */}
+                <button
+                    onClick={onOpenDashboard}
+                    className="btn-pop p-2 sm:px-3 sm:py-2 bg-[#6C5CE7] text-white flex items-center gap-1 text-sm"
+                    title="班級統計儀表板"
+                >
+                    <BarChart3 size={18} />
+                    <span className="hidden sm:inline">統計</span>
                 </button>
 
                 {/* 設定按鈕 */}

@@ -38,6 +38,7 @@ const HistoryModal = lazy(() => import('./components/HistoryModal'));
 const AdminPanel = lazy(() => import('./components/AdminPanel'));
 const ImportExportModal = lazy(() => import('./components/ImportExportModal'));
 const PrintModal = lazy(() => import('./components/PrintModal'));
+const DashboardModal = lazy(() => import('./components/DashboardModal'));
 
 // Firebase
 import { templateService, classService, historyService, settingsService } from './firebase';
@@ -119,6 +120,9 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
 
     // 列印與 PDF 匯出
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+
+    // 班級統計儀表板
+    const [isDashboardOpen, setIsDashboardOpen] = useState(false);
 
     // 從 Firebase 同步 API Key 到 localStorage（使用者隔離）
     useEffect(() => {
@@ -457,6 +461,14 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                     students={students}
                     currentClassName={currentClassName}
                 />
+
+                {/* 班級統計儀表板 */}
+                <DashboardModal
+                    isOpen={isDashboardOpen}
+                    onClose={() => setIsDashboardOpen(false)}
+                    students={students}
+                    currentClassName={currentClassName}
+                />
             </Suspense>
 
             {/* 頁首 */}
@@ -469,6 +481,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                 onOpenAdmin={() => setIsAdminPanelOpen(true)}
                 onOpenImportExport={() => setIsImportExportOpen(true)}
                 onOpenPrint={() => setIsPrintModalOpen(true)}
+                onOpenDashboard={() => setIsDashboardOpen(true)}
                 onLogout={onLogout}
                 hasApiKey={apiKeyConfigured}
                 templateCount={templateCount}
