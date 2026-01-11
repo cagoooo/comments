@@ -407,7 +407,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
     };
 
     return (
-        <div className="min-h-screen text-[#2D3436] font-sans flex flex-col relative">
+        <div className="min-h-screen max-w-full overflow-x-hidden text-[#2D3436] font-sans flex flex-col relative">
 
             {/* 資料載入中 */}
             {isLoading && <DataLoading />}

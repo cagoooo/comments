@@ -77,19 +77,19 @@ const StudentTable = ({
     }
 
     return (
-        <div className="card-pop overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[1000px]">
+        <div className="card-pop overflow-x-auto max-w-full">
+            <table className="w-full text-left border-collapse min-w-[850px]">
                 <thead className="bg-[#FF6B9D] text-white">
                     <tr className="text-base font-black">
-                        <th className="p-4 lg:p-5 w-12 text-center border-r-2 border-[#2D3436]/20">
+                        <th className="p-3 lg:p-4 w-10 text-center border-r-2 border-[#2D3436]/20">
                             <button onClick={onToggleAllSelection} className="w-6 h-6 border-2 border-white rounded flex items-center justify-center mx-auto bg-white/20 hover:bg-white/40 transition" disabled={isGenerating}>
                                 {selectedIds.size === students.length && students.length > 0 && <span className="text-sm">✓</span>}
                             </button>
                         </th>
-                        <th className="p-4 lg:p-5 w-32 lg:w-40 border-r-2 border-[#2D3436]/20">📚 姓名</th>
-                        <th className="p-4 lg:p-5 border-r-2 border-[#2D3436]/20 w-1/4">🏷️ 特質標籤</th>
-                        <th className="p-4 lg:p-5 border-r-2 border-[#2D3436]/20">🐝 AI 評語</th>
-                        <th className="p-4 lg:p-5 w-20 text-center">操作</th>
+                        <th className="p-3 lg:p-4 w-28 lg:w-32 border-r-2 border-[#2D3436]/20">📚 姓名</th>
+                        <th className="p-3 lg:p-4 border-r-2 border-[#2D3436]/20 w-1/5">🏷️ 特質標籤</th>
+                        <th className="p-3 lg:p-4 border-r-2 border-[#2D3436]/20">🐝 AI 評語</th>
+                        <th className="p-3 lg:p-4 w-16 text-center">操作</th>
                     </tr>
                 </thead>
                 <tbody className="bg-[#FFFDF5]">
