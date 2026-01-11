@@ -34,6 +34,7 @@ import ClassModal from './components/ClassModal';
 import HistoryModal from './components/HistoryModal';
 import AdminPanel from './components/AdminPanel';
 import ImportExportModal from './components/ImportExportModal';
+import PrintModal from './components/PrintModal';
 
 // Firebase
 import { templateService, classService, historyService, settingsService } from './firebase';
@@ -112,6 +113,9 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
 
     // Excel 匯入/匯出
     const [isImportExportOpen, setIsImportExportOpen] = useState(false);
+
+    // 列印與 PDF 匯出
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
     // 從 Firebase 同步 API Key 到 localStorage（使用者隔離）
     useEffect(() => {
@@ -441,6 +445,14 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                 currentClassName={currentClassName}
             />
 
+            {/* 列印與 PDF 匯出 */}
+            <PrintModal
+                isOpen={isPrintModalOpen}
+                onClose={() => setIsPrintModalOpen(false)}
+                students={students}
+                currentClassName={currentClassName}
+            />
+
             {/* 頁首 */}
             <Header
                 isSidebarOpen={isSidebarOpen}
@@ -450,6 +462,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                 onOpenClasses={() => setIsClassModalOpen(true)}
                 onOpenAdmin={() => setIsAdminPanelOpen(true)}
                 onOpenImportExport={() => setIsImportExportOpen(true)}
+                onOpenPrint={() => setIsPrintModalOpen(true)}
                 onLogout={onLogout}
                 hasApiKey={apiKeyConfigured}
                 templateCount={templateCount}

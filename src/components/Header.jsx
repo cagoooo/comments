@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, X, Settings, Heart, School, Shield, LogOut, FileSpreadsheet } from 'lucide-react';
+import { Menu, X, Settings, Heart, School, Shield, LogOut, FileSpreadsheet, Printer } from 'lucide-react';
 
 /**
  * 頁首元件 - 教育手寫普普風
@@ -13,6 +13,7 @@ const Header = ({
     onOpenClasses,
     onOpenAdmin,
     onOpenImportExport,
+    onOpenPrint,
     onLogout,
     hasApiKey,
     templateCount = 0,
@@ -84,6 +85,16 @@ const Header = ({
                 >
                     <FileSpreadsheet size={18} />
                     <span className="hidden sm:inline">Excel</span>
+                </button>
+
+                {/* 列印按鈕 */}
+                <button
+                    onClick={onOpenPrint}
+                    className="btn-pop p-2 sm:px-3 sm:py-2 bg-[#FF6B9D] text-white flex items-center gap-1 text-sm"
+                    title="列印與 PDF 匯出"
+                >
+                    <Printer size={18} />
+                    <span className="hidden sm:inline">列印</span>
                 </button>
 
                 {/* 設定按鈕 */}
