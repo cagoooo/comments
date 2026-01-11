@@ -126,12 +126,25 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
 
     // 從 Firebase 同步 API Key 到 localStorage（使用者隔離）
     useEffect(() => {
-        if (!currentUser) return;
+        if (!currentUser) {
+            // 用戶登出時清除 API Key
+            localStorage.removeItem('gemini_api_key');
+            setApiKeyConfigured(false);
+            return;
+        }
+
+        // 切換用戶時，先清除舊的 API Key，避免用到別人的
+        localStorage.removeItem('gemini_api_key');
+        setApiKeyConfigured(false);
 
         const unsubscribe = settingsService.subscribe((settings) => {
             if (settings?.apiKey) {
                 localStorage.setItem('gemini_api_key', settings.apiKey);
                 setApiKeyConfigured(true);
+            } else {
+                // 該用戶沒有設定 API Key
+                localStorage.removeItem('gemini_api_key');
+                setApiKeyConfigured(false);
             }
         });
         return () => unsubscribe();
@@ -258,6 +271,9 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
 
         setProgress({ current: 0, total });
 
+        let successCount = 0;
+        let errorCount = 0;
+
         for (let i = 0; i < total; i++) {
             const student = studentsToProcess[i];
 
@@ -281,14 +297,30 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
             // 同步評語到 Firebase
             await syncComment(student.id, aiComment);
 
+            // 統計成功與失敗
+            if (aiComment.includes("❌")) {
+                errorCount++;
+            } else {
+                successCount++;
+            }
+
             setProgress(prev => ({ ...prev, current: i + 1 }));
         }
 
         setIsGenerating(false);
         setProgress({ current: 0, total: 0 });
 
-        // Toast 通知
-        toast.success(`✨ 已完成 ${total} 位學生的評語生成！`);
+        // Toast 通知 - 根據結果顯示不同類型
+        if (errorCount > 0 && successCount === 0) {
+            // 全部失敗
+            toast.error(`生成失敗，請先設定 API Key`);
+        } else if (errorCount > 0) {
+            // 部分失敗
+            toast.warning(`完成 ${successCount} 位，${errorCount} 位失敗`);
+        } else {
+            // 全部成功
+            toast.success(`✨ 已完成 ${total} 位學生的評語生成！`);
+        }
     };
 
     // 下載處理
@@ -329,8 +361,12 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
 
         setIsGeneratingSingle(null);
 
-        // Toast 通知
-        toast.success(`✨ ${student.name} 的評語已生成！`);
+        // Toast 通知 - 根據結果顯示不同類型
+        if (aiComment.includes("❌")) {
+            toast.error(`${student.name}：${aiComment.replace("❌ ", "")}`);
+        } else {
+            toast.success(`✨ ${student.name} 的評語已生成！`);
+        }
     };
 
     // 儲存評語為範本
@@ -420,6 +456,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                             setCurrentClassName('全部學生');
                         }
                     }}
+                    currentUser={currentUser}
                 />
 
                 {/* 歷史記錄 Modal */}

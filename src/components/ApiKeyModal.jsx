@@ -169,8 +169,8 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
                             </div>
 
                             {/* API Key 輸入 */}
-                            <div>
-                                <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                            <div className="bg-white border-3 border-[#2D3436] rounded-lg p-4 shadow-[4px_4px_0_#2D3436]">
+                                <label className="block text-sm sm:text-base font-black text-[#2D3436] mb-3 flex items-center gap-2">
                                     🔑 Gemini API Key
                                 </label>
                                 <input
@@ -181,8 +181,14 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
                                         setTestResult(null);
                                     }}
                                     placeholder="輸入您的 API Key..."
-                                    className="w-full p-3 border-3 border-[#2D3436] rounded-lg text-[#2D3436] font-medium placeholder:text-[#636E72]/50 focus:border-[#FF9F43] outline-none"
+                                    className="w-full p-3 sm:p-4 border-3 border-[#2D3436] rounded-lg text-base sm:text-lg text-[#2D3436] font-bold 
+                                               bg-[#FFF9E6] placeholder:text-[#636E72]/60 placeholder:font-medium
+                                               focus:border-[#FF9F43] focus:ring-4 focus:ring-[#FF9F43]/20 outline-none
+                                               transition-all duration-200"
                                 />
+                                <p className="mt-2 text-xs text-[#636E72]">
+                                    💡 API Key 格式：AIza... 開頭的字串
+                                </p>
                             </div>
 
                             {/* 測試結果 */}

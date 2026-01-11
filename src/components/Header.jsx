@@ -35,25 +35,25 @@ const Header = ({
     return (
         <header className="bg-[#FFF9E6] border-b-4 border-[#2D3436] h-14 sm:h-16 md:h-20 flex items-center justify-between px-2 sm:px-4 md:px-6 shrink-0 z-20 sticky top-0 shadow-[0_4px_0_#2D3436]">
             {/* 左側：Logo 和班級 */}
-            <div className="flex items-center gap-1.5 sm:gap-3">
+            <div className="flex items-center gap-1 sm:gap-2 md:gap-3 shrink-0">
                 {/* 蜜蜂 icon */}
-                <div className="bg-[#FECA57] text-[#2D3436] p-1.5 sm:p-2 md:p-3 border-2 sm:border-3 border-[#2D3436] shadow-[2px_2px_0_#2D3436] sm:shadow-[3px_3px_0_#2D3436] transform rotate-[-2deg] rounded-lg">
-                    <span className="text-lg sm:text-xl md:text-2xl">🐝</span>
+                <div className="bg-[#FECA57] text-[#2D3436] p-1 sm:p-1.5 md:p-2 lg:p-3 border-2 sm:border-3 border-[#2D3436] shadow-[2px_2px_0_#2D3436] sm:shadow-[3px_3px_0_#2D3436] transform rotate-[-2deg] rounded-lg shrink-0">
+                    <span className="text-base sm:text-lg md:text-xl lg:text-2xl">🐝</span>
                 </div>
-                <div className="min-w-0">
-                    <h1 className="text-sm sm:text-lg md:text-2xl font-black text-[#2D3436] tracking-wide truncate">
-                        <span className="hidden md:inline relative">
+                <div className="min-w-0 flex-shrink">
+                    <h1 className="text-xs sm:text-sm md:text-lg lg:text-2xl font-black text-[#2D3436] tracking-wide truncate">
+                        <span className="hidden lg:inline relative">
                             <span className="relative z-10">點石成金蜂</span>
                             <span className="absolute bottom-0 left-0 right-0 h-3 bg-[#FF6B9D] -z-0 transform -rotate-1"></span>
                         </span>
-                        <span className="hidden md:inline ml-1">🐝</span>
-                        <span className="hidden sm:inline md:hidden">金蜂🐝</span>
-                        <span className="sm:hidden">🐝</span>
+                        <span className="hidden lg:inline ml-1">🐝</span>
+                        <span className="hidden md:inline lg:hidden">金蜂🐝</span>
+                        <span className="md:hidden"></span>
                     </h1>
                     {/* 班級選擇器 */}
                     <button
                         onClick={onOpenClasses}
-                        className="text-[10px] sm:text-xs font-bold text-[#636E72] hover:text-[#A29BFE] transition-colors flex items-center gap-0.5 sm:gap-1 mt-0.5 max-w-[80px] sm:max-w-none"
+                        className="text-[10px] sm:text-xs font-bold text-[#636E72] hover:text-[#A29BFE] transition-colors flex items-center gap-0.5 max-w-[100px] sm:max-w-[120px] md:max-w-none"
                     >
                         <School size={10} className="shrink-0 hidden sm:block" />
                         <span className="truncate">{currentClassName}</span>

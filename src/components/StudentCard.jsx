@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, Loader2, Heart, Clock } from 'lucide-react';
+import { Trash2, Loader2, Heart, Clock, Sparkles } from 'lucide-react';
 
 /**
  * 學生卡片元件（手機端）- 教育手寫普普風
@@ -21,8 +21,6 @@ const StudentCard = ({
     onSaveTemplate,
     onOpenHistory
 }) => {
-    const rotations = ['-1deg', '0.5deg', '-0.5deg', '1deg', '0deg'];
-    const rotation = rotations[student.id % rotations.length];
     const isThisGenerating = isGeneratingSingle === student.id;
 
     const getWordCountColor = (length) => {
@@ -33,64 +31,65 @@ const StudentCard = ({
 
     return (
         <div
-            className={`bg-[#FFFDF5] border-3 border-[#2D3436] rounded-lg overflow-hidden shadow-[4px_4px_0_#2D3436] transition-all
-        ${isSelected ? 'ring-4 ring-[#FF6B9D]' : ''}
-        ${isFocused ? 'ring-4 ring-[#54A0FF]' : ''}
-        ${isThisGenerating ? 'ring-4 ring-[#FECA57] animate-pulse' : ''}`}
-            style={{ transform: `rotate(${rotation})` }}
+            className={`bg-[#FFFDF5] border-3 border-[#2D3436] rounded-xl overflow-hidden shadow-[4px_4px_0_#2D3436] transition-all
+        ${isSelected ? 'ring-3 ring-[#FF6B9D]' : ''}
+        ${isFocused ? 'ring-3 ring-[#54A0FF]' : ''}
+        ${isThisGenerating ? 'ring-3 ring-[#FECA57] animate-pulse' : ''}`}
         >
-            {/* 卡片標題列 */}
-            <div className="flex items-center justify-between p-3 bg-[#FECA57] border-b-2 border-[#2D3436]">
-                <div className="flex items-center gap-3">
+            {/* 卡片標題列 - 更緊湊 */}
+            <div className="flex items-center justify-between px-3 py-2.5 bg-[#FECA57] border-b-2 border-[#2D3436]">
+                <div className="flex items-center gap-2">
                     <button
                         onClick={() => onToggleSelection(student.id)}
                         disabled={isGenerating || isThisGenerating}
-                        className={`w-6 h-6 border-2 border-[#2D3436] rounded flex items-center justify-center
+                        className={`w-5 h-5 border-2 border-[#2D3436] rounded flex items-center justify-center flex-shrink-0
               ${isSelected ? 'bg-[#FF6B9D] text-white' : 'bg-white'}`}
                     >
-                        {isSelected && <span className="text-sm font-bold">✓</span>}
+                        {isSelected && <span className="text-xs font-bold">✓</span>}
                     </button>
-                    <span className="font-black text-[#2D3436] text-base">📚 {student.name}</span>
+                    <span className="font-black text-[#2D3436] text-sm truncate">📚 {student.name}</span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
+                    {/* 生成按鈕 - 更突出 */}
                     <button
                         onClick={() => onGenerateSingle(student.id)}
                         disabled={isGenerating || isThisGenerating}
-                        className="btn-pop px-2 py-1 bg-[#1DD1A1] text-white text-xs font-bold flex items-center gap-1 disabled:opacity-50"
+                        className="btn-pop px-3 py-1.5 bg-[#1DD1A1] text-white text-xs font-bold flex items-center gap-1 disabled:opacity-50 min-w-[70px] justify-center"
                     >
-                        {isThisGenerating ? <Loader2 size={14} className="animate-spin" /> : <>🐝</>}
-                        <span className="hidden sm:inline">{isThisGenerating ? '生成中' : '生成'}</span>
+                        {isThisGenerating ? (
+                            <><Loader2 size={14} className="animate-spin" /></>
+                        ) : (
+                            <><Sparkles size={14} /></>
+                        )}
                     </button>
                     <button
                         onClick={() => onDeleteStudent(student.id)}
                         disabled={isGenerating || isThisGenerating}
-                        className="text-[#2D3436]/50 hover:text-[#FF6B6B] transition-colors disabled:opacity-30 p-1"
+                        className="text-[#2D3436]/50 hover:text-[#FF6B6B] transition-colors disabled:opacity-30 p-1.5"
                     >
-                        <Trash2 size={18} />
+                        <Trash2 size={16} />
                     </button>
                 </div>
             </div>
 
             {/* 特質區 */}
-            <div className="p-3 border-b-2 border-dashed border-[#E8DCC8]">
-                <div className="text-xs font-bold text-[#636E72] mb-2">🏷️ 特質標籤</div>
+            <div className="px-3 py-2.5 border-b-2 border-dashed border-[#E8DCC8]">
+                <div className="text-xs font-bold text-[#636E72] mb-1.5">🏷️ 特質標籤</div>
                 <div
                     onClick={() => { onFocus(student.id); onOpenSidebar(); }}
-                    className={`p-2 border-2 border-dashed bg-white min-h-[50px] flex flex-col gap-2 cursor-pointer transition-colors rounded-lg
+                    className={`p-2 border-2 border-dashed bg-white min-h-[40px] flex flex-wrap gap-1.5 cursor-pointer transition-colors rounded-lg items-center
             ${isFocused ? 'border-[#54A0FF] bg-[#54A0FF]/10' : 'border-[#E8DCC8]'}`}
                 >
                     {student.selectedTags.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5">
-                            {student.selectedTags.map((tag, idx) => (
-                                <span key={idx} className="tag-handwrite text-xs">
-                                    {tag}
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onRemoveTag(student.id, tag); }}
-                                        className="hover:text-[#FF6B6B] ml-1"
-                                    >×</button>
-                                </span>
-                            ))}
-                        </div>
+                        student.selectedTags.map((tag, idx) => (
+                            <span key={idx} className="tag-handwrite text-xs">
+                                {tag}
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onRemoveTag(student.id, tag); }}
+                                    className="hover:text-[#FF6B6B] ml-1"
+                                >×</button>
+                            </span>
+                        ))
                     ) : (
                         <span className="text-[#636E72]/50 text-xs">👆 點擊開啟成語庫選擇...</span>
                     )}
@@ -105,16 +104,16 @@ const StudentCard = ({
                 />
             </div>
 
-            {/* 評語區 */}
-            <div className="p-3 bg-[#FFF9E6]">
-                <div className="text-xs font-bold text-[#636E72] mb-2 flex items-center justify-between">
+            {/* 評語區 - 更大的編輯區域 */}
+            <div className="px-3 py-2.5 bg-[#FFF9E6]">
+                <div className="text-xs font-bold text-[#636E72] mb-1.5 flex items-center justify-between">
                     <span className="flex items-center gap-1">🐝 AI 評語</span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                         {/* 歷史按鈕 */}
                         {onOpenHistory && (
                             <button
                                 onClick={() => onOpenHistory(student)}
-                                className="flex items-center gap-1 text-[#54A0FF] hover:text-[#2D3436] transition-colors"
+                                className="flex items-center gap-1 text-[#54A0FF] active:text-[#2D3436] transition-colors"
                                 title="查看歷史"
                             >
                                 <Clock size={14} />
@@ -124,7 +123,7 @@ const StudentCard = ({
                         {student.comment && !student.comment.includes("撰寫中") && !student.comment.includes("❌") && (
                             <button
                                 onClick={() => onSaveTemplate(student)}
-                                className="flex items-center gap-1 text-[#FF6B9D] hover:text-[#FF6B6B] transition-colors"
+                                className="flex items-center gap-1 text-[#FF6B9D] active:text-[#FF6B6B] transition-colors"
                                 title="收藏為範本"
                             >
                                 <Heart size={14} />
@@ -138,7 +137,7 @@ const StudentCard = ({
                     onChange={(e) => onUpdateStudent(student.id, 'comment', e.target.value)}
                     placeholder="等待 AI 魔法產生..."
                     disabled={isThisGenerating}
-                    className={`w-full text-sm p-3 border-2 border-[#E8DCC8] focus:border-[#1DD1A1] outline-none resize-y min-h-[100px] leading-relaxed font-medium text-[#2D3436] rounded-lg
+                    className={`w-full text-sm p-3 border-2 border-[#E8DCC8] focus:border-[#1DD1A1] outline-none resize-y min-h-[120px] leading-relaxed font-medium text-[#2D3436] rounded-lg
             ${isThisGenerating ? "bg-[#FECA57]/30 animate-pulse" : "bg-white"}`}
                 />
                 {student.comment && (

@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Plus, Edit2, Trash2, Check, School } from 'lucide-react';
 import { classService } from '../firebase';
 
 /**
  * 班級管理 Modal
  * 新增、編輯、刪除班級
+ * 非管理員用戶只能看到被指派的班級
  */
-const ClassModal = ({ isOpen, onClose, currentClassId, onSelectClass }) => {
-    const [classes, setClasses] = useState([]);
+const ClassModal = ({ isOpen, onClose, currentClassId, onSelectClass, currentUser }) => {
+    const [allClasses, setAllClasses] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState(null);
@@ -20,12 +21,20 @@ const ClassModal = ({ isOpen, onClose, currentClassId, onSelectClass }) => {
 
         setIsLoading(true);
         const unsubscribe = classService.subscribe((data) => {
-            setClasses(data);
+            setAllClasses(data);
             setIsLoading(false);
         });
 
         return () => unsubscribe();
     }, [isOpen]);
+
+    // 過濾班級：管理員顯示全部，普通用戶只顯示被指派的班級
+    const isAdmin = currentUser?.role === 'admin';
+    const classes = useMemo(() => {
+        if (isAdmin) return allClasses;
+        const assignedClassIds = currentUser?.assignedClasses || [];
+        return allClasses.filter(cls => assignedClassIds.includes(cls.id));
+    }, [allClasses, currentUser, isAdmin]);
 
     // 新增班級
     const handleAdd = async () => {
@@ -150,27 +159,29 @@ const ClassModal = ({ isOpen, onClose, currentClassId, onSelectClass }) => {
                                                 <span className="text-lg">🏫</span> {cls.name}
                                                 {currentClassId === cls.id && <Check size={18} />}
                                             </button>
-                                            <div className="flex items-center gap-1">
-                                                <button
-                                                    onClick={() => { setEditingId(cls.id); setEditName(cls.name); }}
-                                                    className="p-2 hover:text-[#54A0FF] transition-colors"
-                                                >
-                                                    <Edit2 size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(cls.id)}
-                                                    className="p-2 hover:text-[#FF6B6B] transition-colors"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
+                                            {isAdmin && (
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        onClick={() => { setEditingId(cls.id); setEditName(cls.name); }}
+                                                        className="p-2 hover:text-[#54A0FF] transition-colors"
+                                                    >
+                                                        <Edit2 size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(cls.id)}
+                                                        className="p-2 hover:text-[#FF6B6B] transition-colors"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
                             ))}
 
-                            {/* 新增班級 */}
-                            {isAdding ? (
+                            {/* 新增班級（僅管理員） */}
+                            {isAdmin && isAdding ? (
                                 <div className="p-4 border-2 border-dashed border-[#1DD1A1] rounded-lg bg-[#1DD1A1]/10">
                                     <div className="flex items-center gap-2">
                                         <input
@@ -196,7 +207,7 @@ const ClassModal = ({ isOpen, onClose, currentClassId, onSelectClass }) => {
                                         </button>
                                     </div>
                                 </div>
-                            ) : (
+                            ) : isAdmin && (
                                 <button
                                     onClick={() => setIsAdding(true)}
                                     className="w-full p-4 border-2 border-dashed border-[#1DD1A1] rounded-lg text-[#1DD1A1] font-bold flex items-center justify-center gap-2 hover:bg-[#1DD1A1]/10 transition-colors"
@@ -209,8 +220,8 @@ const ClassModal = ({ isOpen, onClose, currentClassId, onSelectClass }) => {
                             {classes.length === 0 && !isAdding && (
                                 <div className="text-center py-8 text-[#636E72]">
                                     <div className="text-4xl mb-3">🏫</div>
-                                    <p className="font-bold">還沒有班級</p>
-                                    <p className="text-sm mt-1">點擊上方「新增班級」開始管理</p>
+                                    <p className="font-bold">{isAdmin ? '還沒有班級' : '您尚未被指派任何班級'}</p>
+                                    <p className="text-sm mt-1">{isAdmin ? '點擊上方「新增班級」開始管理' : '請聯繫管理員為您指派班級'}</p>
                                 </div>
                             )}
                         </div>

@@ -41,9 +41,17 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.auth.uid == userId;
       // 管理員可以更新任何使用者
       allow update: if isAdmin();
-      // 使用者可以更新自己的非敏感欄位
+      // 管理員可以刪除使用者（用於刪除審核申請）
+      allow delete: if isAdmin();
+      // 使用者可以更新自己的非敏感欄位（包含申請資訊）
       allow update: if isSignedIn() && request.auth.uid == userId 
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'assignedClasses', 'approvedAt', 'approvedBy']);
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['assignedClasses', 'approvedAt', 'approvedBy', 'schoolId'])
+                    && (
+                      // 允許更新申請資訊（從 pending_info 到 pending_review）
+                      (resource.data.role == 'pending_info' && request.resource.data.role == 'pending_review')
+                      // 或不改變角色
+                      || request.resource.data.role == resource.data.role
+                    );
       
       // ===== 使用者隔離的子集合 =====
       
@@ -85,8 +93,8 @@ service cloud.firestore {
 
     // 學校集合（全域共用）
     match /schools/{schoolId} {
-      // 已審核使用者可以讀取
-      allow read: if isApproved();
+      // 所有登入使用者可以讀取（用於申請表單選擇學校）
+      allow read: if isSignedIn();
       // 只有管理員可以寫入
       allow write: if isAdmin();
     }

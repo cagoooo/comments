@@ -21,20 +21,24 @@ const PrintModal = ({
     const [options, setOptions] = useState({
         format: 'table',        // 'table' | 'card'
         includeNumber: true,
-        includeTraits: false,
-        studentsPerPage: 6
+        includeTraits: true,
+        studentsPerPage: 6,
+        onlyWithComments: false  // 預設顯示所有學生
     });
 
     // 過濾有評語的學生
     const studentsWithComments = students.filter(s => s.comment?.trim());
+
+    // 根據選項決定要匯出的學生
+    const studentsToExport = options.onlyWithComments ? studentsWithComments : students;
 
     // 格式化日期
     const today = new Date().toLocaleDateString('zh-TW');
 
     // 列印
     const handlePrint = () => {
-        if (studentsWithComments.length === 0) {
-            toast.warning('沒有學生評語可列印');
+        if (studentsToExport.length === 0) {
+            toast.warning('沒有學生資料可列印');
             return;
         }
 
@@ -46,8 +50,8 @@ const PrintModal = ({
 
     // 匯出 PDF
     const handleExportPDF = async () => {
-        if (studentsWithComments.length === 0) {
-            toast.warning('沒有學生評語可匯出');
+        if (studentsToExport.length === 0) {
+            toast.warning('沒有學生資料可匯出');
             return;
         }
 
@@ -113,8 +117,13 @@ const PrintModal = ({
                             <p>班級：<strong>{currentClassName}</strong></p>
                             <p>
                                 總學生數：<strong>{students.length}</strong>人，
-                                有評語：<strong>{studentsWithComments.length}</strong>人
+                                有評語：<strong className={studentsWithComments.length > 0 ? 'text-[#1DD1A1]' : 'text-[#FF6B6B]'}>{studentsWithComments.length}</strong>人
                             </p>
+                            {studentsWithComments.length === 0 && (
+                                <p className="mt-2 text-[#FF6B6B] font-bold">
+                                    ⚠️ 目前沒有任何學生有評語，請先生成評語後再匯出
+                                </p>
+                            )}
                         </div>
 
                         {/* 選項 */}
@@ -145,6 +154,18 @@ const PrintModal = ({
                                     />
                                     <span className="font-medium text-[#2D3436]">顯示特質標籤</span>
                                 </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={options.onlyWithComments}
+                                        onChange={(e) => setOptions(prev => ({
+                                            ...prev,
+                                            onlyWithComments: e.target.checked
+                                        }))}
+                                        className="w-5 h-5 rounded border-2 border-[#2D3436] accent-[#1DD1A1]"
+                                    />
+                                    <span className="font-medium text-[#2D3436]">僅匯出有評語的學生</span>
+                                </label>
                             </div>
                         </div>
 
@@ -165,32 +186,40 @@ const PrintModal = ({
                                         <h2 className="text-xl font-bold">{currentClassName}</h2>
                                         <p className="text-sm text-gray-500">{today}</p>
                                     </div>
-                                    <table className="w-full border-collapse text-sm">
-                                        <thead>
-                                            <tr className="bg-gray-100">
-                                                {options.includeNumber && <th className="border p-2 w-16">座號</th>}
-                                                <th className="border p-2 w-20">姓名</th>
-                                                {options.includeTraits && <th className="border p-2 w-32">特質</th>}
-                                                <th className="border p-2">評語</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {studentsWithComments.map((student, index) => (
-                                                <tr key={student.id}>
-                                                    {options.includeNumber && (
-                                                        <td className="border p-2 text-center">{student.number || index + 1}</td>
-                                                    )}
-                                                    <td className="border p-2 font-medium">{student.name}</td>
-                                                    {options.includeTraits && (
-                                                        <td className="border p-2 text-xs text-gray-600">
-                                                            {(student.selectedTags || []).join('、')}
-                                                        </td>
-                                                    )}
-                                                    <td className="border p-2">{student.comment}</td>
+                                    {studentsToExport.length === 0 ? (
+                                        <div className="text-center py-8 text-[#636E72]">
+                                            <div className="text-4xl mb-3">📝</div>
+                                            <p className="font-bold">沒有可匯出的內容</p>
+                                            <p className="text-sm mt-1">請先為學生生成評語，或取消「僅匯出有評語的學生」選項</p>
+                                        </div>
+                                    ) : (
+                                        <table className="w-full border-collapse text-sm">
+                                            <thead>
+                                                <tr className="bg-gray-100">
+                                                    {options.includeNumber && <th className="border p-2 w-16">座號</th>}
+                                                    <th className="border p-2 w-20">姓名</th>
+                                                    {options.includeTraits && <th className="border p-2 w-32">特質</th>}
+                                                    <th className="border p-2">評語</th>
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                            </thead>
+                                            <tbody>
+                                                {studentsToExport.map((student, index) => (
+                                                    <tr key={student.id}>
+                                                        {options.includeNumber && (
+                                                            <td className="border p-2 text-center">{student.number || index + 1}</td>
+                                                        )}
+                                                        <td className="border p-2 font-medium">{student.name}</td>
+                                                        {options.includeTraits && (
+                                                            <td className="border p-2 text-xs text-gray-600">
+                                                                {(student.selectedTags || []).join('、')}
+                                                            </td>
+                                                        )}
+                                                        <td className="border p-2">{student.comment || '-'}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -199,7 +228,7 @@ const PrintModal = ({
                         <div className="flex gap-3">
                             <button
                                 onClick={handlePrint}
-                                disabled={studentsWithComments.length === 0}
+                                disabled={studentsToExport.length === 0}
                                 className="btn-pop flex-1 py-4 bg-[#54A0FF] text-white font-bold text-lg flex items-center justify-center gap-2 disabled:opacity-50"
                             >
                                 <Printer size={20} />
@@ -207,7 +236,7 @@ const PrintModal = ({
                             </button>
                             <button
                                 onClick={handleExportPDF}
-                                disabled={studentsWithComments.length === 0 || isGenerating}
+                                disabled={studentsToExport.length === 0 || isGenerating}
                                 className="btn-pop flex-1 py-4 bg-[#1DD1A1] text-white font-bold text-lg flex items-center justify-center gap-2 disabled:opacity-50"
                             >
                                 {isGenerating ? (
