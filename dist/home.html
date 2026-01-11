@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>點石成金蜂 - AI 學生評語產生器</title>
+    <meta name="description" content="點石成金蜂是一款專為教師設計的 AI 學生評語產生器，幫助老師快速生成個人化、有溫度的學生評語。">
+    <link rel="icon" type="image/svg+xml" href="bee.svg">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #FFF9E6 0%, #FFECD2 100%);
+            min-height: 100vh;
+            color: #2D3436;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 60px 20px;
+            background: #FECA57;
+            border-bottom: 4px solid #2D3436;
+        }
+
+        .logo {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: #2D3436;
+            margin-bottom: 10px;
+        }
+
+        .tagline {
+            font-size: 1.2rem;
+            color: #636E72;
+            font-weight: 500;
+        }
+
+        .hero {
+            background: white;
+            border: 3px solid #2D3436;
+            border-radius: 16px;
+            padding: 40px;
+            margin: -40px 20px 40px;
+            box-shadow: 6px 6px 0 #2D3436;
+            text-align: center;
+        }
+
+        .hero h2 {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            color: #FF6B9D;
+        }
+
+        .hero p {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #636E72;
+            margin-bottom: 20px;
+        }
+
+        .cta-btn {
+            display: inline-block;
+            background: #1DD1A1;
+            color: white;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border: 3px solid #2D3436;
+            border-radius: 12px;
+            text-decoration: none;
+            box-shadow: 4px 4px 0 #2D3436;
+            transition: all 0.2s;
+        }
+
+        .cta-btn:hover {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0 #2D3436;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .feature {
+            background: white;
+            border: 3px solid #2D3436;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 4px 4px 0 #2D3436;
+        }
+
+        .feature-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+        }
+
+        .feature h3 {
+            font-size: 1.2rem;
+            margin-bottom: 8px;
+            color: #2D3436;
+        }
+
+        .feature p {
+            color: #636E72;
+            line-height: 1.6;
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            background: #2D3436;
+            color: white;
+        }
+
+        footer a {
+            color: #FECA57;
+            text-decoration: none;
+            margin: 0 15px;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        .copyright {
+            margin-top: 20px;
+            color: #B2BEC3;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="logo">🐝</div>
+        <h1>點石成金蜂</h1>
+        <p class="tagline">AI 學生評語產生器 - 讓評語撰寫變得輕鬆有溫度</p>
+    </header>
+
+    <div class="container">
+        <div class="hero">
+            <h2>🎯 專為教師設計的 AI 助手</h2>
+            <p>
+                點石成金蜂利用先進的人工智慧技術，幫助教師快速生成個人化、有溫度的學生評語。<br>
+                只需輸入學生姓名和特質，AI 就能為您產生專業且貼心的評語。
+            </p>
+            <a href="index.html" class="cta-btn">🚀 立即開始使用</a>
+        </div>
+
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">✨</div>
+                <h3>AI 智慧生成</h3>
+                <p>運用 Google Gemini AI，根據學生特質自動生成個人化評語，節省您的寶貴時間。</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📝</div>
+                <h3>多元風格選擇</h3>
+                <p>提供溫馨鼓勵、專業客觀、活潑創意等多種風格，滿足不同場合需求。</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📊</div>
+                <h3>Excel 批次處理</h3>
+                <p>支援 Excel 批次匯入學生名單，輕鬆管理整班學生資料。</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🔒</div>
+                <h3>資料安全隔離</h3>
+                <p>每位教師的資料獨立儲存，確保學生資訊的隱私與安全。</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📱</div>
+                <h3>跨裝置使用</h3>
+                <p>PWA 離線支援，在電腦、平板、手機上都能順暢使用。</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🖨️</div>
+                <h3>列印與匯出</h3>
+                <p>一鍵匯出 PDF 或直接列印，方便製作學期評語報告。</p>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div>
+            <a href="index.html">🐝 開始使用</a>
+            <a href="privacy.html">隱私權政策</a>
+            <a href="terms.html">服務條款</a>
+        </div>
+        <p class="copyright">© 2024-2026 點石成金蜂 Golden Bee Comment Generator. All Rights Reserved.</p>
+    </footer>
+</body>
+
+</html>
