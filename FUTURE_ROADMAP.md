@@ -1,6 +1,6 @@
 # 點石成金蜂🐝 未來發展建議藍圖
 
-> 📅 更新時間：2026-01-12 10:30 | 已完成 **20 項功能** | v2.6.0
+> 📅 更新時間：2026-01-12 14:20 | 已完成 **24 項功能** | v2.7.0
 
 ---
 
@@ -25,32 +25,34 @@
 | 15 | 成語使用紀錄帳號隔離 | ✅ 完成 | v2.4 |
 | 16 | API 配額錯誤處理優化 | ✅ 完成 | v2.4 |
 | 17 | Excel 匯入 / UI 優化 | ✅ 完成 | v2.4 |
-| 18 | **API Key 測試機制優化** | ✅ 完成 | v2.5.2 |
-| 19 | **升級 Gemini 2.5 Flash** | ✅ 完成 | v2.5 |
-| 20 | **🆕 管理員 API Key 共享** | ✅ 完成 | v2.6 |
+| 18 | API Key 測試機制優化 | ✅ 完成 | v2.5.2 |
+| 19 | 升級 Gemini 2.5 Flash | ✅ 完成 | v2.5 |
+| 20 | 管理員 API Key 共享 | ✅ 完成 | v2.6 |
+| 21 | 🆕 管理員通知徽章 | ✅ 完成 | v2.6.1 |
+| 22 | 🆕 WebView 登入優化 | ✅ 完成 | v2.6.1 |
+| 23 | 🆕 繁體中文強制輸出 | ✅ 完成 | v2.6.2 |
+| 24 | 🆕 班級管理優化（查看經營者學生） | ✅ 完成 | v2.7.0 |
 
 ---
 
-## 🆕 最新版本功能 (v2.6.0)
+## 🆕 最新版本功能總結
 
-### 管理員 API Key 共享功能
-**讓管理員可以將付費 API Key 授權給教師使用**
+### v2.7.0 - 班級管理優化
+- 班級顯示經營者資訊（老師名稱、學校）
+- 管理員可查看其他用戶的學生評語紀錄
+- ClassModal RWD 響應式優化
 
-```
-功能亮點：
-├── 管理員可設定/清除共享 API Key
-├── 勾選教師即可即時授權
-├── 教師端自動同步使用共享 Key
-├── 取消勾選立即撤銷授權
-└── Firestore 安全規則保護
-```
+### v2.6.2 - 繁體中文強制輸出
+- AI 評語強制使用正體中文（繁體中文）
+- 嚴禁簡體字輸出
 
-**修改檔案**：
-- `firestoreService.js` - 新增 adminConfigService
-- `AdminPanel.jsx` - 共享管理 UI
-- `ApiKeyModal.jsx` - 授權狀態顯示
-- `App.jsx` - 共享 Key 優先同步
-- `firestore.rules` - adminConfig 集合規則
+### v2.6.1 - 管理員體驗優化
+- 管理按鈕新增待審核數量通知徽章
+- 右上角用戶資訊顯示管理員角色標識
+- App 內建瀏覽器偵測時完全隱藏 Google 登入按鈕
+
+### v2.6.0 - 管理員 API Key 共享
+- 管理員可將付費 API Key 授權給教師
 
 ---
 
@@ -93,18 +95,6 @@
 └── 範本匯入/匯出 (JSON)
 ```
 
-**資料結構建議**：
-```javascript
-{
-  id: "template_001",
-  content: "{{學生姓名}}在學業上表現優異...",
-  category: "academic",    // 新增欄位
-  tags: ["學業", "優良"],   // 新增欄位
-  usageCount: 15,
-  createdAt: Timestamp
-}
-```
-
 ---
 
 ### 3. 鍵盤快捷鍵 ⭐⭐
@@ -118,8 +108,6 @@
 | `Ctrl+F` | 搜尋學生 | 聚焦搜尋框 |
 | `Esc` | 關閉 Modal | 通用關閉 |
 | `Tab` | 下一位學生 | 快速切換 |
-
-**實作建議**：建立 `useHotkeys` Hook
 
 ---
 
@@ -137,17 +125,18 @@
 
 ---
 
-### 5. React.memo 效能優化 ⭐⭐
-**預估時間**：2 小時
-**狀態**：部分完成
+### 5. 評語品質預覽與調整 ⭐⭐
+**預估時間**：2-3 小時
 
 ```
-優化項目：
-├── [x] StudentCard - React.memo
-├── [x] StudentTable - React.memo  
-├── [ ] IdiomSidebar - 使用 useMemo 快取篩選結果
-├── [ ] TemplateModal - 使用 useMemo 快取排序結果
-└── [ ] useCallback - 穩定所有 onClick handlers
+功能設計：
+├── 生成前預覽（確認風格、字數設定）
+├── 生成後即時調整
+│   ├── 「再短一點」按鈕
+│   ├── 「再詳細一點」按鈕
+│   └── 「換種說法」按鈕
+├── 語氣微調滑桿（更正式 ⟷ 更親切）
+└── 一鍵複製評語
 ```
 
 ---
@@ -163,7 +152,7 @@
 ├── API 呼叫次數統計（按用戶/日期）
 ├── 評語生成成功率
 ├── 平均評語字數
-├── 每週/月使用趨勢圖表
+├── 每週/月使用趨勢圖表 (Chart.js)
 ├── 管理員可查看所有教師使用量
 └── Quota 使用預警（接近上限時通知）
 ```
@@ -184,6 +173,7 @@
 
 ### 7. TypeScript 遷移 ⭐⭐⭐⭐
 **預估時間**：8-12 小時（漸進式）
+**技術債償還**
 
 ```
 遷移順序：
@@ -204,17 +194,21 @@ interface Student {
   createdAt?: Timestamp;
 }
 
+interface User {
+  id: string;
+  email: string;
+  displayName: string;
+  role: 'admin' | 'teacher' | 'pending_review' | 'pending_info';
+  assignedClasses: string[];
+  schoolName?: string;
+  customSchoolName?: string;
+}
+
 interface SharedApiConfig {
   sharedApiKey: string;
   authorizedUsers: string[];
   updatedAt: Timestamp;
   updatedBy: string;
-}
-
-interface UserSettings {
-  apiKey?: string;
-  theme?: 'light' | 'dark' | 'system';
-  defaultStyle?: string;
 }
 ```
 
@@ -273,9 +267,23 @@ interface UserSettings {
 
 ---
 
+### 11. 成語庫自訂功能 ⭐⭐
+**預估時間**：3-4 小時
+
+```
+功能設計：
+├── 教師可自訂成語/詞彙
+├── 自訂成語分類
+├── 匯入/匯出自訂成語 (JSON)
+├── 學校共享成語庫（管理員設定）
+└── 成語使用統計（哪些最常用）
+```
+
+---
+
 ## 🚀 長期建議功能 (3-6 月)
 
-### 11. AI 評語品質分析 ⭐⭐⭐
+### 12. AI 評語品質分析 ⭐⭐⭐
 **預估時間**：3-4 小時
 
 ```
@@ -293,7 +301,7 @@ interface UserSettings {
 
 ---
 
-### 12. 學生進步追蹤 ⭐⭐⭐
+### 13. 學生進步追蹤 ⭐⭐⭐
 **預估時間**：4-6 小時
 
 ```
@@ -308,7 +316,7 @@ interface UserSettings {
 
 ---
 
-### 13. 即時協作功能 ⭐⭐
+### 14. 即時協作功能 ⭐⭐
 **預估時間**：8-12 小時
 
 ```
@@ -322,7 +330,7 @@ interface UserSettings {
 
 ---
 
-### 14. 多語言支援 (i18n) ⭐⭐
+### 15. 多語言支援 (i18n) ⭐⭐
 **預估時間**：4-6 小時
 
 ```
@@ -342,7 +350,7 @@ interface UserSettings {
 
 ---
 
-### 15. 進階 Prompt 自訂 ⭐⭐
+### 16. 進階 Prompt 自訂 ⭐⭐
 **預估時間**：2-3 小時
 
 ```
@@ -353,6 +361,34 @@ interface UserSettings {
 │   └── {{name}}, {{tags}}, {{style}}, {{length}}
 ├── Prompt 測試預覽
 └── 儲存個人化 Prompt
+```
+
+---
+
+### 17. 手機 App 打包 (Capacitor) ⭐⭐
+**預估時間**：6-8 小時
+
+```
+功能設計：
+├── 使用 Capacitor 打包成 iOS/Android App
+├── 推播通知（學期提醒）
+├── 離線快取增強
+├── 相機整合（掃描學生名單）
+└── 生物辨識登入
+```
+
+---
+
+### 18. 雲端函式後端 ⭐⭐⭐
+**預估時間**：8-12 小時
+
+```
+功能設計：
+├── Firebase Cloud Functions
+├── API Key 安全儲存（不暴露給前端）
+├── 使用量限制與配額管理
+├── 批次生成佇列處理
+└── 定時任務（每週使用報告寄送）
 ```
 
 ---
@@ -368,6 +404,7 @@ interface UserSettings {
 | 無障礙優化 | ⭐⭐ | ARIA 標籤、焦點管理 | 2 hr |
 | console.log 清理 | ⭐ | DEV 環境限定 | 0.5 hr |
 | Bundle 分析優化 | ⭐ | 減少打包體積 | 1 hr |
+| React.memo 完整優化 | ⭐⭐ | 子組件效能優化 | 2 hr |
 
 ---
 
@@ -377,13 +414,15 @@ interface UserSettings {
 1. ⬜ 深色模式
 2. ⬜ 鍵盤快捷鍵
 3. ⬜ 學生搜尋強化
-4. ⬜ console.log 清理
+4. ⬜ 評語品質預覽與調整
+5. ⬜ console.log 清理
 
 ### 🥈 短期目標 (2-4 週)
 1. ⬜ 評語範本分類
 2. ⬜ 使用量統計儀表板
 3. ⬜ React.memo 完整優化
 4. ⬜ 批次操作功能
+5. ⬜ 成語庫自訂功能
 
 ### 🥉 中期目標 (1-2 月)
 1. ⬜ TypeScript 遷移 Phase 1-2
@@ -395,7 +434,8 @@ interface UserSettings {
 1. ⬜ TypeScript 完整遷移
 2. ⬜ 學生進步追蹤
 3. ⬜ 即時協作功能
-4. ⬜ 多語言支援
+4. ⬜ 雲端函式後端
+5. ⬜ 手機 App 打包
 
 ---
 
@@ -403,6 +443,9 @@ interface UserSettings {
 
 | 版本 | 日期 | 主要更新 |
 |------|------|----------|
+| v2.7.0 | 2026-01-12 | 🏫 班級管理優化、查看經營者學生資料 |
+| v2.6.2 | 2026-01-12 | 🇹🇼 繁體中文強制輸出、禁用簡體字 |
+| v2.6.1 | 2026-01-12 | 🔔 管理員通知徽章、WebView 登入優化 |
 | v2.6.0 | 2026-01-12 | 🆕 管理員 API Key 共享功能 |
 | v2.5.2 | 2026-01-12 | API Key 配額檢測優化 |
 | v2.5.1 | 2026-01-12 | API Key 驗證優化 |
@@ -420,19 +463,22 @@ interface UserSettings {
 ```
 h:\comments\
 ├── src/
-│   ├── components/         # 27 個元件
-│   │   ├── AdminPanel.jsx  # 新增共享 API Key UI
-│   │   ├── ApiKeyModal.jsx # 授權狀態顯示
+│   ├── components/         # 27+ 個元件
+│   │   ├── AdminPanel.jsx  # 管理員面板（含共享 API Key UI）
+│   │   ├── ClassModal.jsx  # 班級管理（含經營者資訊）
+│   │   ├── Header.jsx      # 頂部導航（含通知徽章）
+│   │   ├── LoginPage.jsx   # 登入頁（WebView 偵測）
 │   │   └── ...
 │   ├── firebase/           # 5 個服務模組
-│   │   ├── firestoreService.js  # 新增 adminConfigService
+│   │   ├── firestoreService.js  # 含 adminConfigService、subscribeByUserId
 │   │   └── ...
 │   ├── hooks/              # 2 個 Custom Hooks
-│   ├── utils/              # 3 個工具函數
+│   ├── utils/              # 4 個工具函數
+│   │   └── geminiApi.js    # 含繁體中文強制輸出
 │   ├── data/               # 2 個靜態資料
 │   └── contexts/           # 1 個 Context
-├── firestore.rules         # 新增 adminConfig 集合規則
-└── package.json            # v2.6.0
+├── firestore.rules         # Firestore 安全規則
+└── package.json            # v2.7.0
 ```
 
 ---
@@ -444,9 +490,14 @@ h:\comments\
 > - 使用者感受度高，尤其夜間使用
 > - 可展示技術能力（CSS 變數、系統偏好偵測）
 
+> 🎯 **次優先：學生搜尋強化**
+> - 當學生數量增加時必備功能
+> - 大幅提升使用效率
+> - 實作難度低
+
 ---
 
-## 📌 注意事項
+## 📌 安全性注意事項
 
 ### 共享 API Key 安全提醒
 由於採用「信任模式」，被授權教師技術上可透過開發者工具取得 API Key。如需更高安全性，未來可考慮：
@@ -454,8 +505,25 @@ h:\comments\
 2. **使用量限制** - 每位教師每日呼叫上限
 3. **IP 白名單** - 限制來源 IP
 
+### 管理員查看學生資料
+管理員可查看其他用戶的學生資料（唯讀模式），此功能用於協助教師或檢視班級使用情況。
+
+---
+
+## 📊 功能優先級矩陣
+
+| 功能 | 使用者價值 | 開發成本 | 優先推薦 |
+|------|-----------|---------|---------|
+| 深色模式 | 🔥🔥🔥 | ⏱️ 低 | ✅ 強烈推薦 |
+| 學生搜尋 | 🔥🔥🔥 | ⏱️ 低 | ✅ 強烈推薦 |
+| 鍵盤快捷鍵 | 🔥🔥 | ⏱️ 低 | ✅ 推薦 |
+| 使用量統計 | 🔥🔥🔥 | ⏱️ 中 | ✅ 推薦 |
+| 範本分類 | 🔥🔥 | ⏱️ 中 | 可選 |
+| TypeScript | 🔥 | ⏱️ 高 | 長期規劃 |
+| 即時協作 | 🔥🔥 | ⏱️ 高 | 長期規劃 |
+
 ---
 
 > 📝 **文件維護者**：AI Assistant
-> 📅 **最後更新**：2026-01-12
-> 🔖 **對應版本**：v2.6.0
+> 📅 **最後更新**：2026-01-12 14:20
+> 🔖 **對應版本**：v2.7.0
