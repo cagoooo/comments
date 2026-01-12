@@ -110,6 +110,34 @@ export const studentService = {
         });
     },
 
+    /**
+     * 訂閱指定用戶的學生資料（管理員專用）
+     * @param {string} userId - 要查詢的用戶 ID
+     * @param {Function} callback - 回調函數
+     * @returns {Function} 取消訂閱函數
+     */
+    subscribeByUserId: (userId, callback) => {
+        if (!userId) {
+            console.error('用戶 ID 未提供');
+            callback([]);
+            return () => { };
+        }
+
+        const studentsRef = collection(db, COLLECTIONS.USERS, userId, COLLECTIONS.STUDENTS);
+
+        return onSnapshot(studentsRef, (snapshot) => {
+            let students = [];
+            snapshot.forEach((doc) => {
+                students.push({ id: doc.id, ...doc.data() });
+            });
+            students.sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
+            callback(students);
+        }, (error) => {
+            console.error('Firestore 訂閱錯誤:', error);
+            callback([]);
+        });
+    },
+
     add: async (student) => {
         try {
             const studentRef = getUserDoc(COLLECTIONS.STUDENTS, student.id.toString());

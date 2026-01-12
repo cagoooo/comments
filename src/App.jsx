@@ -41,7 +41,7 @@ const PrintModal = lazy(() => import('./components/PrintModal'));
 const DashboardModal = lazy(() => import('./components/DashboardModal'));
 
 // Firebase
-import { templateService, classService, historyService, settingsService, adminConfigService, userService, USER_ROLES } from './firebase';
+import { templateService, classService, historyService, settingsService, adminConfigService, userService, USER_ROLES, studentService } from './firebase';
 
 /**
  * 點石成金蜂🐝 - AI 評語產生器
@@ -127,6 +127,10 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
     // 待審核用戶數量（管理員用）
     const [pendingCount, setPendingCount] = useState(0);
 
+    // 查看其他用戶學生（管理員用）
+    const [viewingUser, setViewingUser] = useState(null);
+    const [viewingStudents, setViewingStudents] = useState([]);
+
     // 從 Firebase 同步 API Key 到 localStorage（使用者隔離 + 共享 API Key 支援）
     useEffect(() => {
         if (!currentUser) {
@@ -209,6 +213,37 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
         });
         return () => unsubscribe();
     }, [isAdmin]);
+
+    // 訂閱正在查看的用戶學生資料（管理員用）
+    useEffect(() => {
+        if (!viewingUser) {
+            setViewingStudents([]);
+            return;
+        }
+
+        const unsubscribe = studentService.subscribeByUserId(viewingUser.id, (data) => {
+            const formattedData = data.map(student => ({
+                ...student,
+                id: parseInt(student.id) || student.id,
+                selectedTags: student.selectedTags || [],
+                manualTraits: student.manualTraits || '',
+                comment: student.comment || ''
+            }));
+            setViewingStudents(formattedData);
+        });
+
+        return () => unsubscribe();
+    }, [viewingUser]);
+
+    // 處理管理員查看其他用戶學生
+    const handleViewUserStudents = (user) => {
+        setViewingUser(user);
+    };
+
+    // 返回自己的學生資料
+    const handleBackToMyStudents = () => {
+        setViewingUser(null);
+    };
 
     // 成語分類展開狀態
     const [expandedCategories, setExpandedCategories] = useState({
@@ -494,8 +529,11 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                         if (!classId) {
                             setCurrentClassName('全部學生');
                         }
+                        // 切換班級時清除正在查看的用戶
+                        setViewingUser(null);
                     }}
                     currentUser={currentUser}
+                    onViewUserStudents={handleViewUserStudents}
                 />
 
                 {/* 歷史記錄 Modal */}
@@ -599,6 +637,34 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                 {/* 表格區 */}
                 <div className="flex-1 p-3 sm:p-6">
 
+                    {/* 正在查看其他用戶學生的提示條 */}
+                    {viewingUser && (
+                        <div className="mb-4 p-3 sm:p-4 bg-[#54A0FF]/20 border-2 border-[#54A0FF] rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                                {viewingUser.photoURL ? (
+                                    <img src={viewingUser.photoURL} alt="" className="w-10 h-10 rounded-full border-2 border-[#54A0FF] shrink-0" />
+                                ) : (
+                                    <div className="w-10 h-10 bg-[#FECA57] rounded-full border-2 border-[#54A0FF] flex items-center justify-center text-lg shrink-0">👤</div>
+                                )}
+                                <div className="min-w-0">
+                                    <p className="font-bold text-[#2D3436] text-sm sm:text-base truncate">
+                                        👀 正在查看：{viewingUser.displayName} 的學生資料
+                                    </p>
+                                    <p className="text-xs text-[#636E72] truncate">
+                                        {viewingUser.email}
+                                        {viewingUser.customSchoolName && ` • ${viewingUser.customSchoolName}`}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleBackToMyStudents}
+                                className="btn-pop px-4 py-2 bg-[#54A0FF] text-white text-sm font-bold shrink-0"
+                            >
+                                ← 返回我的學生
+                            </button>
+                        </div>
+                    )}
+
                     {/* 風格設定顯示條 */}
                     <StyleBar
                         globalStyles={globalStyles}
@@ -608,24 +674,25 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
 
                     {/* 學生表格/卡片 */}
                     <StudentTable
-                        students={students}
-                        selectedIds={selectedIds}
-                        focusedStudentId={focusedStudentId}
+                        students={viewingUser ? viewingStudents : students}
+                        selectedIds={viewingUser ? new Set() : selectedIds}
+                        focusedStudentId={viewingUser ? null : focusedStudentId}
                         isGenerating={isGenerating}
                         isGeneratingSingle={isGeneratingSingle}
-                        onToggleSelection={toggleSelection}
-                        onToggleAllSelection={toggleAllSelection}
-                        onFocusStudent={setFocusedStudentId}
+                        onToggleSelection={viewingUser ? () => { } : toggleSelection}
+                        onToggleAllSelection={viewingUser ? () => { } : toggleAllSelection}
+                        onFocusStudent={viewingUser ? () => { } : setFocusedStudentId}
                         onOpenSidebar={() => setIsSidebarOpen(true)}
-                        onRemoveTag={removeTag}
-                        onUpdateStudent={updateStudent}
-                        onDeleteStudent={deleteStudent}
-                        onGenerateSingle={handleSingleGenerate}
-                        onSaveTemplate={handleSaveTemplate}
-                        onOpenHistory={(student) => {
+                        onRemoveTag={viewingUser ? () => { } : removeTag}
+                        onUpdateStudent={viewingUser ? () => { } : updateStudent}
+                        onDeleteStudent={viewingUser ? () => { } : deleteStudent}
+                        onGenerateSingle={viewingUser ? () => { } : handleSingleGenerate}
+                        onSaveTemplate={viewingUser ? () => { } : handleSaveTemplate}
+                        onOpenHistory={viewingUser ? () => { } : (student) => {
                             setHistoryStudent(student);
                             setIsHistoryModalOpen(true);
                         }}
+                        readOnly={!!viewingUser}
                     />
                 </div>
 
