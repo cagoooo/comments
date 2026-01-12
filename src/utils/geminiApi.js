@@ -31,7 +31,7 @@ export const callGeminiAPI = async (name, combinedTraits, styles = [], extraSett
         return "❌ 尚未設定 API Key，請先點擊頁首的「⚙️」按鈕設定您的 Gemini API Key。";
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     let styleInstructions = "";
     if (styles.length > 0) {
