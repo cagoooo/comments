@@ -65,7 +65,7 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
         setIsSaving(false);
     };
 
-    // 測試 API Key
+    // 測試 API Key - 使用實際生成 API 來驗證，確保配額也足夠
     const handleTest = async () => {
         if (!apiKey.trim()) {
             setTestResult('error');
@@ -76,11 +76,19 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
         setTestResult(null);
 
         try {
-            // 使用更輕量的 models 列表 API 來測試，避免觸發生成內容的配額限制
-            const listModelsUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey.trim()}`;
-            const response = await fetch(listModelsUrl, {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' }
+            // 使用實際的 generateContent API 來測試，確保配額也足夠使用
+            const generateUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey.trim()}`;
+            const response = await fetch(generateUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{ text: "回答「測試成功」這四個字" }]
+                    }],
+                    generationConfig: {
+                        maxOutputTokens: 10
+                    }
+                })
             });
 
             if (response.ok) {
@@ -90,11 +98,8 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
                 setSavedKey(apiKey.trim());
                 localStorage.setItem('gemini_api_key', apiKey.trim());
             } else if (response.status === 429) {
-                // 配額用完，但 API Key 本身是有效的，仍然儲存
+                // 配額用完 - 不儲存，明確告知用戶無法使用
                 setTestResult('quota');
-                await settingsService.save({ apiKey: apiKey.trim() });
-                setSavedKey(apiKey.trim());
-                localStorage.setItem('gemini_api_key', apiKey.trim());
             } else if (response.status === 400 || response.status === 403) {
                 // API Key 無效或沒有權限
                 setTestResult('error');
@@ -214,9 +219,7 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
                                 <div className={`p-3 rounded-lg border-2 flex items-center gap-2 text-sm font-bold
                                   ${testResult === 'success'
                                         ? 'bg-[#1DD1A1]/20 border-[#1DD1A1] text-[#1DD1A1]'
-                                        : testResult === 'quota'
-                                            ? 'bg-[#FECA57]/20 border-[#FECA57] text-[#F39C12]'
-                                            : 'bg-[#FF6B6B]/20 border-[#FF6B6B] text-[#FF6B6B]'}`}
+                                        : 'bg-[#FF6B6B]/20 border-[#FF6B6B] text-[#FF6B6B]'}`}
                                 >
                                     {testResult === 'success' ? (
                                         <>
@@ -225,10 +228,10 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
                                         </>
                                     ) : testResult === 'quota' ? (
                                         <>
-                                            <CheckCircle size={18} />
+                                            <AlertCircle size={18} />
                                             <div>
-                                                <div>API Key 有效，已自動儲存 ✨</div>
-                                                <div className="text-xs font-normal mt-1">目前配額已達上限，稍後可正常使用</div>
+                                                <div>❌ API 免費額度已用完，無法使用</div>
+                                                <div className="text-xs font-normal mt-1">請明天再試或使用其他 Google 帳號申請新的 API Key</div>
                                             </div>
                                         </>
                                     ) : testResult === 'network' ? (
