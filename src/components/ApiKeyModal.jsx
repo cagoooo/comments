@@ -149,7 +149,7 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
                                     前往 Google AI Studio 申請免費的 Gemini API Key
                                 </p>
                                 <a
-                                    href="https://aistudio.google.com/apikey"
+                                    href="https://accounts.google.com/v3/signin/identifier?continue=https%3A%2F%2Faistudio.google.com%2Fapikey&flowName=GlifWebSignIn&flowEntry=AddSession&Email=@gmail.com"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center gap-1 text-[#54A0FF] hover:underline font-bold mt-2"
@@ -157,6 +157,17 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
                                     <ExternalLink size={14} />
                                     前往申請 API Key
                                 </a>
+                            </div>
+
+                            {/* ⚠️ 重要提醒 */}
+                            <div className="bg-[#FF6B6B]/15 border-2 border-[#FF6B6B] rounded-lg p-3 text-sm">
+                                <p className="font-bold text-[#FF6B6B] mb-1">⚠️ 重要提醒</p>
+                                <p className="text-[#2D3436]">
+                                    請使用<span className="font-bold text-[#FF6B6B]">「個人 Gmail 帳號」</span>申請 API Key！
+                                </p>
+                                <p className="text-[#636E72] text-xs mt-1">
+                                    學校帳號（@xxx.edu.tw）申請的 API Key 可能無法正常使用
+                                </p>
                             </div>
 
                             {/* 目前狀態 */}
