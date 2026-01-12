@@ -1,11 +1,11 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 
 // Data
 import { IDIOM_CATEGORIES } from './data/idiomData';
 import { STYLE_DEFINITIONS } from './data/styleDefinitions';
 
 // Utils
-import { callGeminiAPI, hasApiKey } from './utils/geminiApi';
+import { callGeminiAPI, hasApiKey, adjustComment } from './utils/geminiApi';
 
 // Context
 import { useToast } from './contexts/ToastContext';
@@ -28,6 +28,7 @@ import IdiomSidebar from './components/IdiomSidebar';
 import DataLoading from './components/DataLoading';
 import InstallPrompt from './components/InstallPrompt';
 import LazyLoading from './components/LazyLoading';
+import SearchBar from './components/SearchBar';
 
 // Lazy Components (Modal 元件 - 動態載入)
 const StyleModal = lazy(() => import('./components/StyleModal'));
@@ -101,6 +102,9 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
     // 單一學生生成狀態
     const [isGeneratingSingle, setIsGeneratingSingle] = useState(null);
 
+    // 評語調整狀態
+    const [adjustingStudentId, setAdjustingStudentId] = useState(null);
+
     // 範本庫
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
     const [templateCount, setTemplateCount] = useState(0);
@@ -130,6 +134,49 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
     // 查看其他用戶學生（管理員用）
     const [viewingUser, setViewingUser] = useState(null);
     const [viewingStudents, setViewingStudents] = useState([]);
+
+    // 搜尋與篩選
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchFilters, setSearchFilters] = useState({
+        hasComment: null,  // true: 有評語, false: 無評語, null: 不篩選
+        hasTag: null       // true: 有標籤, false: 無標籤, null: 不篩選
+    });
+
+    // 計算篩選後的學生列表
+    const filteredStudents = useMemo(() => {
+        const sourceStudents = viewingUser ? viewingStudents : students;
+
+        return sourceStudents.filter(student => {
+            // 搜尋篩選
+            if (searchQuery.trim()) {
+                const query = searchQuery.toLowerCase();
+                const matchName = student.name?.toLowerCase().includes(query);
+                const matchTag = student.selectedTags?.some(tag => tag.toLowerCase().includes(query));
+                const matchComment = student.comment?.toLowerCase().includes(query);
+                const matchManual = student.manualTraits?.toLowerCase().includes(query);
+
+                if (!matchName && !matchTag && !matchComment && !matchManual) {
+                    return false;
+                }
+            }
+
+            // 評語篩選
+            if (searchFilters.hasComment !== null) {
+                const hasComment = student.comment && student.comment.trim() && !student.comment.includes('❌');
+                if (searchFilters.hasComment && !hasComment) return false;
+                if (!searchFilters.hasComment && hasComment) return false;
+            }
+
+            // 標籤篩選
+            if (searchFilters.hasTag !== null) {
+                const hasTag = student.selectedTags && student.selectedTags.length > 0;
+                if (searchFilters.hasTag && !hasTag) return false;
+                if (!searchFilters.hasTag && hasTag) return false;
+            }
+
+            return true;
+        });
+    }, [students, viewingStudents, viewingUser, searchQuery, searchFilters]);
 
     // 從 Firebase 同步 API Key 到 localStorage（使用者隔離 + 共享 API Key 支援）
     useEffect(() => {
@@ -397,9 +444,10 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
         }
     };
 
-    // 下載處理
+    // 下載處理（支援管理員檢視模式）
     const handleDownload = (format) => {
-        downloadComments(students, format);
+        // 使用 filteredStudents 以支援管理員查看其他用戶學生時的匯出
+        downloadComments(filteredStudents, format);
     };
 
     // 單一學生即時生成
@@ -464,6 +512,43 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
         if (focusedStudentId) {
             updateStudent(focusedStudentId, 'comment', content);
             syncComment(focusedStudentId, content);
+        }
+    };
+
+    // 調整評語（縮短/擴展/換說法）
+    const handleAdjustComment = async (studentId, adjustType, tone) => {
+        const student = students.find(s => s.id === studentId);
+        if (!student || !student.comment) return;
+
+        setAdjustingStudentId(studentId);
+
+        // 先儲存舊評語到歷史
+        if (!student.comment.includes("❌")) {
+            try {
+                await historyService.add(studentId, student.comment, globalStyles);
+            } catch (e) {
+                console.error('儲存歷史失敗:', e);
+            }
+        }
+
+        const adjustedComment = await adjustComment(student.comment, adjustType, tone);
+
+        // 更新本地狀態
+        setStudents(prev => prev.map(s =>
+            s.id === studentId ? { ...s, comment: adjustedComment } : s
+        ));
+
+        // 同步到 Firebase
+        await syncComment(studentId, adjustedComment);
+
+        setAdjustingStudentId(null);
+
+        // Toast 通知
+        if (adjustedComment.includes("❌")) {
+            toast.error(`${student.name}：${adjustedComment.replace("❌ ", "")}`);
+        } else {
+            const typeLabels = { shorter: '精簡', detailed: '詳細', rephrase: '改寫' };
+            toast.success(`✨ ${student.name} 的評語已${typeLabels[adjustType] || '調整'}！`);
         }
     };
 
@@ -621,16 +706,17 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                     />
 
                     <GeneratePanel
-                        students={students}
-                        selectedIds={selectedIds}
+                        students={filteredStudents}
+                        selectedIds={viewingUser ? new Set() : selectedIds}
                         isGenerating={isGenerating}
                         extraSettings={extraSettings}
                         setExtraSettings={setExtraSettings}
-                        onGenerateSelected={() => handleBatchGenerate(true)}
-                        onGenerateAll={() => handleBatchGenerate(false)}
+                        onGenerateSelected={viewingUser ? () => { } : () => handleBatchGenerate(true)}
+                        onGenerateAll={viewingUser ? () => { } : () => handleBatchGenerate(false)}
                         onDownload={handleDownload}
-                        onDeleteSelected={handleDeleteSelected}
-                        onResetList={handleResetList}
+                        onDeleteSelected={viewingUser ? () => { } : handleDeleteSelected}
+                        onResetList={viewingUser ? () => { } : handleResetList}
+                        isViewingMode={!!viewingUser}
                     />
                 </div>
 
@@ -665,6 +751,18 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                         </div>
                     )}
 
+                    {/* 搜尋與篩選列 */}
+                    {!viewingUser && (
+                        <SearchBar
+                            searchQuery={searchQuery}
+                            setSearchQuery={setSearchQuery}
+                            filters={searchFilters}
+                            setFilters={setSearchFilters}
+                            totalCount={students.length}
+                            filteredCount={filteredStudents.length}
+                        />
+                    )}
+
                     {/* 風格設定顯示條 */}
                     <StyleBar
                         globalStyles={globalStyles}
@@ -674,7 +772,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
 
                     {/* 學生表格/卡片 */}
                     <StudentTable
-                        students={viewingUser ? viewingStudents : students}
+                        students={filteredStudents}
                         selectedIds={viewingUser ? new Set() : selectedIds}
                         focusedStudentId={viewingUser ? null : focusedStudentId}
                         isGenerating={isGenerating}
@@ -693,6 +791,9 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                             setIsHistoryModalOpen(true);
                         }}
                         readOnly={!!viewingUser}
+                        searchQuery={searchQuery}
+                        onAdjustComment={viewingUser ? () => { } : handleAdjustComment}
+                        adjustingStudentId={adjustingStudentId}
                     />
                 </div>
 

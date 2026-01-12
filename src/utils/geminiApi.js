@@ -133,4 +133,100 @@ ${styleInstructions}
     }
 };
 
+/**
+ * 調整評語（縮短、增加細節、換種說法）
+ * @param {string} originalComment - 原始評語
+ * @param {string} adjustType - 調整類型：'shorter' | 'detailed' | 'rephrase'
+ * @param {number} tone - 語氣程度：1(正式) - 5(親切)
+ * @returns {Promise<string>} - 調整後的評語
+ */
+export const adjustComment = async (originalComment, adjustType, tone = 3) => {
+    const apiKey = getApiKey();
+
+    if (!apiKey) {
+        return "❌ 尚未設定 API Key，請先設定後再試。";
+    }
+
+    if (!originalComment || originalComment.includes('❌')) {
+        return "❌ 無法調整此評語。";
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+    // 語氣對照表
+    const toneDescriptions = {
+        1: '非常正式、莊重、適合官方文件',
+        2: '稍微正式、專業但不失親和',
+        3: '標準、中性的語氣',
+        4: '稍微親切、溫暖、友善',
+        5: '非常親切、口語化、像在聊天'
+    };
+
+    // 調整類型對照表
+    const adjustInstructions = {
+        shorter: '請將評語精簡縮短約 30-50%，保留核心內容和重點，去除冗餘描述。',
+        detailed: '請將評語增加更多細節和具體描述，擴展約 30-50%，使內容更加豐富完整。',
+        rephrase: '請用不同的表達方式重新撰寫這段評語，保持相同的核心意思但使用不同的詞彙和句式。'
+    };
+
+    const prompt = `你是一位專業的文字編輯。請根據以下要求調整這段學期評語。
+
+⚠️ **極其重要的語言要求（絕對不可違反）**：
+- 你的輸出「必須」且「只能」使用「正體中文（繁體中文）」
+- 「嚴禁」使用任何簡體字
+- 請使用台灣慣用的繁體中文用語與詞彙
+
+**原始評語：**
+${originalComment}
+
+**調整要求：**
+${adjustInstructions[adjustType] || adjustInstructions.rephrase}
+
+**語氣要求：**
+${toneDescriptions[tone] || toneDescriptions[3]}
+
+**輸出限制：**
+1. 直接輸出調整後的評語，不要加任何標題或說明
+2. 請勿使用 Markdown 格式
+3. 保持評語的專業性和正面積極的態度
+4. 所有文字必須是繁體中文
+`;
+
+    let retries = 0;
+    const maxRetries = 3;
+    const backoff = [1000, 2000, 4000];
+
+    while (retries <= maxRetries) {
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+
+            if (!response.ok) {
+                if (response.status === 400 || response.status === 401 || response.status === 403) {
+                    return "❌ API Key 無效或已過期，請重新設定。";
+                }
+                if (response.status === 429) {
+                    return "❌ API 額度已用完，請稍後再試。";
+                }
+                throw new Error(`API Error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            return text?.trim() || "❌ 調整失敗，請稍後再試。";
+        } catch (error) {
+            if (retries === maxRetries) {
+                console.error("Gemini API Adjust Failed:", error);
+                return "❌ 連線逾時，請檢查網路或稍後再試。";
+            }
+            await new Promise(r => setTimeout(r, backoff[retries]));
+            retries++;
+        }
+    }
+};
+
 export default callGeminiAPI;
+

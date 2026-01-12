@@ -2,6 +2,11 @@
     "firestore": {
         "rules": "firestore.rules"
     },
+    "functions": {
+        "source": "functions",
+        "runtime": "nodejs20",
+        "region": "asia-east1"
+    },
     "hosting": {
         "public": "dist",
         "ignore": [
@@ -10,6 +15,10 @@
             "**/node_modules/**"
         ],
         "rewrites": [
+            {
+                "source": "/api/**",
+                "function": "api"
+            },
             {
                 "source": "**",
                 "destination": "/index.html"

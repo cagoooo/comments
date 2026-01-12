@@ -14,7 +14,8 @@ const GeneratePanel = ({
     onGenerateAll,
     onDownload,
     onDeleteSelected,
-    onResetList
+    onResetList,
+    isViewingMode = false
 }) => {
     return (
         <div className="flex-1 w-full flex flex-col gap-3 sm:gap-4 p-3 sm:p-4 bg-[#54A0FF] border-3 border-[#2D3436] rounded-lg shadow-[4px_4px_0_#2D3436] transform rotate-[0.5deg]">
@@ -64,32 +65,43 @@ const GeneratePanel = ({
                 </div>
             </div>
 
-            {/* 生成按鈕 */}
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                <button
-                    onClick={onGenerateSelected}
-                    disabled={selectedIds.size === 0 || isGenerating}
-                    className={`flex-1 btn-pop py-3 sm:py-4 text-sm sm:text-base font-black flex items-center justify-center gap-2 
+            {/* 生成按鈕 - 檢視模式下隱藏 */}
+            {!isViewingMode && (
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                    <button
+                        onClick={onGenerateSelected}
+                        disabled={selectedIds.size === 0 || isGenerating}
+                        className={`flex-1 btn-pop py-3 sm:py-4 text-sm sm:text-base font-black flex items-center justify-center gap-2 
             ${selectedIds.size > 0 && !isGenerating
-                            ? 'bg-white text-[#2D3436]'
-                            : 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60'}`}
-                >
-                    <CheckSquare size={18} />
-                    {isGenerating ? "產生中..." : `生成已選 (${selectedIds.size})`}
-                </button>
+                                ? 'bg-white text-[#2D3436]'
+                                : 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60'}`}
+                    >
+                        <CheckSquare size={18} />
+                        {isGenerating ? "產生中..." : `生成已選 (${selectedIds.size})`}
+                    </button>
 
-                <button
-                    onClick={onGenerateAll}
-                    disabled={students.length === 0 || isGenerating}
-                    className={`flex-1 btn-pop py-3 sm:py-4 text-sm sm:text-base font-black flex items-center justify-center gap-2
+                    <button
+                        onClick={onGenerateAll}
+                        disabled={students.length === 0 || isGenerating}
+                        className={`flex-1 btn-pop py-3 sm:py-4 text-sm sm:text-base font-black flex items-center justify-center gap-2
             ${students.length > 0 && !isGenerating
-                            ? 'bg-[#FECA57] text-[#2D3436]'
-                            : 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60'}`}
-                >
-                    <span className="text-xl">🐝</span>
-                    {isGenerating ? "AI 撰寫中..." : "全部生成！"}
-                </button>
-            </div>
+                                ? 'bg-[#FECA57] text-[#2D3436]'
+                                : 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60'}`}
+                    >
+                        <span className="text-xl">🐝</span>
+                        {isGenerating ? "AI 撰寫中..." : "全部生成！"}
+                    </button>
+                </div>
+            )}
+
+            {/* 檢視模式提示 */}
+            {isViewingMode && (
+                <div className="bg-white/80 border-2 border-dashed border-[#2D3436]/30 rounded-lg p-3 text-center">
+                    <span className="text-sm font-bold text-[#636E72]">
+                        👀 檢視模式 - 可匯出學生資料
+                    </span>
+                </div>
+            )}
 
             {/* 下載與刪除 */}
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm pt-2 border-t-2 border-dashed border-white/50">
@@ -110,24 +122,27 @@ const GeneratePanel = ({
                     </button>
                 </div>
 
-                <div className="flex gap-2">
-                    {selectedIds.size > 0 && (
+                {/* 刪除按鈕 - 檢視模式下隱藏 */}
+                {!isViewingMode && (
+                    <div className="flex gap-2">
+                        {selectedIds.size > 0 && (
+                            <button
+                                onClick={onDeleteSelected}
+                                disabled={isGenerating}
+                                className="btn-pop bg-[#FF6B6B] text-white px-2 sm:px-3 py-1 flex items-center gap-1 text-xs sm:text-sm disabled:opacity-50"
+                            >
+                                <Trash2 size={12} /> 刪除 ({selectedIds.size})
+                            </button>
+                        )}
                         <button
-                            onClick={onDeleteSelected}
-                            disabled={isGenerating}
-                            className="btn-pop bg-[#FF6B6B] text-white px-2 sm:px-3 py-1 flex items-center gap-1 text-xs sm:text-sm disabled:opacity-50"
+                            onClick={onResetList}
+                            disabled={isGenerating || students.length === 0}
+                            className="text-white/80 hover:text-white font-bold transition-colors disabled:opacity-50"
                         >
-                            <Trash2 size={12} /> 刪除 ({selectedIds.size})
+                            🗑️ 全刪
                         </button>
-                    )}
-                    <button
-                        onClick={onResetList}
-                        disabled={isGenerating || students.length === 0}
-                        className="text-white/80 hover:text-white font-bold transition-colors disabled:opacity-50"
-                    >
-                        🗑️ 全刪
-                    </button>
-                </div>
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -1,5 +1,7 @@
 import React from 'react';
 import { Trash2, Loader2, Heart, Clock, Sparkles } from 'lucide-react';
+import HighlightText from './HighlightText';
+import CommentAdjuster from './CommentAdjuster';
 
 /**
  * 學生卡片元件（手機端）- 教育手寫普普風
@@ -19,9 +21,13 @@ const StudentCard = ({
     onDeleteStudent,
     onGenerateSingle,
     onSaveTemplate,
-    onOpenHistory
+    onOpenHistory,
+    searchQuery = '',
+    onAdjustComment,
+    adjustingStudentId
 }) => {
     const isThisGenerating = isGeneratingSingle === student.id;
+    const isThisAdjusting = adjustingStudentId === student.id;
 
     const getWordCountColor = (length) => {
         if (length < 50) return 'text-[#FF6B6B]';
@@ -47,7 +53,7 @@ const StudentCard = ({
                     >
                         {isSelected && <span className="text-xs font-bold">✓</span>}
                     </button>
-                    <span className="font-black text-[#2D3436] text-sm truncate">📚 {student.name}</span>
+                    <span className="font-black text-[#2D3436] text-sm truncate">📚 <HighlightText text={student.name} highlight={searchQuery} /></span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     {/* 生成按鈕 - 更突出 */}
@@ -83,7 +89,7 @@ const StudentCard = ({
                     {student.selectedTags.length > 0 ? (
                         student.selectedTags.map((tag, idx) => (
                             <span key={idx} className="tag-handwrite text-xs">
-                                {tag}
+                                <HighlightText text={tag} highlight={searchQuery} />
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onRemoveTag(student.id, tag); }}
                                     className="hover:text-[#FF6B6B] ml-1"
@@ -144,6 +150,16 @@ const StudentCard = ({
                     <div className={`text-right text-xs mt-1 font-bold ${getWordCountColor(student.comment.length)}`}>
                         {student.comment.length} 字
                     </div>
+                )}
+                {/* 評語調整工具 */}
+                {onAdjustComment && (
+                    <CommentAdjuster
+                        comment={student.comment}
+                        studentName={student.name}
+                        onAdjust={(type, tone) => onAdjustComment(student.id, type, tone)}
+                        isAdjusting={isThisAdjusting}
+                        disabled={isGenerating || isThisGenerating}
+                    />
                 )}
             </div>
         </div>

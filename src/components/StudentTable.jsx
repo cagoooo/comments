@@ -1,6 +1,8 @@
 import React from 'react';
 import { Trash2, Loader2, Heart, Clock } from 'lucide-react';
 import StudentCard from './StudentCard';
+import HighlightText from './HighlightText';
+import CommentAdjuster from './CommentAdjuster';
 
 /**
  * 學生表格元件 - 教育手寫普普風
@@ -23,7 +25,10 @@ const StudentTable = ({
     onDeleteStudent,
     onGenerateSingle,
     onSaveTemplate,
-    onOpenHistory
+    onOpenHistory,
+    searchQuery = '',
+    onAdjustComment,
+    adjustingStudentId
 }) => {
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
@@ -68,6 +73,9 @@ const StudentTable = ({
                                 onGenerateSingle={onGenerateSingle}
                                 onSaveTemplate={onSaveTemplate}
                                 onOpenHistory={onOpenHistory}
+                                searchQuery={searchQuery}
+                                onAdjustComment={onAdjustComment}
+                                adjustingStudentId={adjustingStudentId}
                             />
                         ))}
                     </>
@@ -111,7 +119,9 @@ const StudentTable = ({
                                     </button>
                                 </td>
                                 <td className="p-4 lg:p-5 align-top pt-6 lg:pt-8 border-r-2 border-dashed border-[#E8DCC8]">
-                                    <div className="font-black text-[#2D3436] text-base lg:text-lg mb-2">{student.name}</div>
+                                    <div className="font-black text-[#2D3436] text-base lg:text-lg mb-2">
+                                        <HighlightText text={student.name} highlight={searchQuery} />
+                                    </div>
                                     <button onClick={() => onGenerateSingle(student.id)} disabled={isGenerating || isThisGenerating} className="btn-pop px-4 py-2 bg-[#1DD1A1] text-white text-sm font-black flex items-center gap-2 disabled:opacity-50 w-full justify-center rounded-lg shadow-[2px_2px_0_#2D3436]">
                                         {isThisGenerating ? (
                                             <>
@@ -132,7 +142,7 @@ const StudentTable = ({
                                             <div className="flex flex-wrap gap-2">
                                                 {student.selectedTags.map((tag, idx) => (
                                                     <span key={idx} className="tag-handwrite text-sm">
-                                                        {tag}
+                                                        <HighlightText text={tag} highlight={searchQuery} />
                                                         <button onClick={(e) => { e.stopPropagation(); onRemoveTag(student.id, tag); }} className="hover:text-[#FF6B6B] ml-1">×</button>
                                                     </span>
                                                 ))}
@@ -165,6 +175,16 @@ const StudentTable = ({
                                         <div className={`text-right text-xs mt-1 font-bold ${getWordCountColor(student.comment.length)}`}>
                                             {student.comment.length} 字
                                         </div>
+                                    )}
+                                    {/* 評語調整工具 */}
+                                    {onAdjustComment && (
+                                        <CommentAdjuster
+                                            comment={student.comment}
+                                            studentName={student.name}
+                                            onAdjust={(type, tone) => onAdjustComment(student.id, type, tone)}
+                                            isAdjusting={adjustingStudentId === student.id}
+                                            disabled={isGenerating || isThisGenerating}
+                                        />
                                     )}
                                 </td>
                                 <td className="p-4 lg:p-5 text-center align-top pt-6 lg:pt-8">
