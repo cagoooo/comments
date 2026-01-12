@@ -90,8 +90,24 @@ ${styleInstructions}
             });
 
             if (!response.ok) {
+                // API Key 無效
                 if (response.status === 400 || response.status === 401 || response.status === 403) {
                     return "❌ API Key 無效或已過期，請重新設定。";
+                }
+                // 配額用完
+                if (response.status === 429) {
+                    const errorData = await response.json().catch(() => ({}));
+                    const retryDelay = errorData?.error?.details?.find(d => d['@type']?.includes('RetryInfo'))?.retryDelay;
+
+                    if (retryDelay && retries < maxRetries) {
+                        // 有建議重試時間，等待後重試
+                        const delayMs = parseInt(retryDelay) * 1000 || backoff[retries];
+                        await new Promise(r => setTimeout(r, Math.min(delayMs, 10000)));
+                        retries++;
+                        continue;
+                    }
+
+                    return "❌ API 免費額度已用完，請明天再試或建立新的 API Key。";
                 }
                 throw new Error(`API Error: ${response.status}`);
             }
@@ -102,7 +118,7 @@ ${styleInstructions}
         } catch (error) {
             if (retries === maxRetries) {
                 console.error("Gemini API Failed:", error);
-                return "生成連線逾時，請檢查網路或稍後再試。";
+                return "❌ 生成連線逾時，請檢查網路或稍後再試。";
             }
             await new Promise(r => setTimeout(r, backoff[retries]));
             retries++;

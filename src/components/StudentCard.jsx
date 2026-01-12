@@ -150,4 +150,25 @@ const StudentCard = ({
     );
 };
 
-export default StudentCard;
+// 自定義比較函數：只在相關 props 變化時才重新渲染
+const areEqual = (prevProps, nextProps) => {
+    // 檢查學生基本資料
+    if (prevProps.student.id !== nextProps.student.id) return false;
+    if (prevProps.student.name !== nextProps.student.name) return false;
+    if (prevProps.student.comment !== nextProps.student.comment) return false;
+    if (prevProps.student.manualTraits !== nextProps.student.manualTraits) return false;
+
+    // 檢查標籤陣列（淺比較）
+    if (prevProps.student.selectedTags.length !== nextProps.student.selectedTags.length) return false;
+    if (prevProps.student.selectedTags.some((tag, i) => tag !== nextProps.student.selectedTags[i])) return false;
+
+    // 檢查狀態 props
+    if (prevProps.isSelected !== nextProps.isSelected) return false;
+    if (prevProps.isFocused !== nextProps.isFocused) return false;
+    if (prevProps.isGenerating !== nextProps.isGenerating) return false;
+    if (prevProps.isGeneratingSingle !== nextProps.isGeneratingSingle) return false;
+
+    return true;
+};
+
+export default React.memo(StudentCard, areEqual);

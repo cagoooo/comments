@@ -14,12 +14,26 @@ const DashboardModal = ({
     // 計算統計資料
     const stats = useMemo(() => {
         const total = students.length;
-        const withComment = students.filter(s => s.comment?.trim()).length;
+
+        // 判斷是否為有效評語（非空且非錯誤訊息）
+        const isValidComment = (comment) => {
+            if (!comment?.trim()) return false;
+            if (comment.trim().startsWith('❌')) return false;
+            return true;
+        };
+
+        // 判斷是否為錯誤訊息
+        const isErrorComment = (comment) => {
+            return comment?.trim()?.startsWith('❌') || false;
+        };
+
+        const withComment = students.filter(s => isValidComment(s.comment)).length;
+        const withError = students.filter(s => isErrorComment(s.comment)).length;
         const completionRate = total > 0 ? Math.round((withComment / total) * 100) : 0;
 
-        // 字數統計
+        // 字數統計（只計算有效評語）
         const commentLengths = students
-            .filter(s => s.comment?.trim())
+            .filter(s => isValidComment(s.comment))
             .map(s => s.comment.length);
 
         const totalChars = commentLengths.reduce((a, b) => a + b, 0);
@@ -41,12 +55,13 @@ const DashboardModal = ({
             .sort((a, b) => b[1] - a[1])
             .slice(0, 10);
 
-        // 未完成學生
-        const pending = students.filter(s => !s.comment?.trim());
+        // 未完成學生（無評語或錯誤訊息）
+        const pending = students.filter(s => !isValidComment(s.comment));
 
         return {
             total,
             withComment,
+            withError,
             completionRate,
             avgLength,
             maxLength,
@@ -101,17 +116,21 @@ const DashboardModal = ({
                         </div>
 
                         {/* 數字統計 */}
-                        <div className="grid grid-cols-3 gap-3 text-center">
-                            <div className="p-3 bg-[#1DD1A1]/20 border-2 border-[#1DD1A1] rounded-lg">
-                                <div className="text-2xl font-black text-[#1DD1A1]">{stats.withComment}</div>
+                        <div className="grid grid-cols-4 gap-2 text-center">
+                            <div className="p-2 sm:p-3 bg-[#1DD1A1]/20 border-2 border-[#1DD1A1] rounded-lg">
+                                <div className="text-xl sm:text-2xl font-black text-[#1DD1A1]">{stats.withComment}</div>
                                 <div className="text-xs font-bold text-[#2D3436]">已完成</div>
                             </div>
-                            <div className="p-3 bg-[#FF6B6B]/20 border-2 border-[#FF6B6B] rounded-lg">
-                                <div className="text-2xl font-black text-[#FF6B6B]">{stats.total - stats.withComment}</div>
-                                <div className="text-xs font-bold text-[#2D3436]">未完成</div>
+                            <div className="p-2 sm:p-3 bg-[#FECA57]/20 border-2 border-[#FECA57] rounded-lg">
+                                <div className="text-xl sm:text-2xl font-black text-[#F39C12]">{stats.total - stats.withComment - stats.withError}</div>
+                                <div className="text-xs font-bold text-[#2D3436]">待撰寫</div>
                             </div>
-                            <div className="p-3 bg-[#54A0FF]/20 border-2 border-[#54A0FF] rounded-lg">
-                                <div className="text-2xl font-black text-[#54A0FF]">{stats.total}</div>
+                            <div className="p-2 sm:p-3 bg-[#FF6B6B]/20 border-2 border-[#FF6B6B] rounded-lg">
+                                <div className="text-xl sm:text-2xl font-black text-[#FF6B6B]">{stats.withError}</div>
+                                <div className="text-xs font-bold text-[#2D3436]">生成失敗</div>
+                            </div>
+                            <div className="p-2 sm:p-3 bg-[#54A0FF]/20 border-2 border-[#54A0FF] rounded-lg">
+                                <div className="text-xl sm:text-2xl font-black text-[#54A0FF]">{stats.total}</div>
                                 <div className="text-xs font-bold text-[#2D3436]">總人數</div>
                             </div>
                         </div>

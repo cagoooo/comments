@@ -597,6 +597,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                     expandedCategories={expandedCategories}
                     onToggleCategory={toggleCategory}
                     onIdiomClick={handleIdiomClick}
+                    userId={currentUser?.uid}
                 />
             </div>
 

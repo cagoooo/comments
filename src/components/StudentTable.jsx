@@ -112,8 +112,18 @@ const StudentTable = ({
                                 </td>
                                 <td className="p-4 lg:p-5 align-top pt-6 lg:pt-8 border-r-2 border-dashed border-[#E8DCC8]">
                                     <div className="font-black text-[#2D3436] text-base lg:text-lg mb-2">{student.name}</div>
-                                    <button onClick={() => onGenerateSingle(student.id)} disabled={isGenerating || isThisGenerating} className="btn-pop px-3 py-1.5 bg-[#1DD1A1] text-white text-xs font-bold flex items-center gap-1 disabled:opacity-50 w-full justify-center">
-                                        {isThisGenerating ? (<><Loader2 size={14} className="animate-spin" /> 生成中...</>) : (<>🐝 生成評語</>)}
+                                    <button onClick={() => onGenerateSingle(student.id)} disabled={isGenerating || isThisGenerating} className="btn-pop px-4 py-2 bg-[#1DD1A1] text-white text-sm font-black flex items-center gap-2 disabled:opacity-50 w-full justify-center rounded-lg shadow-[2px_2px_0_#2D3436]">
+                                        {isThisGenerating ? (
+                                            <>
+                                                <Loader2 size={16} className="animate-spin" />
+                                                <span>生成中...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span className="text-lg">🐝</span>
+                                                <span>生成評語</span>
+                                            </>
+                                        )}
                                     </button>
                                 </td>
                                 <td className="p-4 lg:p-5 align-top border-r-2 border-dashed border-[#E8DCC8]">
@@ -171,4 +181,4 @@ const StudentTable = ({
     );
 };
 
-export default StudentTable;
+export default React.memo(StudentTable);

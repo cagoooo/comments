@@ -99,18 +99,21 @@ const InputPanel = ({
 
     return (
         <div className="flex-1 w-full flex flex-col gap-3 p-3 sm:p-4 bg-[#FF9F43] border-3 border-[#2D3436] rounded-lg shadow-[4px_4px_0_#2D3436] transform rotate-[-0.5deg]">
-            <div className="flex items-center gap-2 sm:gap-3 text-white font-black text-base sm:text-xl mb-1">
-                <span className="text-2xl">📝</span>
-                1. 輸入學生名單
+            <div className="flex items-center justify-between gap-2 sm:gap-3 text-white font-black text-base sm:text-xl mb-1">
+                <div className="flex items-center gap-2">
+                    <span className="text-2xl">📝</span>
+                    1. 輸入學生名單
+                </div>
 
-                {/* Excel 匯入按鈕 */}
+                {/* Excel 匯入按鈕 - 大而清楚 */}
                 <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="ml-auto btn-pop bg-white text-[#54A0FF] px-2 py-1 text-xs font-bold flex items-center gap-1"
+                    className="btn-pop bg-white text-[#1DD1A1] px-3 sm:px-4 py-2 text-sm sm:text-base font-black flex items-center gap-2 shadow-[3px_3px_0_#2D3436] hover:shadow-[4px_4px_0_#2D3436] hover:-translate-y-0.5 transition-all"
                     title="從 Excel 匯入學生"
                 >
-                    <FileSpreadsheet size={14} />
-                    <span className="hidden sm:inline">Excel 匯入</span>
+                    <FileSpreadsheet size={18} className="sm:w-5 sm:h-5" />
+                    <span className="hidden xs:inline">Excel</span>
+                    <span>匯入</span>
                 </button>
                 <input
                     ref={fileInputRef}

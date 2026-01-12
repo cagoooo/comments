@@ -12,7 +12,8 @@ const IdiomSidebar = ({
     selectedIds,
     expandedCategories,
     onToggleCategory,
-    onIdiomClick
+    onIdiomClick,
+    userId
 }) => {
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -35,22 +36,24 @@ const IdiomSidebar = ({
         "其他": "#636E72"
     };
 
-    // 取得常用成語（從 localStorage）
+    // 取得常用成語（從 localStorage，依帳號隔離）
     const getUsageCount = (idiom) => {
         try {
-            const usage = JSON.parse(localStorage.getItem('idiom_usage') || '{}');
+            const storageKey = userId ? `idiom_usage_${userId}` : 'idiom_usage';
+            const usage = JSON.parse(localStorage.getItem(storageKey) || '{}');
             return usage[idiom] || 0;
         } catch {
             return 0;
         }
     };
 
-    // 記錄使用次數
+    // 記錄使用次數（依帳號隔離）
     const recordUsage = (idiom) => {
         try {
-            const usage = JSON.parse(localStorage.getItem('idiom_usage') || '{}');
+            const storageKey = userId ? `idiom_usage_${userId}` : 'idiom_usage';
+            const usage = JSON.parse(localStorage.getItem(storageKey) || '{}');
             usage[idiom] = (usage[idiom] || 0) + 1;
-            localStorage.setItem('idiom_usage', JSON.stringify(usage));
+            localStorage.setItem(storageKey, JSON.stringify(usage));
         } catch (e) {
             console.error('記錄成語使用失敗:', e);
         }

@@ -76,13 +76,11 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
         setTestResult(null);
 
         try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey.trim()}`;
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: '請回覆「連線成功」四個字' }] }]
-                })
+            // 使用更輕量的 models 列表 API 來測試，避免觸發生成內容的配額限制
+            const listModelsUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey.trim()}`;
+            const response = await fetch(listModelsUrl, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
             });
 
             if (response.ok) {
@@ -91,12 +89,21 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
                 await settingsService.save({ apiKey: apiKey.trim() });
                 setSavedKey(apiKey.trim());
                 localStorage.setItem('gemini_api_key', apiKey.trim());
+            } else if (response.status === 429) {
+                // 配額用完，但 API Key 本身是有效的，仍然儲存
+                setTestResult('quota');
+                await settingsService.save({ apiKey: apiKey.trim() });
+                setSavedKey(apiKey.trim());
+                localStorage.setItem('gemini_api_key', apiKey.trim());
+            } else if (response.status === 400 || response.status === 403) {
+                // API Key 無效或沒有權限
+                setTestResult('error');
             } else {
                 setTestResult('error');
             }
         } catch (error) {
             console.error('API 測試失敗:', error);
-            setTestResult('error');
+            setTestResult('network');
         }
 
         setIsTesting(false);
@@ -196,12 +203,27 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
                                 <div className={`p-3 rounded-lg border-2 flex items-center gap-2 text-sm font-bold
                                   ${testResult === 'success'
                                         ? 'bg-[#1DD1A1]/20 border-[#1DD1A1] text-[#1DD1A1]'
-                                        : 'bg-[#FF6B6B]/20 border-[#FF6B6B] text-[#FF6B6B]'}`}
+                                        : testResult === 'quota'
+                                            ? 'bg-[#FECA57]/20 border-[#FECA57] text-[#F39C12]'
+                                            : 'bg-[#FF6B6B]/20 border-[#FF6B6B] text-[#FF6B6B]'}`}
                                 >
                                     {testResult === 'success' ? (
                                         <>
                                             <CheckCircle size={18} />
                                             連線測試成功！API Key 已自動儲存 ✨
+                                        </>
+                                    ) : testResult === 'quota' ? (
+                                        <>
+                                            <CheckCircle size={18} />
+                                            <div>
+                                                <div>API Key 有效，已自動儲存 ✨</div>
+                                                <div className="text-xs font-normal mt-1">目前配額已達上限，稍後可正常使用</div>
+                                            </div>
+                                        </>
+                                    ) : testResult === 'network' ? (
+                                        <>
+                                            <AlertCircle size={18} />
+                                            網路連線失敗，請檢查網路狀態
                                         </>
                                     ) : (
                                         <>
