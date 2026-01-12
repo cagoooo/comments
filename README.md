@@ -2,7 +2,7 @@
 
 > 🎓 專為教師設計的學生評語智慧生成工具，讓撰寫評語變得輕鬆又高效！
 
-[![Version](https://img.shields.io/badge/version-2.6.1-blue.svg)](https://github.com/cagoooo/comments)
+[![Version](https://img.shields.io/badge/version-2.6.2-blue.svg)](https://github.com/cagoooo/comments)
 [![React](https://img.shields.io/badge/React-18.3-61dafb.svg)](https://reactjs.org/)
 [![Firebase](https://img.shields.io/badge/Firebase-12.7-orange.svg)](https://firebase.google.com/)
 [![Gemini](https://img.shields.io/badge/Gemini-2.5_Flash-brightgreen.svg)](https://ai.google.dev/)
@@ -114,6 +114,7 @@ h:\comments\
 
 | 版本 | 日期 | 主要更新 |
 |------|------|----------|
+| v2.6.2 | 2026-01-12 | 🇹🇼 繁體中文強制輸出、禁用簡體字 |
 | v2.6.1 | 2026-01-12 | 🔔 管理員通知徽章、WebView 登入優化 |
 | v2.6.0 | 2026-01-12 | 🆕 管理員 API Key 共享功能 |
 | v2.5.2 | 2026-01-12 | API Key 配額檢測優化 |
