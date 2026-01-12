@@ -2,7 +2,7 @@
 
 > 🎓 專為教師設計的學生評語智慧生成工具，讓撰寫評語變得輕鬆又高效！
 
-[![Version](https://img.shields.io/badge/version-2.5.1-blue.svg)](https://github.com/cagoooo/comments)
+[![Version](https://img.shields.io/badge/version-2.6.0-blue.svg)](https://github.com/cagoooo/comments)
 [![React](https://img.shields.io/badge/React-18.3-61dafb.svg)](https://reactjs.org/)
 [![Firebase](https://img.shields.io/badge/Firebase-12.7-orange.svg)](https://firebase.google.com/)
 [![Gemini](https://img.shields.io/badge/Gemini-2.5_Flash-brightgreen.svg)](https://ai.google.dev/)
@@ -38,6 +38,7 @@
 - **Google 登入** - 安全便捷的 OAuth 認證
 - **管理員審核** - 教師帳號需經管理員審核啟用
 - **API Key 隔離** - 每位教師獨立管理個人 API Key
+- **🆕 共享 API Key** - 管理員可授權教師使用付費 API Key
 
 ### 📱 跨平台支援
 - **PWA 離線支援** - 可安裝至桌面，離線也能使用部分功能
@@ -113,6 +114,8 @@ h:\comments\
 
 | 版本 | 日期 | 主要更新 |
 |------|------|----------|
+| v2.6.0 | 2026-01-12 | 🆕 管理員 API Key 共享功能 |
+| v2.5.2 | 2026-01-12 | API Key 配額檢測優化 |
 | v2.5.1 | 2026-01-12 | API Key 驗證優化、版本號更新 |
 | v2.5.0 | 2026-01-12 | 升級至 Gemini 2.5 Flash API |
 | v2.4.1 | 2026-01-11 | API Key 測試驗證優化 |
