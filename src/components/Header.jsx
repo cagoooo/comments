@@ -20,7 +20,8 @@ const Header = ({
     templateCount = 0,
     currentClassName = '全部學生',
     currentUser,
-    isAdmin
+    isAdmin,
+    pendingCount = 0
 }) => {
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
@@ -64,15 +65,19 @@ const Header = ({
 
             {/* 右側：功能按鈕 */}
             <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2">
-                {/* 管理員按鈕 - 僅管理員可見 */}
                 {isAdmin && (
                     <button
                         onClick={onOpenAdmin}
-                        className="btn-pop p-1.5 sm:p-2 bg-[#FF6B9D] text-white flex items-center gap-1 text-xs sm:text-sm"
+                        className="btn-pop p-1.5 sm:p-2 bg-[#FF6B9D] text-white flex items-center gap-1 text-xs sm:text-sm relative"
                         title="管理員面板"
                     >
                         <Shield size={16} className="sm:w-[18px] sm:h-[18px]" />
                         <span className="hidden md:inline">管理</span>
+                        {pendingCount > 0 && (
+                            <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-[#FECA57] text-[#2D3436] text-[10px] sm:text-xs font-bold rounded-full flex items-center justify-center animate-pulse shadow-[1px_1px_0_#2D3436]">
+                                {pendingCount > 9 ? '9+' : pendingCount}
+                            </span>
+                        )}
                     </button>
                 )}
 
@@ -202,6 +207,16 @@ const Header = ({
                             <div className="mt-2 pt-2 border-t border-dashed border-[#E8DCC8]">
                                 <div className="text-xs text-[#636E72] flex items-center gap-1">
                                     🏫 <span className="font-bold text-[#A29BFE]">{currentUser.schoolName}</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 管理員角色標識 */}
+                        {isAdmin && (
+                            <div className={`${currentUser?.schoolName ? 'mt-1' : 'mt-2 pt-2 border-t border-dashed border-[#E8DCC8]'}`}>
+                                <div className="text-xs flex items-center gap-1">
+                                    <Shield size={12} className="text-[#FF6B9D]" />
+                                    <span className="font-bold text-[#FF6B9D]">系統管理員</span>
                                 </div>
                             </div>
                         )}

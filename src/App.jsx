@@ -41,7 +41,7 @@ const PrintModal = lazy(() => import('./components/PrintModal'));
 const DashboardModal = lazy(() => import('./components/DashboardModal'));
 
 // Firebase
-import { templateService, classService, historyService, settingsService, adminConfigService } from './firebase';
+import { templateService, classService, historyService, settingsService, adminConfigService, userService, USER_ROLES } from './firebase';
 
 /**
  * 點石成金蜂🐝 - AI 評語產生器
@@ -124,6 +124,9 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
     // 班級統計儀表板
     const [isDashboardOpen, setIsDashboardOpen] = useState(false);
 
+    // 待審核用戶數量（管理員用）
+    const [pendingCount, setPendingCount] = useState(0);
+
     // 從 Firebase 同步 API Key 到 localStorage（使用者隔離 + 共享 API Key 支援）
     useEffect(() => {
         if (!currentUser) {
@@ -190,6 +193,22 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
         });
         return () => unsubscribe();
     }, [currentClassId]);
+
+    // 訂閱待審核用戶數量（僅管理員）
+    useEffect(() => {
+        if (!isAdmin) {
+            setPendingCount(0);
+            return;
+        }
+
+        const unsubscribe = userService.subscribeAll((users) => {
+            const pending = users.filter(u =>
+                u.role === USER_ROLES.PENDING_REVIEW || u.role === USER_ROLES.PENDING
+            );
+            setPendingCount(pending.length);
+        });
+        return () => unsubscribe();
+    }, [isAdmin]);
 
     // 成語分類展開狀態
     const [expandedCategories, setExpandedCategories] = useState({
@@ -545,6 +564,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                 currentClassName={currentClassName}
                 currentUser={currentUser}
                 isAdmin={isAdmin}
+                pendingCount={pendingCount}
             />
 
             <div className="flex flex-col flex-1 w-full mx-auto relative">
