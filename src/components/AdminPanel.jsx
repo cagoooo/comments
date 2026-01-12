@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, XCircle, Users, School, Shield, Clock, Building2, Trash2, FileText, ChevronDown, ChevronUp, Settings2 } from 'lucide-react';
-import { userService, USER_ROLES, classService, schoolService } from '../firebase';
+import { X, Check, XCircle, Users, School, Shield, Clock, Building2, Trash2, FileText, ChevronDown, ChevronUp, Settings2, Key, Gift, Loader2 } from 'lucide-react';
+import { userService, USER_ROLES, classService, schoolService, adminConfigService } from '../firebase';
 
 /**
  * 管理員面板
@@ -15,6 +15,12 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
     const [selectedClasses, setSelectedClasses] = useState([]);
     const [selectedSchool, setSelectedSchool] = useState(null);
     const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+
+    // 共享 API Key 相關狀態
+    const [sharedConfig, setSharedConfig] = useState(null);
+    const [sharedApiKeyInput, setSharedApiKeyInput] = useState('');
+    const [isSavingSharedKey, setIsSavingSharedKey] = useState(false);
+    const [isTogglingAuth, setIsTogglingAuth] = useState(null); // 正在切換授權的用戶 UID
 
     // 訂閱使用者、班級與學校
     useEffect(() => {
@@ -35,10 +41,19 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
             setSchools(data);
         });
 
+        // 訂閱共享 API Key 設定
+        const unsubSharedConfig = adminConfigService.subscribe((config) => {
+            setSharedConfig(config);
+            if (config?.sharedApiKey) {
+                setSharedApiKeyInput(config.sharedApiKey);
+            }
+        });
+
         return () => {
             unsubUsers();
             unsubClasses();
             unsubSchools();
+            unsubSharedConfig();
         };
     }, [isOpen]);
 
@@ -198,6 +213,67 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
     const getSchoolName = (schoolId) => {
         return schools.find(s => s.id === schoolId)?.name || '未知學校';
     };
+
+    // ===== 共享 API Key 功能 =====
+
+    // 儲存共享 API Key
+    const handleSaveSharedApiKey = async () => {
+        if (!sharedApiKeyInput.trim()) return;
+        setIsSavingSharedKey(true);
+        try {
+            await adminConfigService.saveSharedApiKey(sharedApiKeyInput.trim(), currentUser.uid);
+        } catch (error) {
+            console.error('儲存共享 API Key 失敗:', error);
+            alert('儲存失敗，請稍後再試');
+        }
+        setIsSavingSharedKey(false);
+    };
+
+    // 清除共享 API Key
+    const handleClearSharedApiKey = async () => {
+        if (!window.confirm('確定要清除共享 API Key 嗎？所有已授權用戶將無法使用。')) return;
+        setIsSavingSharedKey(true);
+        try {
+            await adminConfigService.clearSharedApiKey(currentUser.uid);
+            setSharedApiKeyInput('');
+        } catch (error) {
+            console.error('清除共享 API Key 失敗:', error);
+        }
+        setIsSavingSharedKey(false);
+    };
+
+    // 切換用戶授權
+    const handleToggleAuthorization = async (userId) => {
+        setIsTogglingAuth(userId);
+        try {
+            const isAuthorized = (sharedConfig?.authorizedUsers || []).includes(userId);
+            if (isAuthorized) {
+                await adminConfigService.revokeAccess(userId, currentUser.uid);
+            } else {
+                await adminConfigService.grantAccess(userId, currentUser.uid);
+            }
+        } catch (error) {
+            console.error('切換授權失敗:', error);
+        }
+        setIsTogglingAuth(null);
+    };
+
+    // 遮蔽顯示 API Key
+    const maskApiKey = (key) => {
+        if (!key || key.length < 10) return key;
+        return key.substring(0, 6) + '••••••••' + key.substring(key.length - 4);
+    };
+
+    // 檢查用戶是否已授權
+    const isUserAuthorized = (userId) => {
+        return (sharedConfig?.authorizedUsers || []).includes(userId);
+    };
+
+    // 計算已授權人數
+    const authorizedCount = (sharedConfig?.authorizedUsers || []).length;
+
+    // 僅教師（非管理員）
+    const teacherUsers = users.filter(u => u.role === USER_ROLES.TEACHER);
 
     // 篩選待審核用戶（包含舊版 pending 和新版 pending_review）
     const pendingReviewUsers = users.filter(u =>
@@ -422,6 +498,126 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
                                     <div className="text-xs font-bold">管理員</div>
                                 </div>
                             </div>
+
+                            {/* 🔑 共享 API Key 管理 */}
+                            <div className="mb-6 bg-gradient-to-r from-[#FF9F43]/10 to-[#FECA57]/10 border-2 border-[#FF9F43] rounded-lg overflow-hidden">
+                                <div className="p-3 bg-[#FF9F43] border-b-2 border-[#2D3436]">
+                                    <h4 className="font-black text-white flex items-center gap-2 text-sm sm:text-base">
+                                        <Key size={18} />
+                                        共享 API Key 管理
+                                        {authorizedCount > 0 && (
+                                            <span className="ml-2 px-2 py-0.5 bg-white/20 rounded-full text-xs">
+                                                {authorizedCount} 人已授權
+                                            </span>
+                                        )}
+                                    </h4>
+                                </div>
+                                <div className="p-3 sm:p-4 space-y-3">
+                                    {/* API Key 輸入區 */}
+                                    <div className="bg-white border-2 border-[#2D3436] rounded-lg p-3">
+                                        <label className="block text-xs font-bold text-[#636E72] mb-2">
+                                            🔐 管理員付費 API Key
+                                        </label>
+                                        <div className="flex flex-col sm:flex-row gap-2">
+                                            <input
+                                                type="password"
+                                                value={sharedApiKeyInput}
+                                                onChange={(e) => setSharedApiKeyInput(e.target.value)}
+                                                placeholder="輸入您的付費 API Key..."
+                                                className="flex-1 px-3 py-2 border-2 border-[#2D3436] rounded-lg text-sm font-medium"
+                                                disabled={isSavingSharedKey}
+                                            />
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={handleSaveSharedApiKey}
+                                                    disabled={!sharedApiKeyInput.trim() || isSavingSharedKey}
+                                                    className="btn-pop px-4 py-2 bg-[#1DD1A1] text-white text-sm font-bold disabled:opacity-50 flex items-center gap-1"
+                                                >
+                                                    {isSavingSharedKey ? <Loader2 size={14} className="animate-spin" /> : '💾'}
+                                                    儲存
+                                                </button>
+                                                {sharedConfig?.sharedApiKey && (
+                                                    <button
+                                                        onClick={handleClearSharedApiKey}
+                                                        disabled={isSavingSharedKey}
+                                                        className="btn-pop px-3 py-2 bg-[#636E72] text-white text-sm font-bold disabled:opacity-50"
+                                                    >
+                                                        清除
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {sharedConfig?.sharedApiKey && (
+                                            <p className="text-xs text-[#1DD1A1] mt-2 font-medium">
+                                                ✓ 已設定：{maskApiKey(sharedConfig.sharedApiKey)}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* 教師授權列表 */}
+                                    {sharedConfig?.sharedApiKey && teacherUsers.length > 0 && (
+                                        <div className="bg-white border-2 border-[#2D3436] rounded-lg p-3">
+                                            <label className="block text-xs font-bold text-[#636E72] mb-2">
+                                                🎁 授權教師使用共享 API Key
+                                            </label>
+                                            <div className="space-y-2 max-h-48 overflow-y-auto">
+                                                {teacherUsers.map((user) => (
+                                                    <div
+                                                        key={user.id}
+                                                        className={`flex items-center gap-3 p-2 rounded-lg border-2 transition-all cursor-pointer
+                                                            ${isUserAuthorized(user.id)
+                                                                ? 'bg-[#1DD1A1]/10 border-[#1DD1A1]'
+                                                                : 'bg-white border-[#2D3436]/20 hover:border-[#2D3436]/50'}`}
+                                                        onClick={() => !isTogglingAuth && handleToggleAuthorization(user.id)}
+                                                    >
+                                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0
+                                                            ${isUserAuthorized(user.id)
+                                                                ? 'bg-[#1DD1A1] border-[#1DD1A1]'
+                                                                : 'border-[#2D3436]/50'}`}
+                                                        >
+                                                            {isTogglingAuth === user.id ? (
+                                                                <Loader2 size={12} className="animate-spin text-white" />
+                                                            ) : isUserAuthorized(user.id) ? (
+                                                                <Check size={12} className="text-white" />
+                                                            ) : null}
+                                                        </div>
+                                                        {user.photoURL ? (
+                                                            <img src={user.photoURL} alt="" className="w-8 h-8 rounded-full border border-[#2D3436]" />
+                                                        ) : (
+                                                            <div className="w-8 h-8 bg-[#FECA57] rounded-full border border-[#2D3436] flex items-center justify-center text-sm">👤</div>
+                                                        )}
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="font-bold text-sm text-[#2D3436] truncate">{user.displayName}</div>
+                                                            <div className="text-xs text-[#636E72] truncate">{user.email}</div>
+                                                        </div>
+                                                        {isUserAuthorized(user.id) && (
+                                                            <Gift size={16} className="text-[#1DD1A1] flex-shrink-0" />
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <p className="text-xs text-[#636E72] mt-2">
+                                                💡 勾選的教師將自動使用您的 API Key，無需自行申請
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* 無教師提示 */}
+                                    {sharedConfig?.sharedApiKey && teacherUsers.length === 0 && (
+                                        <p className="text-sm text-[#636E72] text-center py-4">
+                                            目前沒有已審核的教師，請先審核教師申請
+                                        </p>
+                                    )}
+
+                                    {/* 未設定 API Key 提示 */}
+                                    {!sharedConfig?.sharedApiKey && (
+                                        <p className="text-sm text-[#636E72] text-center py-2">
+                                            請先設定共享 API Key，即可授權給教師使用
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
 
                             {/* 待審核 */}
                             {pendingReviewUsers.length > 0 && (

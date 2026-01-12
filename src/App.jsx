@@ -41,7 +41,7 @@ const PrintModal = lazy(() => import('./components/PrintModal'));
 const DashboardModal = lazy(() => import('./components/DashboardModal'));
 
 // Firebase
-import { templateService, classService, historyService, settingsService } from './firebase';
+import { templateService, classService, historyService, settingsService, adminConfigService } from './firebase';
 
 /**
  * 點石成金蜂🐝 - AI 評語產生器
@@ -124,7 +124,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
     // 班級統計儀表板
     const [isDashboardOpen, setIsDashboardOpen] = useState(false);
 
-    // 從 Firebase 同步 API Key 到 localStorage（使用者隔離）
+    // 從 Firebase 同步 API Key 到 localStorage（使用者隔離 + 共享 API Key 支援）
     useEffect(() => {
         if (!currentUser) {
             // 用戶登出時清除 API Key
@@ -137,17 +137,37 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
         localStorage.removeItem('gemini_api_key');
         setApiKeyConfigured(false);
 
-        const unsubscribe = settingsService.subscribe((settings) => {
-            if (settings?.apiKey) {
-                localStorage.setItem('gemini_api_key', settings.apiKey);
-                setApiKeyConfigured(true);
-            } else {
-                // 該用戶沒有設定 API Key
-                localStorage.removeItem('gemini_api_key');
-                setApiKeyConfigured(false);
+        // 先檢查是否有共享 API Key 授權
+        const checkSharedApiKey = async () => {
+            try {
+                const sharedKey = await adminConfigService.getSharedApiKey(currentUser.uid);
+                if (sharedKey) {
+                    localStorage.setItem('gemini_api_key', sharedKey);
+                    setApiKeyConfigured(true);
+                    return true;
+                }
+            } catch (error) {
+                console.error('檢查共享 API Key 失敗:', error);
+            }
+            return false;
+        };
+
+        checkSharedApiKey().then((hasShared) => {
+            // 如果沒有共享授權，則訂閱個人設定
+            if (!hasShared) {
+                const unsubscribe = settingsService.subscribe((settings) => {
+                    if (settings?.apiKey) {
+                        localStorage.setItem('gemini_api_key', settings.apiKey);
+                        setApiKeyConfigured(true);
+                    } else {
+                        // 該用戶沒有設定 API Key
+                        localStorage.removeItem('gemini_api_key');
+                        setApiKeyConfigured(false);
+                    }
+                });
+                return () => unsubscribe();
             }
         });
-        return () => unsubscribe();
     }, [currentUser]);
 
     // 訂閱範本數量

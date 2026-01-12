@@ -51,7 +51,8 @@ const COLLECTIONS = {
     SETTINGS: 'settings',
     TEMPLATES: 'templates',
     CLASSES: 'classes',
-    SCHOOLS: 'schools'
+    SCHOOLS: 'schools',
+    ADMIN_CONFIG: 'adminConfig'
 };
 
 /**
@@ -493,4 +494,192 @@ export const historyService = {
     }
 };
 
-export default { studentService, settingsService, templateService, classService, schoolService, historyService, setCurrentUserId, getCurrentUserId };
+/**
+ * 管理員共享 API Key 服務
+ * 用於管理員將付費 API Key 授權給教師使用
+ * 
+ * 資料結構: adminConfig/shared
+ * {
+ *   sharedApiKey: "AIza...",
+ *   authorizedUsers: ["uid1", "uid2", ...],
+ *   updatedAt: Timestamp,
+ *   updatedBy: "admin-uid"
+ * }
+ */
+export const adminConfigService = {
+    /**
+     * 訂閱共享設定（管理員專用）
+     * @param {Function} callback - 回調函數
+     * @returns {Function} 取消訂閱函數
+     */
+    subscribe: (callback) => {
+        const configRef = doc(db, COLLECTIONS.ADMIN_CONFIG, 'shared');
+        return onSnapshot(configRef, (docSnap) => {
+            if (docSnap.exists()) {
+                callback(docSnap.data());
+            } else {
+                callback(null);
+            }
+        }, (error) => {
+            console.error('共享設定訂閱錯誤:', error);
+            callback(null);
+        });
+    },
+
+    /**
+     * 取得共享設定
+     * @returns {Promise<Object|null>}
+     */
+    getSharedConfig: async () => {
+        try {
+            const configRef = doc(db, COLLECTIONS.ADMIN_CONFIG, 'shared');
+            const docSnap = await getDoc(configRef);
+            return docSnap.exists() ? docSnap.data() : null;
+        } catch (error) {
+            console.error('取得共享設定失敗:', error);
+            return null;
+        }
+    },
+
+    /**
+     * 儲存共享 API Key（管理員專用）
+     * @param {string} apiKey - API Key
+     * @param {string} adminUid - 管理員 UID
+     */
+    saveSharedApiKey: async (apiKey, adminUid) => {
+        try {
+            const configRef = doc(db, COLLECTIONS.ADMIN_CONFIG, 'shared');
+            const docSnap = await getDoc(configRef);
+            const existingData = docSnap.exists() ? docSnap.data() : {};
+
+            await setDoc(configRef, {
+                ...existingData,
+                sharedApiKey: apiKey,
+                updatedAt: serverTimestamp(),
+                updatedBy: adminUid
+            }, { merge: true });
+        } catch (error) {
+            console.error('儲存共享 API Key 失敗:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * 清除共享 API Key（管理員專用）
+     * @param {string} adminUid - 管理員 UID
+     */
+    clearSharedApiKey: async (adminUid) => {
+        try {
+            const configRef = doc(db, COLLECTIONS.ADMIN_CONFIG, 'shared');
+            const docSnap = await getDoc(configRef);
+            const existingData = docSnap.exists() ? docSnap.data() : {};
+
+            await setDoc(configRef, {
+                ...existingData,
+                sharedApiKey: '',
+                updatedAt: serverTimestamp(),
+                updatedBy: adminUid
+            }, { merge: true });
+        } catch (error) {
+            console.error('清除共享 API Key 失敗:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * 授權用戶使用共享 API Key（管理員專用）
+     * @param {string} userId - 要授權的用戶 UID
+     * @param {string} adminUid - 管理員 UID
+     */
+    grantAccess: async (userId, adminUid) => {
+        try {
+            const configRef = doc(db, COLLECTIONS.ADMIN_CONFIG, 'shared');
+            const docSnap = await getDoc(configRef);
+            const existingData = docSnap.exists() ? docSnap.data() : {};
+            const authorizedUsers = existingData.authorizedUsers || [];
+
+            if (!authorizedUsers.includes(userId)) {
+                authorizedUsers.push(userId);
+            }
+
+            await setDoc(configRef, {
+                ...existingData,
+                authorizedUsers,
+                updatedAt: serverTimestamp(),
+                updatedBy: adminUid
+            }, { merge: true });
+        } catch (error) {
+            console.error('授權用戶失敗:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * 撤銷用戶的共享 API Key 授權（管理員專用）
+     * @param {string} userId - 要撤銷的用戶 UID
+     * @param {string} adminUid - 管理員 UID
+     */
+    revokeAccess: async (userId, adminUid) => {
+        try {
+            const configRef = doc(db, COLLECTIONS.ADMIN_CONFIG, 'shared');
+            const docSnap = await getDoc(configRef);
+            const existingData = docSnap.exists() ? docSnap.data() : {};
+            const authorizedUsers = (existingData.authorizedUsers || []).filter(uid => uid !== userId);
+
+            await setDoc(configRef, {
+                ...existingData,
+                authorizedUsers,
+                updatedAt: serverTimestamp(),
+                updatedBy: adminUid
+            }, { merge: true });
+        } catch (error) {
+            console.error('撤銷授權失敗:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * 檢查用戶是否有共享 API Key 授權
+     * @param {string} userId - 用戶 UID
+     * @returns {Promise<boolean>}
+     */
+    checkAuthorization: async (userId) => {
+        try {
+            const configRef = doc(db, COLLECTIONS.ADMIN_CONFIG, 'shared');
+            const docSnap = await getDoc(configRef);
+            if (!docSnap.exists()) return false;
+
+            const data = docSnap.data();
+            return (data.authorizedUsers || []).includes(userId);
+        } catch (error) {
+            console.error('檢查授權失敗:', error);
+            return false;
+        }
+    },
+
+    /**
+     * 取得共享 API Key（僅限已授權用戶）
+     * @param {string} userId - 用戶 UID
+     * @returns {Promise<string|null>}
+     */
+    getSharedApiKey: async (userId) => {
+        try {
+            const configRef = doc(db, COLLECTIONS.ADMIN_CONFIG, 'shared');
+            const docSnap = await getDoc(configRef);
+            if (!docSnap.exists()) return null;
+
+            const data = docSnap.data();
+            // 檢查是否已授權
+            if (!(data.authorizedUsers || []).includes(userId)) {
+                return null;
+            }
+
+            return data.sharedApiKey || null;
+        } catch (error) {
+            console.error('取得共享 API Key 失敗:', error);
+            return null;
+        }
+    }
+};
+
+export default { studentService, settingsService, templateService, classService, schoolService, historyService, adminConfigService, setCurrentUserId, getCurrentUserId };

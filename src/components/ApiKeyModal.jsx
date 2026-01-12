@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Key, CheckCircle, AlertCircle, Loader2, ExternalLink, Cloud } from 'lucide-react';
-import { settingsService } from '../firebase';
+import { X, Key, CheckCircle, AlertCircle, Loader2, ExternalLink, Cloud, Gift } from 'lucide-react';
+import { settingsService, adminConfigService } from '../firebase';
 
 /**
  * API Key 設定 Modal
  * 使用 Firebase 使用者隔離儲存，每位教師獨立 API Key
+ * 支援管理員共享 API Key 功能
  */
 const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
     const [apiKey, setApiKey] = useState('');
@@ -13,6 +14,10 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
     const [testResult, setTestResult] = useState(null); // 'success' | 'error' | null
     const [savedKey, setSavedKey] = useState('');
     const [isLoading, setIsLoading] = useState(true);
+
+    // 共享 API Key 相關狀態
+    const [hasSharedAccess, setHasSharedAccess] = useState(false);
+    const [sharedApiKey, setSharedApiKey] = useState('');
 
     // 從 Firebase 載入已儲存的 API Key
     useEffect(() => {
@@ -27,6 +32,31 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
         });
 
         return () => unsubscribe();
+    }, [isOpen, currentUser]);
+
+    // 檢查是否有共享 API Key 授權
+    useEffect(() => {
+        if (!isOpen || !currentUser) return;
+
+        const checkSharedAccess = async () => {
+            try {
+                const sharedKey = await adminConfigService.getSharedApiKey(currentUser.uid);
+                if (sharedKey) {
+                    setHasSharedAccess(true);
+                    setSharedApiKey(sharedKey);
+                    // 自動設定到 localStorage 供 geminiApi 使用
+                    localStorage.setItem('gemini_api_key', sharedKey);
+                } else {
+                    setHasSharedAccess(false);
+                    setSharedApiKey('');
+                }
+            } catch (error) {
+                console.error('檢查共享授權失敗:', error);
+                setHasSharedAccess(false);
+            }
+        };
+
+        checkSharedAccess();
     }, [isOpen, currentUser]);
 
     // 儲存 API Key 到 Firebase
@@ -147,22 +177,46 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
                         </div>
                     ) : (
                         <>
-                            {/* 說明 */}
-                            <div className="bg-[#54A0FF]/20 border-2 border-[#54A0FF] rounded-lg p-3 text-sm text-[#2D3436]">
-                                <p className="font-bold mb-1">💡 如何取得 API Key？</p>
-                                <p className="text-[#636E72]">
-                                    前往 Google AI Studio 申請免費的 Gemini API Key
-                                </p>
-                                <a
-                                    href="https://accounts.google.com/v3/signin/identifier?continue=https%3A%2F%2Faistudio.google.com%2Fapikey&flowName=GlifWebSignIn&flowEntry=AddSession&Email=@gmail.com"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-[#54A0FF] hover:underline font-bold mt-2"
-                                >
-                                    <ExternalLink size={14} />
-                                    前往申請 API Key
-                                </a>
-                            </div>
+                            {/* 🎁 共享 API Key 授權狀態 */}
+                            {hasSharedAccess && (
+                                <div className="bg-gradient-to-r from-[#1DD1A1]/20 to-[#54A0FF]/20 border-2 border-[#1DD1A1] rounded-lg p-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 bg-[#1DD1A1] rounded-full flex items-center justify-center flex-shrink-0">
+                                            <Gift size={24} className="text-white" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="font-black text-[#1DD1A1] text-base">🎉 管理員已授權您使用共享 API Key！</p>
+                                            <p className="text-sm text-[#2D3436] mt-1">
+                                                您無需自行申請 API Key，系統已自動為您設定。
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="mt-3 pt-3 border-t border-[#1DD1A1]/30">
+                                        <p className="text-xs text-[#636E72]">
+                                            ✓ 共享 API Key 由管理員提供，可直接使用生成評語功能
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 說明 - 只在沒有共享授權時顯示 */}
+                            {!hasSharedAccess && (
+                                <div className="bg-[#54A0FF]/20 border-2 border-[#54A0FF] rounded-lg p-3 text-sm text-[#2D3436]">
+                                    <p className="font-bold mb-1">💡 如何取得 API Key？</p>
+                                    <p className="text-[#636E72]">
+                                        前往 Google AI Studio 申請免費的 Gemini API Key
+                                    </p>
+                                    <a
+                                        href="https://accounts.google.com/v3/signin/identifier?continue=https%3A%2F%2Faistudio.google.com%2Fapikey&flowName=GlifWebSignIn&flowEntry=AddSession&Email=@gmail.com"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-[#54A0FF] hover:underline font-bold mt-2"
+                                    >
+                                        <ExternalLink size={14} />
+                                        前往申請 API Key
+                                    </a>
+                                </div>
+                            )}
 
                             {/* ⚠️ 重要提醒 */}
                             <div className="bg-[#FF6B6B]/15 border-2 border-[#FF6B6B] rounded-lg p-3 text-sm">
@@ -178,7 +232,12 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
                             {/* 目前狀態 */}
                             <div className="flex items-center gap-2 text-sm">
                                 <span className="font-bold text-[#2D3436]">目前狀態：</span>
-                                {savedKey ? (
+                                {hasSharedAccess ? (
+                                    <span className="flex items-center gap-1 text-[#1DD1A1] font-bold">
+                                        <Gift size={16} />
+                                        使用共享 API Key
+                                    </span>
+                                ) : savedKey ? (
                                     <span className="flex items-center gap-1 text-[#1DD1A1] font-bold">
                                         <CheckCircle size={16} />
                                         已設定 ({maskKey(savedKey)})

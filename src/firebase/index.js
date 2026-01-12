@@ -9,6 +9,7 @@ export {
     classService,
     schoolService,
     historyService,
+    adminConfigService,
     setCurrentUserId,
     getCurrentUserId
 } from './firestoreService';

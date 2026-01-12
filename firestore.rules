@@ -99,6 +99,18 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // 管理員共享設定集合（API Key 共享功能）
+    match /adminConfig/{docId} {
+      // 管理員可以完整讀寫
+      allow read, write: if isAdmin();
+      
+      // 已授權的用戶可以讀取（用於取得共享 API Key）
+      // 注意：這裡使用信任模式，已授權用戶可以讀取 sharedApiKey
+      allow read: if isApproved() 
+                  && docId == 'shared'
+                  && request.auth.uid in resource.data.authorizedUsers;
+    }
+
     // ===== 舊的全域集合（保留供參考，禁止寫入） =====
     
     // 舊學生集合（已棄用）
