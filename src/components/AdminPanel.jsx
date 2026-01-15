@@ -183,8 +183,24 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
 
     // 刪除使用者
     const handleDelete = async (uid) => {
-        if (!window.confirm('確定要刪除此使用者嗎？此操作無法復原。')) return;
-        await userService.delete(uid);
+        console.log('[AdminPanel] 嘗試刪除使用者:', uid);
+        if (!window.confirm('確定要刪除此使用者嗎？此操作無法復原。')) {
+            console.log('[AdminPanel] 使用者取消刪除');
+            return;
+        }
+        try {
+            console.log('[AdminPanel] 開始刪除...');
+            const result = await userService.delete(uid);
+            if (result.success) {
+                console.log('[AdminPanel] 刪除成功');
+            } else {
+                console.error('[AdminPanel] 刪除失敗:', result.error);
+                alert('刪除失敗: ' + (result.error || '未知錯誤'));
+            }
+        } catch (error) {
+            console.error('[AdminPanel] 刪除錯誤:', error);
+            alert('刪除失敗: ' + error.message);
+        }
     };
 
     // 取得角色標籤
