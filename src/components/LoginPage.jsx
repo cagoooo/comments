@@ -90,7 +90,7 @@ const LoginPage = ({ onLogin }) => {
                             <span className="absolute bottom-0 left-0 right-0 h-3 bg-[#FF6B9D] -z-0 transform -rotate-1"></span>
                         </span>
                     </h1>
-                    <p className="text-[#636E72] font-bold mt-2">AI 學生評語產生器</p>
+                    <p className="text-[#636E72] font-bold mt-2">學生評語優化平台</p>
                 </div>
 
                 {/* 內嵌瀏覽器警告 - 偵測到時顯示（完全取代登入區塊） */}
@@ -145,7 +145,7 @@ const LoginPage = ({ onLogin }) => {
                 ) : (
                     <>
                         {/* 說明 - 僅正常瀏覽器顯示 */}
-                        <div className="bg-[#54A0FF]/20 border-2 border-dashed border-[#54A0FF] rounded-lg p-4 mb-4 text-left">
+                        <div className="bg-[#54A0FF]/20 border-2 border-dashed border-[#54A0FF] rounded-lg p-4 mb-4 text-center">
                             <p className="text-sm text-[#2D3436] font-medium">
                                 📚 使用 Google 帳號登入後，請選擇學校並新增班級，提交後等待管理員審核即可使用。
                             </p>

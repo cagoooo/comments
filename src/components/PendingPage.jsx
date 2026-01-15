@@ -23,6 +23,7 @@ const PendingPage = ({ user, onLogout, schools = [], onSubmitApplication, needsI
     const [classList, setClassList] = useState([]);
     const [newClassName, setNewClassName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [validationError, setValidationError] = useState(null);
 
     // 新增班級
     const handleAddClass = () => {
@@ -60,15 +61,36 @@ const PendingPage = ({ user, onLogout, schools = [], onSubmitApplication, needsI
 
     // 提交申請
     const handleSubmit = async () => {
-        if (!canSubmit()) return;
-
+        // 驗證學校資訊
         const schoolInfo = getSchoolInfo();
+        if (!schoolInfo) {
+            setValidationError('請填寫學校名稱');
+            return;
+        }
 
+        // 如果輸入框有班級名稱但還沒新增，自動加入清單
+        let finalClassList = [...classList];
+        const trimmedNewClass = newClassName.trim();
+        if (trimmedNewClass && !classList.includes(trimmedNewClass)) {
+            finalClassList.push(trimmedNewClass);
+            setClassList(finalClassList);
+            setNewClassName('');
+        }
+
+        // 驗證班級資訊
+        if (finalClassList.length === 0) {
+            setValidationError('請新增至少一個班級');
+            return;
+        }
+
+        // 清除錯誤並提交
+        setValidationError(null);
         setIsSubmitting(true);
         try {
-            await onSubmitApplication(user.uid, schoolInfo, classList);
+            await onSubmitApplication(user.uid, schoolInfo, finalClassList);
         } catch (error) {
             console.error('提交申請失敗:', error);
+            setValidationError('提交失敗，請稍後再試');
         }
         setIsSubmitting(false);
     };
@@ -242,6 +264,15 @@ const PendingPage = ({ user, onLogout, schools = [], onSubmitApplication, needsI
                             </div>
                         </div>
 
+                        {/* 驗證錯誤訊息 */}
+                        {validationError && (
+                            <div className="bg-[#FF6B6B]/20 border-2 border-[#FF6B6B] rounded-lg p-3 mb-4 text-center">
+                                <p className="text-sm text-[#FF6B6B] font-bold">
+                                    ⚠️ {validationError}
+                                </p>
+                            </div>
+                        )}
+
                         {/* 按鈕區 */}
                         <div className="flex flex-col sm:flex-row gap-2 pt-2">
                             <button
@@ -252,7 +283,7 @@ const PendingPage = ({ user, onLogout, schools = [], onSubmitApplication, needsI
                             </button>
                             <button
                                 onClick={handleSubmit}
-                                disabled={!canSubmit() || isSubmitting}
+                                disabled={isSubmitting}
                                 className="btn-pop px-4 py-3 bg-[#54A0FF] text-white font-bold flex-1 flex items-center justify-center gap-2 disabled:opacity-50 order-1 sm:order-2"
                             >
                                 <Send size={18} />
