@@ -147,7 +147,7 @@ const LoginPage = ({ onLogin }) => {
                         {/* 說明 - 僅正常瀏覽器顯示 */}
                         <div className="bg-[#54A0FF]/20 border-2 border-dashed border-[#54A0FF] rounded-lg p-4 mb-4 text-left">
                             <p className="text-sm text-[#2D3436] font-medium">
-                                📚 使用 Google 帳號登入後，管理員將會審核您的帳號並指派班級使用權限。
+                                📚 使用 Google 帳號登入後，請選擇學校並新增班級，提交後等待管理員審核即可使用。
                             </p>
                         </div>
 
