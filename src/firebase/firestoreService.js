@@ -220,6 +220,118 @@ export const studentService = {
             console.error('清空學生失敗:', error);
             throw error;
         }
+    },
+
+    // ===== 管理員專用方法（跨使用者操作） =====
+
+    /**
+     * 管理員專用：更新指定用戶的學生資料
+     * @param {string} userId - 目標用戶 ID
+     * @param {string} studentId - 學生 ID
+     * @param {Object} updates - 更新內容
+     */
+    updateByUserId: async (userId, studentId, updates) => {
+        if (!userId) {
+            throw new Error('用戶 ID 未提供');
+        }
+        try {
+            const studentRef = doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.STUDENTS, studentId.toString());
+            await setDoc(studentRef, {
+                ...updates,
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+        } catch (error) {
+            console.error('管理員更新學生失敗:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * 管理員專用：刪除指定用戶的學生資料
+     * @param {string} userId - 目標用戶 ID
+     * @param {string} studentId - 學生 ID
+     */
+    deleteByUserId: async (userId, studentId) => {
+        if (!userId) {
+            throw new Error('用戶 ID 未提供');
+        }
+        try {
+            const studentRef = doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.STUDENTS, studentId.toString());
+            await deleteDoc(studentRef);
+        } catch (error) {
+            console.error('管理員刪除學生失敗:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * 管理員專用：新增指定用戶的學生資料
+     * @param {string} userId - 目標用戶 ID
+     * @param {Object} student - 學生資料
+     */
+    addByUserId: async (userId, student) => {
+        if (!userId) {
+            throw new Error('用戶 ID 未提供');
+        }
+        try {
+            const studentRef = doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.STUDENTS, student.id.toString());
+            await setDoc(studentRef, {
+                ...student,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            });
+        } catch (error) {
+            console.error('管理員新增學生失敗:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * 管理員專用：批次新增指定用戶的學生資料
+     * @param {string} userId - 目標用戶 ID
+     * @param {Array} students - 學生資料陣列
+     */
+    addBatchByUserId: async (userId, students) => {
+        if (!userId) {
+            throw new Error('用戶 ID 未提供');
+        }
+        try {
+            const batch = writeBatch(db);
+            students.forEach((student) => {
+                const studentRef = doc(db, COLLECTIONS.USERS, userId, COLLECTIONS.STUDENTS, student.id.toString());
+                batch.set(studentRef, {
+                    ...student,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                });
+            });
+            await batch.commit();
+        } catch (error) {
+            console.error('管理員批次新增學生失敗:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * 管理員專用：清空指定用戶的所有學生資料
+     * @param {string} userId - 目標用戶 ID
+     */
+    deleteAllByUserId: async (userId) => {
+        if (!userId) {
+            throw new Error('用戶 ID 未提供');
+        }
+        try {
+            const studentsRef = collection(db, COLLECTIONS.USERS, userId, COLLECTIONS.STUDENTS);
+            const snapshot = await getDocs(studentsRef);
+            const batch = writeBatch(db);
+            snapshot.forEach((doc) => {
+                batch.delete(doc.ref);
+            });
+            await batch.commit();
+        } catch (error) {
+            console.error('管理員清空學生失敗:', error);
+            throw error;
+        }
     }
 };
 
@@ -352,6 +464,7 @@ export const classService = {
             const classRef = doc(db, COLLECTIONS.CLASSES, classId);
             await setDoc(classRef, {
                 ...classData,
+                schoolId: classData.schoolId || null, // 確保 schoolId 被儲存
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
             });

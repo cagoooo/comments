@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { X, Check, XCircle, Users, School, Shield, Clock, Building2, Trash2, FileText, ChevronDown, ChevronUp, Settings2, Key, Gift, Loader2 } from 'lucide-react';
-import { userService, USER_ROLES, classService, schoolService, adminConfigService } from '../firebase';
+import React, { useState, useEffect, useCallback } from 'react';
+import { X, Check, XCircle, Users, School, Shield, Clock, Building2, Trash2, FileText, ChevronDown, ChevronUp, Settings2, Key, Gift, Loader2, Eye, ArrowLeft, Save, Edit3, Tag } from 'lucide-react';
+import { userService, USER_ROLES, classService, schoolService, adminConfigService, studentService } from '../firebase';
 
 /**
  * 管理員面板
@@ -21,6 +21,13 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
     const [sharedApiKeyInput, setSharedApiKeyInput] = useState('');
     const [isSavingSharedKey, setIsSavingSharedKey] = useState(false);
     const [isTogglingAuth, setIsTogglingAuth] = useState(null); // 正在切換授權的用戶 UID
+
+    // 查看學生資料相關狀態
+    const [viewingStudentsUser, setViewingStudentsUser] = useState(null); // 正在查看學生資料的用戶
+    const [viewedStudents, setViewedStudents] = useState([]); // 該用戶的學生資料
+    const [isLoadingStudents, setIsLoadingStudents] = useState(false);
+    const [editingStudent, setEditingStudent] = useState(null); // 正在編輯的學生
+    const [isSavingStudent, setIsSavingStudent] = useState(false);
 
     // 訂閱使用者、班級與學校
     useEffect(() => {
@@ -89,10 +96,23 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
     const handleApprove = async () => {
         if (!selectedUser) return;
 
-        // 如果沒有選擇現有學校，使用用戶申請的自訂學校資訊
-        const customSchoolInfo = !selectedSchool && selectedUser.requestedSchoolName
-            ? { name: selectedUser.requestedSchoolName, city: selectedUser.requestedSchoolCity }
-            : null;
+        // 決定使用的學校：使用者申請的現有學校 > 使用者輸入的自訂學校 > 管理員選擇的學校
+        let schoolIdToUse = null;
+        let customSchoolInfo = null;
+
+        if (selectedUser.requestedSchoolId) {
+            // 優先：使用者選擇的現有學校
+            schoolIdToUse = selectedUser.requestedSchoolId;
+        } else if (selectedUser.requestedSchoolName) {
+            // 其次：使用者輸入的自訂學校
+            customSchoolInfo = {
+                name: selectedUser.requestedSchoolName,
+                city: selectedUser.requestedSchoolCity || ''
+            };
+        } else if (selectedSchool) {
+            // 最後：管理員選擇的學校
+            schoolIdToUse = selectedSchool;
+        }
 
         // 決定使用的班級：優先使用管理員選擇的，否則嘗試匹配或創建用戶申請的班級
         let classesToUse = selectedClasses;
@@ -105,9 +125,12 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
                 if (existingClass) {
                     classIdsToAssign.push(existingClass.id);
                 } else {
-                    // 班級不存在，自動創建
+                    // 班級不存在，自動創建（帶入使用者學校資訊）
                     try {
-                        const newClassId = await classService.add({ name: className });
+                        const schoolId = selectedUser.requestedSchoolName
+                            ? `${selectedUser.requestedSchoolCity || ''}_${selectedUser.requestedSchoolName}`.trim()
+                            : null;
+                        const newClassId = await classService.add({ name: className, schoolId });
                         if (newClassId) {
                             classIdsToAssign.push(newClassId);
                         }
@@ -119,7 +142,7 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
             classesToUse = classIdsToAssign;
         }
 
-        await userService.approve(selectedUser.id, classesToUse, selectedSchool, customSchoolInfo);
+        await userService.approve(selectedUser.id, classesToUse, schoolIdToUse, customSchoolInfo);
         setSelectedUser(null);
         setSelectedClasses([]);
         setSelectedSchool(null);
@@ -155,9 +178,14 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
                 if (existingClass) {
                     classIdsToAssign.push(existingClass.id);
                 } else {
-                    // 班級不存在，自動創建
+                    // 班級不存在，自動創建（帶入使用者學校資訊）
                     try {
-                        const newClassId = await classService.add({ name: className });
+                        const schoolId = customSchoolInfo
+                            ? `${customSchoolInfo.city || ''}_${customSchoolInfo.name}`.trim()
+                            : (selectedUser.customSchoolName
+                                ? `${selectedUser.customSchoolCity || ''}_${selectedUser.customSchoolName}`.trim()
+                                : null);
+                        const newClassId = await classService.add({ name: className, schoolId });
                         if (newClassId) {
                             classIdsToAssign.push(newClassId);
                         }
@@ -285,6 +313,87 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
         return (sharedConfig?.authorizedUsers || []).includes(userId);
     };
 
+    // ===== 查看與編輯學生資料功能 =====
+
+    // 查看用戶的學生資料
+    const handleViewStudents = useCallback((user) => {
+        setViewingStudentsUser(user);
+        setIsLoadingStudents(true);
+        setViewedStudents([]);
+        setEditingStudent(null);
+
+        // 訂閱該用戶的學生資料
+        const unsubscribe = studentService.subscribeByUserId(user.id, (students) => {
+            const formattedStudents = students.map(student => ({
+                ...student,
+                id: student.id,
+                selectedTags: student.selectedTags || [],
+                manualTraits: student.manualTraits || '',
+                comment: student.comment || ''
+            }));
+            setViewedStudents(formattedStudents);
+            setIsLoadingStudents(false);
+        });
+
+        // 儲存取消訂閱函數
+        window._adminStudentUnsubscribe = unsubscribe;
+    }, []);
+
+    // 取消查看學生資料
+    const handleCancelViewStudents = useCallback(() => {
+        // 取消訂閱
+        if (window._adminStudentUnsubscribe) {
+            window._adminStudentUnsubscribe();
+            window._adminStudentUnsubscribe = null;
+        }
+        setViewingStudentsUser(null);
+        setViewedStudents([]);
+        setEditingStudent(null);
+    }, []);
+
+    // 開始編輯學生
+    const handleEditStudent = useCallback((student) => {
+        setEditingStudent({ ...student });
+    }, []);
+
+    // 取消編輯
+    const handleCancelEdit = useCallback(() => {
+        setEditingStudent(null);
+    }, []);
+
+    // 儲存學生資料
+    const handleSaveStudent = useCallback(async () => {
+        if (!editingStudent || !viewingStudentsUser) return;
+
+        setIsSavingStudent(true);
+        try {
+            await studentService.updateByUserId(viewingStudentsUser.id, editingStudent.id, {
+                name: editingStudent.name,
+                selectedTags: editingStudent.selectedTags,
+                manualTraits: editingStudent.manualTraits,
+                comment: editingStudent.comment
+            });
+            setEditingStudent(null);
+        } catch (error) {
+            console.error('儲存學生資料失敗:', error);
+            alert('儲存失敗，請稍後再試');
+        }
+        setIsSavingStudent(false);
+    }, [editingStudent, viewingStudentsUser]);
+
+    // 更新編輯中的學生欄位
+    const updateEditingField = useCallback((field, value) => {
+        setEditingStudent(prev => prev ? { ...prev, [field]: value } : null);
+    }, []);
+
+    // 移除編輯中學生的標籤
+    const removeEditingTag = useCallback((tagToRemove) => {
+        setEditingStudent(prev => prev ? {
+            ...prev,
+            selectedTags: prev.selectedTags.filter(t => t !== tagToRemove)
+        } : null);
+    }, []);
+
     // 計算已授權人數
     const authorizedCount = (sharedConfig?.authorizedUsers || []).length;
 
@@ -325,6 +434,183 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
                     {isLoading ? (
                         <div className="flex items-center justify-center py-20">
                             <div className="text-4xl animate-bounce">👥</div>
+                        </div>
+                    ) : viewingStudentsUser ? (
+                        /* 查看與編輯學生資料 */
+                        <div className="space-y-4">
+                            {/* 返回按鈕和用戶資訊 */}
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-gradient-to-r from-[#54A0FF]/10 to-[#1DD1A1]/10 border-2 border-[#54A0FF] rounded-lg">
+                                <button
+                                    onClick={handleCancelViewStudents}
+                                    className="btn-pop p-2 bg-white text-[#54A0FF] flex items-center gap-1"
+                                >
+                                    <ArrowLeft size={16} />
+                                    返回
+                                </button>
+                                <div className="flex items-center gap-3 flex-1">
+                                    {viewingStudentsUser.photoURL ? (
+                                        <img src={viewingStudentsUser.photoURL} alt="" className="w-10 h-10 rounded-full border-2 border-[#54A0FF]" />
+                                    ) : (
+                                        <div className="w-10 h-10 bg-[#54A0FF]/20 rounded-full border-2 border-[#54A0FF] flex items-center justify-center">👤</div>
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                        <div className="font-bold text-[#2D3436] flex items-center gap-2">
+                                            <Eye size={16} className="text-[#54A0FF]" />
+                                            正在查看：{viewingStudentsUser.displayName}
+                                        </div>
+                                        <div className="text-xs text-[#636E72]">{viewingStudentsUser.email}</div>
+                                    </div>
+                                    <div className="text-sm font-bold text-[#54A0FF]">
+                                        共 {viewedStudents.length} 位學生
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 學生列表 */}
+                            {isLoadingStudents ? (
+                                <div className="flex items-center justify-center py-10">
+                                    <Loader2 size={32} className="animate-spin text-[#54A0FF]" />
+                                </div>
+                            ) : viewedStudents.length === 0 ? (
+                                <div className="text-center py-10 text-[#636E72]">
+                                    <div className="text-4xl mb-2">📭</div>
+                                    <p className="font-medium">此用戶尚無學生資料</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {viewedStudents.map((student) => (
+                                        <div key={student.id} className={`bg-white border-2 rounded-lg overflow-hidden ${editingStudent?.id === student.id ? 'border-[#1DD1A1]' : 'border-[#2D3436]'}`}>
+                                            {editingStudent?.id === student.id ? (
+                                                /* 編輯模式 */
+                                                <div className="p-4 space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <h4 className="font-bold text-[#1DD1A1] flex items-center gap-2">
+                                                            <Edit3 size={16} />
+                                                            編輯學生資料
+                                                        </h4>
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                onClick={handleCancelEdit}
+                                                                disabled={isSavingStudent}
+                                                                className="btn-pop px-3 py-1.5 bg-[#636E72] text-white text-xs font-bold"
+                                                            >
+                                                                取消
+                                                            </button>
+                                                            <button
+                                                                onClick={handleSaveStudent}
+                                                                disabled={isSavingStudent}
+                                                                className="btn-pop px-3 py-1.5 bg-[#1DD1A1] text-white text-xs font-bold flex items-center gap-1"
+                                                            >
+                                                                {isSavingStudent ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                                                                儲存
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* 姓名 */}
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-[#636E72] mb-1">👦 姓名</label>
+                                                        <input
+                                                            type="text"
+                                                            value={editingStudent.name || ''}
+                                                            onChange={(e) => updateEditingField('name', e.target.value)}
+                                                            className="w-full px-3 py-2 border-2 border-[#2D3436] rounded-lg font-medium"
+                                                        />
+                                                    </div>
+
+                                                    {/* 形容詞標籤 */}
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-[#636E72] mb-1 flex items-center gap-1">
+                                                            <Tag size={12} /> 形容詞標籤
+                                                        </label>
+                                                        <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 bg-[#F8F4E8] rounded-lg border border-dashed border-[#2D3436]/30">
+                                                            {(editingStudent.selectedTags || []).length === 0 ? (
+                                                                <span className="text-xs text-[#636E72]">無標籤</span>
+                                                            ) : (
+                                                                editingStudent.selectedTags.map((tag, idx) => (
+                                                                    <span
+                                                                        key={idx}
+                                                                        className="px-2 py-0.5 bg-[#54A0FF] text-white text-xs rounded-full flex items-center gap-1"
+                                                                    >
+                                                                        {tag}
+                                                                        <button
+                                                                            onClick={() => removeEditingTag(tag)}
+                                                                            className="hover:bg-white/20 rounded-full p-0.5"
+                                                                        >
+                                                                            <X size={10} />
+                                                                        </button>
+                                                                    </span>
+                                                                ))
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* 手動輸入特質 */}
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-[#636E72] mb-1">✍️ 手動輸入特質</label>
+                                                        <textarea
+                                                            value={editingStudent.manualTraits || ''}
+                                                            onChange={(e) => updateEditingField('manualTraits', e.target.value)}
+                                                            className="w-full px-3 py-2 border-2 border-[#2D3436] rounded-lg font-medium resize-none"
+                                                            rows={2}
+                                                            placeholder="輸入學生特質..."
+                                                        />
+                                                    </div>
+
+                                                    {/* AI 評語 */}
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-[#636E72] mb-1">🤖 AI 評語</label>
+                                                        <textarea
+                                                            value={editingStudent.comment || ''}
+                                                            onChange={(e) => updateEditingField('comment', e.target.value)}
+                                                            className="w-full px-3 py-2 border-2 border-[#2D3436] rounded-lg font-medium resize-none"
+                                                            rows={4}
+                                                            placeholder="AI 生成的評語..."
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                /* 檢視模式 */
+                                                <div className="p-3">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="w-8 h-8 bg-[#FECA57] rounded-full border-2 border-[#2D3436] flex items-center justify-center text-sm font-bold flex-shrink-0">
+                                                            {String(student.id).slice(-2).padStart(2, '0')}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="font-bold text-[#2D3436] text-sm mb-1">{student.name || '未命名'}</div>
+                                                            {(student.selectedTags || []).length > 0 && (
+                                                                <div className="flex flex-wrap gap-1 mb-1">
+                                                                    {student.selectedTags.slice(0, 5).map((tag, idx) => (
+                                                                        <span key={idx} className="px-1.5 py-0.5 bg-[#54A0FF]/20 text-[#54A0FF] text-xs rounded">
+                                                                            {tag}
+                                                                        </span>
+                                                                    ))}
+                                                                    {student.selectedTags.length > 5 && (
+                                                                        <span className="text-xs text-[#636E72]">+{student.selectedTags.length - 5} 更多</span>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                            {student.manualTraits && (
+                                                                <p className="text-xs text-[#636E72] mb-1 truncate">✍️ {student.manualTraits}</p>
+                                                            )}
+                                                            {student.comment && (
+                                                                <p className="text-xs text-[#2D3436] line-clamp-2">🤖 {student.comment}</p>
+                                                            )}
+                                                        </div>
+                                                        <button
+                                                            onClick={() => handleEditStudent(student)}
+                                                            className="btn-pop p-2 bg-[#54A0FF] text-white flex-shrink-0"
+                                                            title="編輯此學生"
+                                                        >
+                                                            <Edit3 size={14} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     ) : selectedUser ? (
                         /* 編輯使用者 */
@@ -696,6 +982,7 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
                                         onEdit={handleEditUser}
                                         onReject={handleReject}
                                         onDelete={handleDelete}
+                                        onViewStudents={handleViewStudents}
                                         getRoleBadge={getRoleBadge}
                                         formatTime={formatTime}
                                         classes={classes}
@@ -719,7 +1006,7 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
 };
 
 // 使用者列表項目
-const UserRow = ({ user, onEdit, onReject, onDelete, getRoleBadge, formatTime, classes, schools, isCurrentUser, showApplication }) => {
+const UserRow = ({ user, onEdit, onReject, onDelete, onViewStudents, getRoleBadge, formatTime, classes, schools, isCurrentUser, showApplication }) => {
     const assignedClassNames = (user.assignedClasses || [])
         .map(id => classes.find(c => c.id === id)?.name)
         .filter(Boolean)
@@ -788,6 +1075,15 @@ const UserRow = ({ user, onEdit, onReject, onDelete, getRoleBadge, formatTime, c
                                     className="btn-pop px-3 py-1.5 bg-[#54A0FF] text-white text-xs font-bold"
                                 >
                                     {isPending ? '審核' : '編輯'}
+                                </button>
+                            )}
+                            {user.role === USER_ROLES.TEACHER && onViewStudents && (
+                                <button
+                                    onClick={() => onViewStudents(user)}
+                                    className="btn-pop p-1.5 bg-[#1DD1A1] text-white"
+                                    title="查看學生資料"
+                                >
+                                    <Eye size={14} />
                                 </button>
                             )}
                             {user.role === USER_ROLES.TEACHER && (

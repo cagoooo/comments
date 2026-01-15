@@ -59,13 +59,13 @@ service cloud.firestore {
       match /students/{studentId} {
         // 使用者只能存取自己的學生資料
         allow read, write: if isOwner(userId);
-        // 管理員可以讀取所有使用者的學生資料
-        allow read: if isAdmin();
+        // 管理員可以讀取和寫入所有使用者的學生資料
+        allow read, write: if isAdmin();
         
         // 歷史記錄子集合
         match /history/{historyId} {
           allow read, write: if isOwner(userId);
-          allow read: if isAdmin();
+          allow read, write: if isAdmin();
         }
       }
       

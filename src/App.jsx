@@ -282,14 +282,158 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
         return () => unsubscribe();
     }, [viewingUser]);
 
+    // 管理員查看模式下的選取狀態
+    const [viewingSelectedIds, setViewingSelectedIds] = useState(new Set());
+    // 管理員查看模式下的聚焦學生
+    const [viewingFocusedStudentId, setViewingFocusedStudentId] = useState(null);
+
     // 處理管理員查看其他用戶學生
     const handleViewUserStudents = (user) => {
         setViewingUser(user);
+        setViewingSelectedIds(new Set());
+        setViewingFocusedStudentId(null);
     };
 
     // 返回自己的學生資料
     const handleBackToMyStudents = () => {
         setViewingUser(null);
+        setViewingSelectedIds(new Set());
+        setViewingFocusedStudentId(null);
+    };
+
+    // ===== 管理員編輯其他用戶學生的函數 =====
+
+    // 切換查看模式下的選取
+    const toggleViewingSelection = (id) => {
+        setViewingSelectedIds(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(id)) {
+                newSet.delete(id);
+            } else {
+                newSet.add(id);
+            }
+            return newSet;
+        });
+    };
+
+    // 全選/取消全選（查看模式）
+    const toggleViewingAllSelection = () => {
+        if (viewingSelectedIds.size === viewingStudents.length && viewingStudents.length > 0) {
+            setViewingSelectedIds(new Set());
+        } else {
+            setViewingSelectedIds(new Set(viewingStudents.map(s => s.id)));
+        }
+    };
+
+    // 更新查看中用戶的學生
+    const updateViewingStudent = async (id, field, value) => {
+        if (!viewingUser) return;
+
+        // 樂觀更新本地狀態
+        setViewingStudents(prev => prev.map(s =>
+            s.id === id ? { ...s, [field]: value } : s
+        ));
+
+        // 同步到 Firebase
+        try {
+            const student = viewingStudents.find(s => s.id === id);
+            if (student) {
+                await studentService.updateByUserId(viewingUser.id, id, { ...student, [field]: value });
+            }
+        } catch (error) {
+            console.error('管理員更新學生失敗:', error);
+        }
+    };
+
+    // 移除查看中用戶學生的標籤
+    const removeViewingTag = async (studentId, tagToRemove) => {
+        if (!viewingUser) return;
+
+        const student = viewingStudents.find(s => s.id === studentId);
+        if (!student) return;
+
+        const newTags = student.selectedTags.filter(t => t !== tagToRemove);
+
+        // 樂觀更新
+        setViewingStudents(prev => prev.map(s =>
+            s.id === studentId ? { ...s, selectedTags: newTags } : s
+        ));
+
+        // 同步到 Firebase
+        try {
+            await studentService.updateByUserId(viewingUser.id, studentId, { selectedTags: newTags });
+        } catch (error) {
+            console.error('管理員移除標籤失敗:', error);
+        }
+    };
+
+    // 刪除查看中用戶的學生
+    const deleteViewingStudent = async (id) => {
+        if (!viewingUser) return;
+
+        // 樂觀更新
+        setViewingStudents(prev => prev.filter(s => s.id !== id));
+        setViewingSelectedIds(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(id);
+            return newSet;
+        });
+
+        // 同步到 Firebase
+        try {
+            await studentService.deleteByUserId(viewingUser.id, id);
+        } catch (error) {
+            console.error('管理員刪除學生失敗:', error);
+        }
+    };
+
+    // 刪除查看模式下的已選學生
+    const deleteViewingSelected = async () => {
+        if (!viewingUser || viewingSelectedIds.size === 0) return;
+
+        const idsToDelete = Array.from(viewingSelectedIds);
+
+        // 樂觀更新
+        setViewingStudents(prev => prev.filter(s => !viewingSelectedIds.has(s.id)));
+        setViewingSelectedIds(new Set());
+
+        // 同步到 Firebase
+        try {
+            for (const id of idsToDelete) {
+                await studentService.deleteByUserId(viewingUser.id, id);
+            }
+        } catch (error) {
+            console.error('管理員批次刪除學生失敗:', error);
+        }
+    };
+
+    // 為查看模式的學生加入標籤
+    const addTagToViewingStudents = async (studentIds, tag) => {
+        if (!viewingUser || studentIds.length === 0) return;
+
+        // 樂觀更新
+        setViewingStudents(prev => prev.map(student => {
+            if (studentIds.includes(student.id)) {
+                const newTags = student.selectedTags.includes(tag)
+                    ? student.selectedTags
+                    : [...student.selectedTags, tag];
+                return { ...student, selectedTags: newTags };
+            }
+            return student;
+        }));
+
+        // 同步到 Firebase
+        try {
+            for (const id of studentIds) {
+                const student = viewingStudents.find(s => s.id === id);
+                if (student && !student.selectedTags.includes(tag)) {
+                    const newTags = [...student.selectedTags, tag];
+                    await studentService.updateByUserId(viewingUser.id, id, { selectedTags: newTags });
+                }
+            }
+        } catch (error) {
+            console.error('管理員加入標籤失敗:', error);
+        }
     };
 
     // 成語分類展開狀態
@@ -347,18 +491,37 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
     // 點擊成語
     const handleIdiomClick = (idiom) => {
         let targetIds = [];
-        if (selectedIds.size > 0) {
-            targetIds = Array.from(selectedIds);
-        } else if (focusedStudentId) {
-            targetIds = [focusedStudentId];
-        }
 
-        if (targetIds.length === 0) {
-            showAlert("請先點選某位學生的「標籤區」，或勾選學生，再點擊成語加入。");
-            return;
-        }
+        // 根據是否在查看模式決定使用哪組狀態
+        if (viewingUser) {
+            // 管理員查看模式
+            if (viewingSelectedIds.size > 0) {
+                targetIds = Array.from(viewingSelectedIds);
+            } else if (viewingFocusedStudentId) {
+                targetIds = [viewingFocusedStudentId];
+            }
 
-        addTagToStudents(targetIds, idiom);
+            if (targetIds.length === 0) {
+                showAlert("請先點選某位學生的「標籤區」，或勾選學生，再點擊成語加入。");
+                return;
+            }
+
+            addTagToViewingStudents(targetIds, idiom);
+        } else {
+            // 一般模式
+            if (selectedIds.size > 0) {
+                targetIds = Array.from(selectedIds);
+            } else if (focusedStudentId) {
+                targetIds = [focusedStudentId];
+            }
+
+            if (targetIds.length === 0) {
+                showAlert("請先點選某位學生的「標籤區」，或勾選學生，再點擊成語加入。");
+                return;
+            }
+
+            addTagToStudents(targetIds, idiom);
+        }
     };
 
     // 切換成語分類
@@ -484,6 +647,44 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
         setIsGeneratingSingle(null);
 
         // Toast 通知 - 根據結果顯示不同類型
+        if (aiComment.includes("❌")) {
+            toast.error(`${student.name}：${aiComment.replace("❌ ", "")}`);
+        } else {
+            toast.success(`✨ ${student.name} 的評語已生成！`);
+        }
+    };
+
+    // 管理員查看模式下的單一學生即時生成
+    const handleViewingSingleGenerate = async (studentId) => {
+        if (!viewingUser) return;
+
+        const student = viewingStudents.find(s => s.id === studentId);
+        if (!student) return;
+
+        setIsGeneratingSingle(studentId);
+
+        const combinedTraits = [
+            ...student.selectedTags,
+            student.manualTraits
+        ].filter(Boolean).join("、");
+
+        const aiComment = await callGeminiAPI(student.name, combinedTraits, globalStyles, extraSettings);
+
+        // 更新本地狀態
+        setViewingStudents(prev => prev.map(s =>
+            s.id === studentId ? { ...s, comment: aiComment } : s
+        ));
+
+        // 同步到 Firebase
+        try {
+            await studentService.updateByUserId(viewingUser.id, studentId, { comment: aiComment });
+        } catch (error) {
+            console.error('管理員同步評語失敗:', error);
+        }
+
+        setIsGeneratingSingle(null);
+
+        // Toast 通知
         if (aiComment.includes("❌")) {
             toast.error(`${student.name}：${aiComment.replace("❌ ", "")}`);
         } else {
@@ -648,25 +849,25 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                 <ImportExportModal
                     isOpen={isImportExportOpen}
                     onClose={() => setIsImportExportOpen(false)}
-                    students={students}
-                    onImport={handleImportStudents}
-                    currentClassName={currentClassName}
+                    students={viewingUser ? viewingStudents : students}
+                    onImport={viewingUser ? () => { } : handleImportStudents}
+                    currentClassName={viewingUser ? `${viewingUser.displayName} 的學生` : currentClassName}
                 />
 
                 {/* 列印與 PDF 匯出 */}
                 <PrintModal
                     isOpen={isPrintModalOpen}
                     onClose={() => setIsPrintModalOpen(false)}
-                    students={students}
-                    currentClassName={currentClassName}
+                    students={viewingUser ? viewingStudents : students}
+                    currentClassName={viewingUser ? `${viewingUser.displayName} 的學生` : currentClassName}
                 />
 
                 {/* 班級統計儀表板 */}
                 <DashboardModal
                     isOpen={isDashboardOpen}
                     onClose={() => setIsDashboardOpen(false)}
-                    students={students}
-                    currentClassName={currentClassName}
+                    students={viewingUser ? viewingStudents : students}
+                    currentClassName={viewingUser ? `${viewingUser.displayName} 的學生` : currentClassName}
                 />
             </Suspense>
 
@@ -707,14 +908,14 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
 
                     <GeneratePanel
                         students={filteredStudents}
-                        selectedIds={viewingUser ? new Set() : selectedIds}
+                        selectedIds={viewingUser ? viewingSelectedIds : selectedIds}
                         isGenerating={isGenerating}
                         extraSettings={extraSettings}
                         setExtraSettings={setExtraSettings}
                         onGenerateSelected={viewingUser ? () => { } : () => handleBatchGenerate(true)}
                         onGenerateAll={viewingUser ? () => { } : () => handleBatchGenerate(false)}
                         onDownload={handleDownload}
-                        onDeleteSelected={viewingUser ? () => { } : handleDeleteSelected}
+                        onDeleteSelected={viewingUser ? deleteViewingSelected : handleDeleteSelected}
                         onResetList={viewingUser ? () => { } : handleResetList}
                         isViewingMode={!!viewingUser}
                     />
@@ -734,7 +935,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                                 )}
                                 <div className="min-w-0">
                                     <p className="font-bold text-[#2D3436] text-sm sm:text-base truncate">
-                                        👀 正在查看：{viewingUser.displayName} 的學生資料
+                                        ✏️ 管理員模式：正在編輯 {viewingUser.displayName} 的學生資料
                                     </p>
                                     <p className="text-xs text-[#636E72] truncate">
                                         {viewingUser.email}
@@ -773,24 +974,24 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                     {/* 學生表格/卡片 */}
                     <StudentTable
                         students={filteredStudents}
-                        selectedIds={viewingUser ? new Set() : selectedIds}
-                        focusedStudentId={viewingUser ? null : focusedStudentId}
+                        selectedIds={viewingUser ? viewingSelectedIds : selectedIds}
+                        focusedStudentId={viewingUser ? viewingFocusedStudentId : focusedStudentId}
                         isGenerating={isGenerating}
                         isGeneratingSingle={isGeneratingSingle}
-                        onToggleSelection={viewingUser ? () => { } : toggleSelection}
-                        onToggleAllSelection={viewingUser ? () => { } : toggleAllSelection}
-                        onFocusStudent={viewingUser ? () => { } : setFocusedStudentId}
+                        onToggleSelection={viewingUser ? toggleViewingSelection : toggleSelection}
+                        onToggleAllSelection={viewingUser ? toggleViewingAllSelection : toggleAllSelection}
+                        onFocusStudent={viewingUser ? setViewingFocusedStudentId : setFocusedStudentId}
                         onOpenSidebar={() => setIsSidebarOpen(true)}
-                        onRemoveTag={viewingUser ? () => { } : removeTag}
-                        onUpdateStudent={viewingUser ? () => { } : updateStudent}
-                        onDeleteStudent={viewingUser ? () => { } : deleteStudent}
-                        onGenerateSingle={viewingUser ? () => { } : handleSingleGenerate}
+                        onRemoveTag={viewingUser ? removeViewingTag : removeTag}
+                        onUpdateStudent={viewingUser ? updateViewingStudent : updateStudent}
+                        onDeleteStudent={viewingUser ? deleteViewingStudent : deleteStudent}
+                        onGenerateSingle={viewingUser ? handleViewingSingleGenerate : handleSingleGenerate}
                         onSaveTemplate={viewingUser ? () => { } : handleSaveTemplate}
                         onOpenHistory={viewingUser ? () => { } : (student) => {
                             setHistoryStudent(student);
                             setIsHistoryModalOpen(true);
                         }}
-                        readOnly={!!viewingUser}
+                        readOnly={false}
                         searchQuery={searchQuery}
                         onAdjustComment={viewingUser ? () => { } : handleAdjustComment}
                         adjustingStudentId={adjustingStudentId}

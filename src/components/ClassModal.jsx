@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Plus, Edit2, Trash2, Check, School, User, Users, Eye, ChevronDown, ChevronUp } from 'lucide-react';
-import { classService, userService, studentService } from '../firebase';
+import { classService, userService, studentService, schoolService } from '../firebase';
 
 /**
  * 班級管理 Modal
@@ -10,6 +10,7 @@ import { classService, userService, studentService } from '../firebase';
 const ClassModal = ({ isOpen, onClose, currentClassId, onSelectClass, currentUser, onViewUserStudents }) => {
     const [allClasses, setAllClasses] = useState([]);
     const [allUsers, setAllUsers] = useState([]);
+    const [allSchools, setAllSchools] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState(null);
@@ -41,13 +42,42 @@ const ClassModal = ({ isOpen, onClose, currentClassId, onSelectClass, currentUse
         return () => unsubscribe();
     }, [isOpen]);
 
-    // 過濾班級：管理員顯示全部，普通用戶只顯示被指派的班級
+    // 訂閱學校列表（用於顯示學校名稱）
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const unsubscribe = schoolService.subscribe((data) => {
+            setAllSchools(data);
+        });
+
+        return () => unsubscribe();
+    }, [isOpen]);
+
+    // 取得使用者的學校識別碼（使用學校名稱作為識別）
+    const getUserSchoolId = (user) => {
+        if (user?.customSchoolName) {
+            return `${user.customSchoolCity || ''}_${user.customSchoolName}`.trim();
+        }
+        return null;
+    };
+
+    const currentUserSchoolId = getUserSchoolId(currentUser);
+
+    // 過濾班級：管理員顯示全部，普通用戶只顯示被指派的班級且同學校
     const isAdmin = currentUser?.role === 'admin';
     const classes = useMemo(() => {
         if (isAdmin) return allClasses;
         const assignedClassIds = currentUser?.assignedClasses || [];
-        return allClasses.filter(cls => assignedClassIds.includes(cls.id));
-    }, [allClasses, currentUser, isAdmin]);
+        return allClasses.filter(cls => {
+            // 必須是被指派的班級
+            if (!assignedClassIds.includes(cls.id)) return false;
+            // 且班級屬於同學校（或班級沒有 schoolId 則視為通用班級）
+            if (cls.schoolId && currentUserSchoolId && cls.schoolId !== currentUserSchoolId) {
+                return false;
+            }
+            return true;
+        });
+    }, [allClasses, currentUser, isAdmin, currentUserSchoolId]);
 
     // 建立班級與經營者的對應關係
     const classOwners = useMemo(() => {
@@ -67,7 +97,8 @@ const ClassModal = ({ isOpen, onClose, currentClassId, onSelectClass, currentUse
         try {
             await classService.add({
                 name: newClassName.trim(),
-                year: new Date().getFullYear()
+                year: new Date().getFullYear(),
+                schoolId: currentUserSchoolId // 帶入建立者的學校識別
             });
             setNewClassName('');
             setIsAdding(false);
@@ -124,9 +155,18 @@ const ClassModal = ({ isOpen, onClose, currentClassId, onSelectClass, currentUse
 
     // 取得學校名稱顯示
     const getSchoolDisplay = (user) => {
+        // 優先使用自訂學校名稱
         if (user.customSchoolName) {
             return user.customSchoolCity ? `${user.customSchoolCity} ${user.customSchoolName}` : user.customSchoolName;
         }
+        // 其次嘗試從學校列表查詢 schoolId
+        if (user.schoolId) {
+            const school = allSchools.find(s => s.id === user.schoolId);
+            if (school) {
+                return school.city ? `${school.city} ${school.name}` : school.name;
+            }
+        }
+        // 最後使用 schoolName 欄位
         return user.schoolName || '';
     };
 
