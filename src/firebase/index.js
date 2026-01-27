@@ -13,4 +13,5 @@ export {
     setCurrentUserId,
     getCurrentUserId
 } from './firestoreService';
-export { authService, userService, USER_ROLES } from './authService';
+export { authService, userService } from './authService';
+export { USER_ROLES } from './roles';
