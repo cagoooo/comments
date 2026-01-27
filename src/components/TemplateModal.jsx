@@ -7,6 +7,8 @@ import { templateService } from '../firebase';
  * 查看、套用、刪除收藏的評語範本
  */
 const TemplateModal = ({ isOpen, onClose, onApplyTemplate }) => {
+    const [templates, setTemplates] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState('全部');
     const categories = ['全部', '學業', '品德', '人際', '其他'];
 
@@ -94,8 +96,8 @@ const TemplateModal = ({ isOpen, onClose, onApplyTemplate }) => {
                             key={cat}
                             onClick={() => setSelectedCategory(cat)}
                             className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-all border-2 ${selectedCategory === cat
-                                    ? 'bg-[#FF6B9D] text-white border-[#2D3436] shadow-[2px_2px_0_#2D3436]'
-                                    : 'bg-white text-[#636E72] border-transparent hover:bg-gray-100'
+                                ? 'bg-[#FF6B9D] text-white border-[#2D3436] shadow-[2px_2px_0_#2D3436]'
+                                : 'bg-white text-[#636E72] border-transparent hover:bg-gray-100'
                                 }`}
                         >
                             {cat}
