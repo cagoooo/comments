@@ -7,8 +7,8 @@ import { templateService } from '../firebase';
  * 查看、套用、刪除收藏的評語範本
  */
 const TemplateModal = ({ isOpen, onClose, onApplyTemplate }) => {
-    const [templates, setTemplates] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [selectedCategory, setSelectedCategory] = useState('全部');
+    const categories = ['全部', '學業', '品德', '人際', '其他'];
 
     // 訂閱範本即時更新
     useEffect(() => {
@@ -52,6 +52,22 @@ const TemplateModal = ({ isOpen, onClose, onApplyTemplate }) => {
         }
     };
 
+    // 更新分類
+    const handleCategoryChange = async (id, newCategory) => {
+        try {
+            await templateService.update(id, { category: newCategory });
+        } catch (error) {
+            console.error('更新分類失敗:', error);
+        }
+    };
+
+    // 篩選範本
+    const filteredTemplates = templates.filter(t => {
+        if (selectedCategory === '全部') return true;
+        const cat = t.category || '其他';
+        return cat === selectedCategory;
+    });
+
     if (!isOpen) return null;
 
     return (
@@ -71,29 +87,47 @@ const TemplateModal = ({ isOpen, onClose, onApplyTemplate }) => {
                     </button>
                 </div>
 
+                {/* Category Tabs */}
+                <div className="flex overflow-x-auto p-2 gap-2 border-b-2 border-[#2D3436] bg-white mobile-scroll-hide">
+                    {categories.map(cat => (
+                        <button
+                            key={cat}
+                            onClick={() => setSelectedCategory(cat)}
+                            className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-all border-2 ${selectedCategory === cat
+                                    ? 'bg-[#FF6B9D] text-white border-[#2D3436] shadow-[2px_2px_0_#2D3436]'
+                                    : 'bg-white text-[#636E72] border-transparent hover:bg-gray-100'
+                                }`}
+                        >
+                            {cat}
+                        </button>
+                    ))}
+                </div>
+
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-3 sm:p-4 mobile-scroll-hide">
                     {isLoading ? (
                         <div className="flex items-center justify-center py-20">
                             <div className="text-4xl animate-bounce">🐝</div>
                         </div>
-                    ) : templates.length === 0 ? (
+                    ) : filteredTemplates.length === 0 ? (
                         <div className="text-center py-16">
                             <div className="text-5xl mb-4">📚</div>
-                            <p className="text-lg font-bold text-[#636E72]">還沒有收藏的範本</p>
+                            <p className="text-lg font-bold text-[#636E72]">
+                                {selectedCategory === '全部' ? '還沒有收藏的範本' : `沒有「${selectedCategory}」類別的範本`}
+                            </p>
                             <p className="text-sm text-[#636E72]/70 mt-2">
                                 在學生評語旁點擊 ❤️ 收藏 即可加入範本庫
                             </p>
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            {templates.map((template) => (
+                            {filteredTemplates.map((template) => (
                                 <div
                                     key={template.id}
                                     className="bg-white border-2 border-[#2D3436] rounded-lg overflow-hidden shadow-[3px_3px_0_#2D3436]"
                                 >
                                     {/* 範本標題 */}
-                                    <div className="p-3 bg-[#FECA57] border-b-2 border-[#2D3436] flex items-center justify-between">
+                                    <div className="p-3 bg-[#FECA57] border-b-2 border-[#2D3436] flex items-center justify-between flex-wrap gap-2">
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm font-bold text-[#2D3436]">
                                                 {template.studentName || '未命名'}
@@ -111,9 +145,23 @@ const TemplateModal = ({ isOpen, onClose, onApplyTemplate }) => {
                                                 </div>
                                             )}
                                         </div>
-                                        <span className="text-xs text-[#2D3436]/70">
-                                            使用 {template.usageCount || 0} 次
-                                        </span>
+
+                                        <div className="flex items-center gap-2">
+                                            {/* 分類選擇 */}
+                                            <select
+                                                value={template.category || '其他'}
+                                                onChange={(e) => handleCategoryChange(template.id, e.target.value)}
+                                                className="text-xs px-2 py-1 rounded border border-[#2D3436] bg-white cursor-pointer hover:bg-gray-50 focus:outline-none"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                {categories.filter(c => c !== '全部').map(cat => (
+                                                    <option key={cat} value={cat}>{cat}</option>
+                                                ))}
+                                            </select>
+                                            <span className="text-xs text-[#2D3436]/70 whitespace-nowrap">
+                                                使用 {template.usageCount || 0} 次
+                                            </span>
+                                        </div>
                                     </div>
 
                                     {/* 範本內容 */}
@@ -153,7 +201,7 @@ const TemplateModal = ({ isOpen, onClose, onApplyTemplate }) => {
 
                 {/* Footer */}
                 <div className="p-3 sm:p-4 bg-[#E8DCC8] border-t-2 border-dashed border-[#2D3436]/20 text-xs text-[#636E72] text-center">
-                    共 {templates.length} 個範本 | 範本儲存在雲端，跨裝置同步
+                    共 {filteredTemplates.length} 個範本 | 範本儲存在雲端，跨裝置同步
                 </div>
             </div>
         </div>

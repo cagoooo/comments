@@ -437,6 +437,19 @@ export const templateService = {
         } catch (error) {
             console.error('更新使用次數失敗:', error);
         }
+    },
+
+    update: async (id, updates) => {
+        try {
+            const templateRef = getUserDoc(COLLECTIONS.TEMPLATES, id.toString());
+            await setDoc(templateRef, {
+                ...updates,
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+        } catch (error) {
+            console.error('更新範本失敗:', error);
+            throw error;
+        }
     }
 };
 

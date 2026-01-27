@@ -450,6 +450,36 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
+    // 鍵盤快捷鍵
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            // Ctrl+S: 儲存 (顯示提示，因為是自動儲存)
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                toast.success("💾 系統已自動儲存您的變更");
+            }
+
+            // Ctrl+G: 生成評語
+            if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+                e.preventDefault();
+                if (isGenerating) return;
+
+                if (focusedStudentId) {
+                    // 如果有聚焦的學生，生成該學生
+                    handleSingleGenerate(focusedStudentId);
+                } else {
+                    // 否則批次生成 (預設生成全部或已選)
+                    // 這裡邏輯：如果有選取就生成選取，否則生成全部
+                    const hasSelection = selectedIds.size > 0;
+                    handleBatchGenerate(hasSelection);
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isGenerating, focusedStudentId, selectedIds, handleSingleGenerate, handleBatchGenerate]);
+
     // --- 功能函數 ---
 
     // 產生學生名單
