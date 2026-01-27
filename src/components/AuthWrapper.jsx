@@ -62,7 +62,7 @@ const AuthWrapper = ({ children }) => {
         setUser(null);
     };
 
-    // 提交申請處理
+    // 處理提交申請
     const handleSubmitApplication = async (uid, schoolInfo, requestedClasses) => {
         const result = await userService.submitApplication(uid, schoolInfo, requestedClasses);
         if (result.success) {

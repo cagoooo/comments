@@ -43,36 +43,33 @@ service cloud.firestore {
       allow update: if isAdmin();
       // 管理員可以刪除使用者（用於刪除審核申請）
       allow delete: if isAdmin();
-      // 使用者可以更新自己的非敏感欄位（包含申請資訊）
+      
+      // 使用者可以更新自己的資料
       allow update: if isSignedIn() && request.auth.uid == userId 
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['assignedClasses', 'approvedAt', 'approvedBy', 'schoolId'])
                     && (
-                      // 允許更新申請資訊（從 pending_info 到 pending_review）
-                      (resource.data.role == 'pending_info' && request.resource.data.role == 'pending_review')
-                      // 或不改變角色
-                      || request.resource.data.role == resource.data.role
+                      // 1. 允許更新非敏感欄位（一般資料更新）
+                      (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['assignedClasses', 'approvedAt', 'approvedBy']))
+                      ||
+                      // 2. 允許註冊流程（自動審核）：允許將 role 設為 teacher，並更新相關欄位
+                      (
+                        resource.data.role == 'pending_info' 
+                        && request.resource.data.role == 'teacher'
+                        && request.resource.data.approvedBy == 'system_auto'
+                      )
                     );
-      
-      // ===== 使用者隔離的子集合 =====
-      
-      // 學生資料（使用者隔離）
+
+      // 使用者子集合（學生資料）
       match /students/{studentId} {
-        // 使用者只能存取自己的學生資料
         allow read, write: if isOwner(userId);
-        // 管理員可以讀取和寫入所有使用者的學生資料
-        allow read, write: if isAdmin();
         
-        // 歷史記錄子集合
         match /history/{historyId} {
           allow read, write: if isOwner(userId);
-          allow read, write: if isAdmin();
         }
       }
-      
-      // 範本（使用者隔離）
+
+      // 使用者子集合（評語範本）
       match /templates/{templateId} {
         allow read, write: if isOwner(userId);
-        allow read: if isAdmin();
       }
       
       // 設定（使用者隔離 - 含 API Key，僅本人可存取）
@@ -87,16 +84,24 @@ service cloud.firestore {
     match /classes/{classId} {
       // 已審核使用者可以讀取
       allow read: if isApproved();
-      // 只有管理員可以寫入
-      allow write: if isAdmin();
+      
+      // 建立：管理員 OR (已登入 AND 設定自己為導師)
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.teacherId == request.auth.uid);
+      
+      // 更新/刪除：管理員 OR (已審核 AND 是該班導師)
+      allow update, delete: if isAdmin() || (isApproved() && resource.data.teacherId == request.auth.uid);
     }
 
     // 學校集合（全域共用）
     match /schools/{schoolId} {
       // 所有登入使用者可以讀取（用於申請表單選擇學校）
       allow read: if isSignedIn();
-      // 只有管理員可以寫入
-      allow write: if isAdmin();
+      
+      // 建立：已登入 (為了讓用戶在註冊時建立新學校)
+      allow create: if isSignedIn();
+      
+      // 更新/刪除：只有管理員
+      allow update, delete: if isAdmin();
     }
 
     // 管理員共享設定集合（API Key 共享功能）
@@ -109,31 +114,6 @@ service cloud.firestore {
       allow read: if isApproved() 
                   && docId == 'shared'
                   && request.auth.uid in resource.data.authorizedUsers;
-    }
-
-    // ===== 舊的全域集合（保留供參考，禁止寫入） =====
-    
-    // 舊學生集合（已棄用）
-    match /students/{studentId} {
-      allow read: if isAdmin(); // 僅管理員可讀舊資料
-      allow write: if false; // 禁止寫入
-      
-      match /history/{historyId} {
-        allow read: if isAdmin();
-        allow write: if false;
-      }
-    }
-
-    // 舊範本集合（已棄用）
-    match /templates/{templateId} {
-      allow read: if isAdmin();
-      allow write: if false;
-    }
-
-    // 舊設定集合（已棄用）
-    match /settings/{settingId} {
-      allow read: if isAdmin();
-      allow write: if false;
     }
   }
 }

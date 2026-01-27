@@ -20,6 +20,7 @@ import {
     deleteDoc
 } from 'firebase/firestore';
 import { auth, googleProvider, db } from './config';
+import { classService, schoolService } from './firestoreService';
 
 // 管理員 Email（寫死在 code 中做基本驗證，Firestore 規則會再驗證一次）
 const ADMIN_EMAIL = 'cagooo@gmail.com';
@@ -268,24 +269,64 @@ export const userService = {
     submitApplication: async (uid, schoolInfo, requestedClasses) => {
         try {
             const userRef = doc(db, COLLECTIONS.USERS, uid);
-            const updateData = {
-                role: USER_ROLES.PENDING_REVIEW,
-                requestedClasses,
-                applicationSubmittedAt: serverTimestamp()
-            };
 
-            // 支援選擇現有學校或輸入自訂學校
-            if (schoolInfo.schoolId) {
-                updateData.requestedSchoolId = schoolInfo.schoolId;
-                updateData.requestedSchoolName = null;
-                updateData.requestedSchoolCity = null;
-            } else {
-                updateData.requestedSchoolId = null;
-                updateData.requestedSchoolName = schoolInfo.schoolName;
-                updateData.requestedSchoolCity = schoolInfo.schoolCity;
+            // 1. 處理學校資訊
+            let finalSchoolId = schoolInfo.schoolId;
+            let finalSchoolName = schoolInfo.schoolName;
+            let finalSchoolCity = schoolInfo.schoolCity;
+
+            // 如果是新學校，自動建立
+            if (!finalSchoolId && finalSchoolName) {
+                try {
+                    finalSchoolId = await schoolService.add({
+                        name: finalSchoolName,
+                        city: finalSchoolCity || ''
+                    });
+                } catch (err) {
+                    console.error('自動建立學校失敗:', err);
+                    // 如果建立失敗，仍繼續流程，但可能會有資料不一致
+                }
             }
 
+            // 2. 處理班級資訊
+            const assignedClassIds = [];
+            if (requestedClasses && requestedClasses.length > 0) {
+                for (const className of requestedClasses) {
+                    try {
+                        const classId = await classService.add({
+                            name: className,
+                            schoolId: finalSchoolId,
+                            teacherId: uid // 記錄建立者/導師
+                        });
+                        assignedClassIds.push(classId);
+                    } catch (err) {
+                        console.error(`自動建立班級 ${className} 失敗:`, err);
+                    }
+                }
+            }
+
+            // 3. 準備使用者更新資料
+            const updateData = {
+                role: USER_ROLES.TEACHER, // 直接設為教師（自動審核通過）
+                requestedClasses, // 保留原始申請記錄
+                assignedClasses: assignedClassIds, // 自動指派剛建立的班級
+                schoolId: finalSchoolId, // 自動指派學校
+
+                // 清除申請狀態欄位（因為已經核准了）
+                requestedSchoolId: null,
+                requestedSchoolName: null,
+                requestedSchoolCity: null,
+                customSchoolName: null,
+                customSchoolCity: null,
+
+                applicationSubmittedAt: serverTimestamp(),
+                approvedAt: serverTimestamp(), // 自動審核時間
+                approvedBy: 'system_auto' // 自動審核者
+            };
+
+            // 4. 更新使用者資料
             await updateDoc(userRef, updateData);
+
             return { success: true };
         } catch (error) {
             console.error('提交申請失敗:', error);
@@ -328,6 +369,4 @@ export const userService = {
      */
     isPendingReview: (user) => user?.role === USER_ROLES.PENDING_REVIEW || user?.role === USER_ROLES.PENDING
 };
-
-export default { authService, userService, USER_ROLES };
 

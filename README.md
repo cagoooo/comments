@@ -2,7 +2,7 @@
 
 > 🎓 專為教師設計的學生評語智慧生成工具，讓撰寫評語變得輕鬆又高效！
 
-[![Version](https://img.shields.io/badge/version-2.8.1-blue.svg)](https://github.com/cagoooo/comments)
+[![Version](https://img.shields.io/badge/version-2.9.0-blue.svg)](https://github.com/cagoooo/comments)
 [![React](https://img.shields.io/badge/React-18.3-61dafb.svg)](https://reactjs.org/)
 [![Firebase](https://img.shields.io/badge/Firebase-12.7-orange.svg)](https://firebase.google.com/)
 [![Gemini](https://img.shields.io/badge/Gemini-2.5_Flash-brightgreen.svg)](https://ai.google.dev/)
@@ -116,6 +116,7 @@ h:\comments\
 
 | 版本 | 日期 | 主要更新 |
 |------|------|----------|
+| v2.9.0 | 2026-01-27 | 🚀 註冊流程優化 (移除 API Key 必填)、自動審核與班級建立、API Key 來源限制修正 |
 | v2.8.1 | 2026-01-15 | 📝 登入頁面優化、申請表單驗證、自動新增班級流程優化 |
 | v2.8.0 | 2026-01-15 | 🏫 班級學校關聯、管理員編輯功能、學校資訊顯示優化 |
 | v2.7.0 | 2026-01-12 | 🏫 班級管理優化、查看經營者學生資料 |
