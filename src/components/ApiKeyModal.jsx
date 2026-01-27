@@ -44,6 +44,7 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
                 if (sharedKey) {
                     setHasSharedAccess(true);
                     setSharedApiKey(sharedKey);
+                    setApiKey(sharedKey); // 使用共享 Key 更新顯示
                     // 自動設定到 localStorage 供 geminiApi 使用
                     localStorage.setItem('gemini_api_key', sharedKey);
                 } else {
@@ -61,7 +62,7 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
 
     // 儲存 API Key 到 Firebase
     const handleSave = async () => {
-        if (!apiKey.trim()) return;
+        if (!apiKey.trim() || hasSharedAccess) return; // 共享模式下禁止儲存
 
         setIsSaving(true);
         try {
@@ -80,6 +81,7 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
 
     // 清除 API Key
     const handleClear = async () => {
+        if (hasSharedAccess) return; // 共享模式下禁止清除
         if (!window.confirm('確定要清除 API Key 嗎？')) return;
 
         setIsSaving(true);
@@ -123,9 +125,11 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
 
             if (response.ok) {
                 setTestResult('success');
-                // 測試成功自動儲存到 Firebase
-                await settingsService.save({ apiKey: apiKey.trim() });
-                setSavedKey(apiKey.trim());
+                // 測試成功自動儲存到 Firebase (僅在非共享模式下)
+                if (!hasSharedAccess) {
+                    await settingsService.save({ apiKey: apiKey.trim() });
+                    setSavedKey(apiKey.trim());
+                }
                 localStorage.setItem('gemini_api_key', apiKey.trim());
             } else if (response.status === 429) {
                 // 配額用完 - 不儲存，明確告知用戶無法使用
@@ -218,16 +222,18 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
                                 </div>
                             )}
 
-                            {/* ⚠️ 重要提醒 */}
-                            <div className="bg-[#FF6B6B]/15 border-2 border-[#FF6B6B] rounded-lg p-3 text-sm">
-                                <p className="font-bold text-[#FF6B6B] mb-1">⚠️ 重要提醒</p>
-                                <p className="text-[#2D3436]">
-                                    請使用<span className="font-bold text-[#FF6B6B]">「個人 Gmail 帳號」</span>申請 API Key！
-                                </p>
-                                <p className="text-[#636E72] text-xs mt-1">
-                                    學校帳號（@xxx.edu.tw）申請的 API Key 可能無法正常使用
-                                </p>
-                            </div>
+                            {/* ⚠️ 重要提醒 - 只在沒有共享授權時顯示 */}
+                            {!hasSharedAccess && (
+                                <div className="bg-[#FF6B6B]/15 border-2 border-[#FF6B6B] rounded-lg p-3 text-sm">
+                                    <p className="font-bold text-[#FF6B6B] mb-1">⚠️ 重要提醒</p>
+                                    <p className="text-[#2D3436]">
+                                        請使用<span className="font-bold text-[#FF6B6B]">「個人 Gmail 帳號」</span>申請 API Key！
+                                    </p>
+                                    <p className="text-[#636E72] text-xs mt-1">
+                                        學校帳號（@xxx.edu.tw）申請的 API Key 可能無法正常使用
+                                    </p>
+                                </div>
+                            )}
 
                             {/* 目前狀態 */}
                             <div className="flex items-center gap-2 text-sm">
@@ -251,9 +257,10 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
                             </div>
 
                             {/* API Key 輸入 */}
-                            <div className="bg-white border-3 border-[#2D3436] rounded-lg p-4 shadow-[4px_4px_0_#2D3436]">
+                            <div className={`bg-white border-3 border-[#2D3436] rounded-lg p-4 shadow-[4px_4px_0_#2D3436] ${hasSharedAccess ? 'opacity-70 grayscale' : ''}`}>
                                 <label className="block text-sm sm:text-base font-black text-[#2D3436] mb-3 flex items-center gap-2">
                                     🔑 Gemini API Key
+                                    {hasSharedAccess && <span className="text-xs bg-[#2D3436] text-white px-2 py-0.5 rounded-full">已鎖定</span>}
                                 </label>
                                 <input
                                     type="password"
@@ -262,15 +269,18 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
                                         setApiKey(e.target.value);
                                         setTestResult(null);
                                     }}
-                                    placeholder="輸入您的 API Key..."
+                                    disabled={hasSharedAccess}
+                                    placeholder={hasSharedAccess ? "使用共享 API Key" : "輸入您的 API Key..."}
                                     className="w-full p-3 sm:p-4 border-3 border-[#2D3436] rounded-lg text-base sm:text-lg text-[#2D3436] font-bold 
                                                bg-[#FFF9E6] placeholder:text-[#636E72]/60 placeholder:font-medium
                                                focus:border-[#FF9F43] focus:ring-4 focus:ring-[#FF9F43]/20 outline-none
-                                               transition-all duration-200"
+                                               transition-all duration-200 disabled:cursor-not-allowed disabled:bg-gray-100"
                                 />
-                                <p className="mt-2 text-xs text-[#636E72]">
-                                    💡 API Key 格式：AIza... 開頭的字串
-                                </p>
+                                {!hasSharedAccess && (
+                                    <p className="mt-2 text-xs text-[#636E72]">
+                                        💡 API Key 格式：AIza... 開頭的字串
+                                    </p>
+                                )}
                             </div>
 
                             {/* 測試結果 */}
@@ -283,7 +293,7 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
                                     {testResult === 'success' ? (
                                         <>
                                             <CheckCircle size={18} />
-                                            連線測試成功！API Key 已自動儲存 ✨
+                                            {hasSharedAccess ? '連線測試成功！共享 API Key 運作正常 ✨' : '連線測試成功！API Key 已自動儲存 ✨'}
                                         </>
                                     ) : testResult === 'quota' ? (
                                         <>
@@ -323,23 +333,26 @@ const ApiKeyModal = ({ isOpen, onClose, currentUser }) => {
                                         <>🧪 測試連線</>
                                     )}
                                 </button>
-                                <button
-                                    onClick={handleSave}
-                                    disabled={!apiKey.trim() || isSaving}
-                                    className="btn-pop flex-1 py-3 bg-[#1DD1A1] text-white font-bold disabled:opacity-50 flex items-center justify-center gap-2"
-                                >
-                                    {isSaving ? (
-                                        <>
-                                            <Loader2 size={18} className="animate-spin" />
-                                            儲存中...
-                                        </>
-                                    ) : (
-                                        <>💾 儲存</>
-                                    )}
-                                </button>
+
+                                {!hasSharedAccess && (
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={!apiKey.trim() || isSaving}
+                                        className="btn-pop flex-1 py-3 bg-[#1DD1A1] text-white font-bold disabled:opacity-50 flex items-center justify-center gap-2"
+                                    >
+                                        {isSaving ? (
+                                            <>
+                                                <Loader2 size={18} className="animate-spin" />
+                                                儲存中...
+                                            </>
+                                        ) : (
+                                            <>💾 儲存</>
+                                        )}
+                                    </button>
+                                )}
                             </div>
 
-                            {savedKey && (
+                            {savedKey && !hasSharedAccess && (
                                 <button
                                     onClick={handleClear}
                                     disabled={isSaving}
