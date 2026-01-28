@@ -199,6 +199,69 @@ export const useStudents = (userId) => {
         });
     }, []);
 
+    // 移除指定學生的標籤
+    const removeTagFromStudents = useCallback(async (targetIds, tagToRemove) => {
+        // 樂觀更新
+        setStudents(prev => prev.map(s => {
+            if (targetIds.includes(s.id)) {
+                return { ...s, selectedTags: s.selectedTags.filter(t => t !== tagToRemove) };
+            }
+            return s;
+        }));
+
+        // 同步到 Firebase
+        try {
+            for (const id of targetIds) {
+                const student = students.find(s => s.id === id);
+                if (student) {
+                    await studentService.update(id, {
+                        selectedTags: student.selectedTags.filter(t => t !== tagToRemove)
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('移除標籤失敗:', error);
+        }
+    }, [students]);
+
+    // 清空評語
+    const clearComments = useCallback(async (targetIds) => {
+        // 樂觀更新
+        setStudents(prev => prev.map(s => {
+            if (targetIds.includes(s.id)) {
+                return { ...s, comment: "" };
+            }
+            return s;
+        }));
+
+        // 同步到 Firebase
+        try {
+            const batchPromises = targetIds.map(id => studentService.update(id, { comment: "" }));
+            await Promise.all(batchPromises);
+        } catch (error) {
+            console.error('清空評語失敗:', error);
+        }
+    }, []);
+
+    // 移動班級
+    const moveStudentsToClass = useCallback(async (targetIds, classId) => {
+        // 樂觀更新
+        setStudents(prev => prev.map(s => {
+            if (targetIds.includes(s.id)) {
+                return { ...s, classId: classId };
+            }
+            return s;
+        }));
+
+        // 同步到 Firebase
+        try {
+            const batchPromises = targetIds.map(id => studentService.update(id, { classId: classId }));
+            await Promise.all(batchPromises);
+        } catch (error) {
+            console.error('移動班級失敗:', error);
+        }
+    }, []);
+
     // 同步評語到 Firebase
     const syncComment = useCallback(async (studentId, comment) => {
         try {
@@ -223,6 +286,9 @@ export const useStudents = (userId) => {
         toggleAllSelection,
         addTagToStudents,
         removeTag,
+        removeTagFromStudents,
+        clearComments,
+        moveStudentsToClass,
         syncComment
     };
 };
