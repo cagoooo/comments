@@ -15,7 +15,6 @@ const GeneratePanel = ({
     onDownload,
     onDeleteSelected,
     onResetList,
-    onBatchActions,
     isViewingMode = false
 }) => {
     return (
@@ -145,19 +144,6 @@ const GeneratePanel = ({
                     </div>
                 )}
             </div>
-
-            {/* 批次操作按鈕 - 僅在有選取時顯示 */}
-            {!isViewingMode && selectedIds.size > 0 && (
-                <div className="mt-2 pt-2 border-t-2 border-dashed border-white/50">
-                    <button
-                        onClick={onBatchActions}
-                        disabled={isGenerating}
-                        className="w-full py-2 bg-[#6C5CE7] text-white font-black rounded-lg border-2 border-[#2D3436] shadow-[2px_2px_0_#2D3436] active:translate-y-[1px] active:shadow-[1px_1px_0_#2D3436] flex items-center justify-center gap-2 text-sm hover:bg-[#5849BE] transition-colors"
-                    >
-                        <span className="text-lg">⚡</span> 批次操作 ({selectedIds.size})
-                    </button>
-                </div>
-            )}
         </div>
     );
 };

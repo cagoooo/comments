@@ -830,6 +830,10 @@ export const adminConfigService = {
 
             return data.sharedApiKey || null;
         } catch (error) {
+            // 如果是權限不足（正常情況，代表非授權用戶），則不顯示錯誤
+            if (error.code === 'permission-denied') {
+                return null;
+            }
             console.error('取得共享 API Key 失敗:', error);
             return null;
         }

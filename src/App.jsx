@@ -33,6 +33,21 @@ import SearchBar from './components/SearchBar';
 // Lazy Components (Modal 元件 - 動態載入)
 const StyleModal = lazy(() => import('./components/StyleModal'));
 const ApiKeyModal = lazy(() => import('./components/ApiKeyModal'));
+const TemplateModal = lazy(() => import('./components/TemplateModal'));
+const ClassModal = lazy(() => import('./components/ClassModal'));
+const HistoryModal = lazy(() => import('./components/HistoryModal'));
+const AdminPanel = lazy(() => import('./components/AdminPanel'));
+const ImportExportModal = lazy(() => import('./components/ImportExportModal'));
+const PrintModal = lazy(() => import('./components/PrintModal'));
+const DashboardModal = lazy(() => import('./components/DashboardModal'));
+
+// Firebase
+import { templateService, classService, historyService, settingsService, adminConfigService, userService, USER_ROLES, studentService } from './firebase';
+
+/**
+ * 點石成金蜂🐝 - AI 評語產生器
+ * 主應用元件
+ */
 const App = ({ currentUser, onLogout, isAdmin }) => {
     // --- Toast Hook ---
     const { toast } = useToast();
@@ -58,9 +73,6 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
         toggleAllSelection,
         addTagToStudents,
         removeTag,
-        removeTagFromStudents,
-        clearComments,
-        moveStudentsToClass,
         syncComment
     } = useStudents(currentUser?.uid);
 
@@ -106,6 +118,23 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
     // 歷史記錄
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [historyStudent, setHistoryStudent] = useState(null);
+
+    // Excel 匯入/匯出
+    const [isImportExportOpen, setIsImportExportOpen] = useState(false);
+
+    // 列印與 PDF 匯出
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+
+    // 班級統計儀表板
+    const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+
+    // 待審核用戶數量（管理員用）
+    const [pendingCount, setPendingCount] = useState(0);
+
+    // 查看其他用戶學生（管理員用）
+    const [viewingUser, setViewingUser] = useState(null);
+    const [viewingStudents, setViewingStudents] = useState([]);
+
     // 搜尋與篩選
     const [searchQuery, setSearchQuery] = useState('');
     const [searchFilters, setSearchFilters] = useState({
@@ -739,38 +768,6 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
         }
     };
 
-    // 批次加入標籤
-    const handleBatchAddTag = (tag) => {
-        const targetIds = Array.from(selectedIds);
-        if (targetIds.length === 0) return;
-        addTagToStudents(targetIds, tag);
-        toast.success(`已為 ${targetIds.length} 位學生加入標籤：${tag}`);
-    };
-
-    // 批次移除標籤
-    const handleBatchRemoveTag = (tag) => {
-        const targetIds = Array.from(selectedIds);
-        if (targetIds.length === 0) return;
-        removeTagFromStudents(targetIds, tag);
-        toast.success(`已為 ${targetIds.length} 位學生移除標籤：${tag}`);
-    };
-
-    // 批次移動班級
-    const handleBatchMoveClass = (classId) => {
-        const targetIds = Array.from(selectedIds);
-        if (targetIds.length === 0) return;
-        moveStudentsToClass(targetIds, classId);
-        toast.success(`已將 ${targetIds.length} 位學生移動班級`);
-    };
-
-    // 批次清空評語
-    const handleBatchClearComments = () => {
-        const targetIds = Array.from(selectedIds);
-        if (targetIds.length === 0) return;
-        clearComments(targetIds);
-        toast.success(`已清空 ${targetIds.length} 位學生的評語`);
-    };
-
     // 鍵盤快捷鍵 (移至此處以確保依賴函數已定義)
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -904,19 +901,6 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                     students={viewingUser ? viewingStudents : students}
                     currentClassName={viewingUser ? `${viewingUser.displayName} 的學生` : currentClassName}
                 />
-
-                {/* 批次操作 Modal */}
-                <BatchActionsModal
-                    isOpen={isBatchModalOpen}
-                    onClose={() => setIsBatchModalOpen(false)}
-                    selectedCount={selectedIds.size}
-                    allTags={Array.from(new Set(students.flatMap(s => s.selectedTags || [])))}
-                    classes={classes}
-                    onAddTag={handleBatchAddTag}
-                    onRemoveTag={handleBatchRemoveTag}
-                    onMoveClass={handleBatchMoveClass}
-                    onClearComments={handleBatchClearComments}
-                />
             </Suspense>
 
             {/* 頁首 */}
@@ -965,7 +949,6 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                         onDownload={handleDownload}
                         onDeleteSelected={viewingUser ? deleteViewingSelected : handleDeleteSelected}
                         onResetList={viewingUser ? () => { } : handleResetList}
-                        onBatchActions={() => setIsBatchModalOpen(true)}
                         isViewingMode={!!viewingUser}
                     />
                 </div>
