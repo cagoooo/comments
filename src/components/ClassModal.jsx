@@ -1,11 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Plus, Edit2, Trash2, Check, School, User, Users, Eye, ChevronDown, ChevronUp } from 'lucide-react';
-import { classService, userService, studentService, schoolService } from '../firebase';
+import {
+    Plus, Edit2, Trash2, Check, School, Users, Eye, ChevronDown, ChevronUp, X,
+} from 'lucide-react';
+import { classService, userService, schoolService } from '../firebase';
+import ModalShell from './ui/ModalShell';
+import { Btn } from './atoms';
 
 /**
  * 班級管理 Modal
- * 新增、編輯、刪除班級
- * 管理員可查看班級經營者及其學生資料
+ *
+ * Props 保留：isOpen / onClose / currentClassId / onSelectClass / currentUser / onViewUserStudents
+ * Firebase: classService / userService / schoolService 三 subscribe
+ * 邏輯保留：admin 看全部、非 admin 過濾 assignedClasses + 同學校；展開經營者；查看學生
  */
 const ClassModal = ({ isOpen, onClose, currentClassId, onSelectClass, currentUser, onViewUserStudents }) => {
     const [allClasses, setAllClasses] = useState([]);
@@ -18,42 +24,30 @@ const ClassModal = ({ isOpen, onClose, currentClassId, onSelectClass, currentUse
     const [editName, setEditName] = useState('');
     const [expandedClassId, setExpandedClassId] = useState(null);
 
-    // 訂閱班級即時更新
+    const isAdmin = currentUser?.role === 'admin';
+
     useEffect(() => {
         if (!isOpen) return;
-
         setIsLoading(true);
-        const unsubscribe = classService.subscribe((data) => {
+        const unsub = classService.subscribe((data) => {
             setAllClasses(data);
             setIsLoading(false);
         });
-
-        return () => unsubscribe();
+        return () => unsub();
     }, [isOpen]);
 
-    // 訂閱用戶列表（管理員用）
     useEffect(() => {
         if (!isOpen || !isAdmin) return;
+        const unsub = userService.subscribeAll((data) => setAllUsers(data));
+        return () => unsub();
+    }, [isOpen, isAdmin]);
 
-        const unsubscribe = userService.subscribeAll((data) => {
-            setAllUsers(data);
-        });
-
-        return () => unsubscribe();
-    }, [isOpen]);
-
-    // 訂閱學校列表（用於顯示學校名稱）
     useEffect(() => {
         if (!isOpen) return;
-
-        const unsubscribe = schoolService.subscribe((data) => {
-            setAllSchools(data);
-        });
-
-        return () => unsubscribe();
+        const unsub = schoolService.subscribe((data) => setAllSchools(data));
+        return () => unsub();
     }, [isOpen]);
 
-    // 取得使用者的學校識別碼（使用學校名稱作為識別）
     const getUserSchoolId = (user) => {
         if (user?.customSchoolName) {
             return `${user.customSchoolCity || ''}_${user.customSchoolName}`.trim();
@@ -63,42 +57,31 @@ const ClassModal = ({ isOpen, onClose, currentClassId, onSelectClass, currentUse
 
     const currentUserSchoolId = getUserSchoolId(currentUser);
 
-    // 過濾班級：管理員顯示全部，普通用戶只顯示被指派的班級且同學校
-    const isAdmin = currentUser?.role === 'admin';
     const classes = useMemo(() => {
         if (isAdmin) return allClasses;
         const assignedClassIds = currentUser?.assignedClasses || [];
         return allClasses.filter(cls => {
-            // 必須是被指派的班級
             if (!assignedClassIds.includes(cls.id)) return false;
-            // 且班級屬於同學校（或班級沒有 schoolId 則視為通用班級）
-            if (cls.schoolId && currentUserSchoolId && cls.schoolId !== currentUserSchoolId) {
-                return false;
-            }
+            if (cls.schoolId && currentUserSchoolId && cls.schoolId !== currentUserSchoolId) return false;
             return true;
         });
     }, [allClasses, currentUser, isAdmin, currentUserSchoolId]);
 
-    // 建立班級與經營者的對應關係
     const classOwners = useMemo(() => {
         const map = {};
         allClasses.forEach(cls => {
-            map[cls.id] = allUsers.filter(user =>
-                (user.assignedClasses || []).includes(cls.id)
-            );
+            map[cls.id] = allUsers.filter(u => (u.assignedClasses || []).includes(cls.id));
         });
         return map;
     }, [allClasses, allUsers]);
 
-    // 新增班級
     const handleAdd = async () => {
         if (!newClassName.trim()) return;
-
         try {
             await classService.add({
                 name: newClassName.trim(),
                 year: new Date().getFullYear(),
-                schoolId: currentUserSchoolId // 帶入建立者的學校識別
+                schoolId: currentUserSchoolId,
             });
             setNewClassName('');
             setIsAdding(false);
@@ -107,10 +90,8 @@ const ClassModal = ({ isOpen, onClose, currentClassId, onSelectClass, currentUse
         }
     };
 
-    // 更新班級
     const handleUpdate = async (id) => {
         if (!editName.trim()) return;
-
         try {
             await classService.update(id, { name: editName.trim() });
             setEditingId(null);
@@ -120,293 +101,292 @@ const ClassModal = ({ isOpen, onClose, currentClassId, onSelectClass, currentUse
         }
     };
 
-    // 刪除班級
     const handleDelete = async (id) => {
         if (!window.confirm('確定要刪除此班級嗎？')) return;
-
         try {
             await classService.delete(id);
-            if (currentClassId === id) {
-                onSelectClass(null); // 如果刪除的是當前班級，清除選擇
-            }
+            if (currentClassId === id) onSelectClass(null);
         } catch (error) {
             console.error('刪除班級失敗:', error);
         }
     };
 
-    // 選擇班級
     const handleSelect = (classId) => {
         onSelectClass(classId);
         onClose();
     };
 
-    // 切換展開/收合班級經營者
     const toggleExpand = (classId) => {
         setExpandedClassId(prev => prev === classId ? null : classId);
     };
 
-    // 查看某用戶的學生資料
     const handleViewUserStudents = (user) => {
-        if (onViewUserStudents) {
-            onViewUserStudents(user);
-        }
+        if (onViewUserStudents) onViewUserStudents(user);
         onClose();
     };
 
-    // 取得學校名稱顯示
     const getSchoolDisplay = (user) => {
-        // 優先使用自訂學校名稱
         if (user.customSchoolName) {
             return user.customSchoolCity ? `${user.customSchoolCity} ${user.customSchoolName}` : user.customSchoolName;
         }
-        // 其次嘗試從學校列表查詢 schoolId
         if (user.schoolId) {
             const school = allSchools.find(s => s.id === user.schoolId);
-            if (school) {
-                return school.city ? `${school.city} ${school.name}` : school.name;
-            }
+            if (school) return school.city ? `${school.city} ${school.name}` : school.name;
         }
-        // 最後使用 schoolName 欄位
         return user.schoolName || '';
     };
 
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-2 sm:p-4">
-            <div className="card-pop w-full max-w-lg max-h-[85vh] flex flex-col animate-in bg-[#FFF9E6]">
-                {/* Header */}
-                <div className="p-3 sm:p-5 bg-[#A29BFE] border-b-3 border-[#2D3436] flex items-center justify-between">
-                    <h3 className="font-black text-white flex items-center gap-2 text-lg sm:text-xl">
-                        <School size={24} />
-                        班級管理
-                    </h3>
-                    <button onClick={onClose} className="btn-pop p-2 bg-white text-[#2D3436]">
-                        <X size={20} />
-                    </button>
+        <ModalShell
+            open={isOpen}
+            onClose={onClose}
+            width={560}
+            eyebrow="Class Management"
+            tapeColor="lav"
+            icon={<School size={18} strokeWidth={1.8} />}
+            title="班級管理"
+            subtitle={
+                <>
+                    共 <span className="font-bold text-[var(--ink)]">{classes.length}</span> 個班級
+                    {isAdmin && ' · 點擊展開查看經營者'}
+                </>
+            }
+            footer={
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="text-[12px] text-[var(--ink-soft)]">
+                        {isAdmin ? '管理員可新增 / 編輯 / 刪除班級' : '聯繫管理員可調整指派'}
+                    </div>
+                    <Btn variant="outline" size="sm" onClick={onClose}>
+                        關閉
+                    </Btn>
                 </div>
+            }
+        >
+            <div className="px-5 sm:px-7 py-4">
+                {isLoading ? (
+                    <div className="flex items-center justify-center py-16 text-4xl bee-bob" aria-label="載入中">
+                        🏫
+                    </div>
+                ) : (
+                    <div className="space-y-2.5">
+                        {/* 全部學生 */}
+                        <button
+                            type="button"
+                            onClick={() => handleSelect(null)}
+                            style={{
+                                background: !currentClassId ? 'var(--ink)' : 'white',
+                                color: !currentClassId ? 'var(--paper)' : 'var(--ink)',
+                            }}
+                            className="w-full p-3 sm:p-4 b-ink sh-btn r-btn flex items-center justify-between btn-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft"
+                            aria-pressed={!currentClassId}
+                        >
+                            <span className="font-bold flex items-center gap-2 text-[14px]">
+                                <span className="text-lg" aria-hidden="true">📚</span> 全部學生
+                            </span>
+                            {!currentClassId && <Check size={18} strokeWidth={2.2} />}
+                        </button>
 
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-3 sm:p-4 mobile-scroll-hide">
-                    {isLoading ? (
-                        <div className="flex items-center justify-center py-20">
-                            <div className="text-4xl animate-bounce">🏫</div>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {/* 全部學生選項 */}
-                            <button
-                                onClick={() => handleSelect(null)}
-                                className={`w-full p-3 sm:p-4 border-2 border-[#2D3436] rounded-lg flex items-center justify-between transition-all shadow-[3px_3px_0_#2D3436]
-                  ${!currentClassId ? 'bg-[#1DD1A1] text-white' : 'bg-white hover:bg-[#FECA57]/20'}`}
-                            >
-                                <span className="font-bold flex items-center gap-2 text-sm sm:text-base">
-                                    <span className="text-lg">📚</span> 全部學生
-                                </span>
-                                {!currentClassId && <Check size={20} />}
-                            </button>
+                        {/* 班級列表 */}
+                        {classes.map(cls => {
+                            const owners = classOwners[cls.id] || [];
+                            const isExpanded = expandedClassId === cls.id;
+                            const isActive = currentClassId === cls.id;
 
-                            {/* 班級列表 */}
-                            {classes.map((cls) => {
-                                const owners = classOwners[cls.id] || [];
-                                const isExpanded = expandedClassId === cls.id;
+                            return (
+                                <div
+                                    key={cls.id}
+                                    style={{
+                                        background: isActive ? 'var(--honey-soft)' : 'white',
+                                    }}
+                                    className="b-ink sh-sm r-card overflow-hidden"
+                                >
+                                    {editingId === cls.id ? (
+                                        <div className="p-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                            <input
+                                                type="text"
+                                                value={editName}
+                                                onChange={(e) => setEditName(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleUpdate(cls.id)}
+                                                className="flex-1 px-3 h-10 b-ink r-btn font-bold text-[14px] outline-none focus:ring-2 focus:ring-honey-soft"
+                                                autoFocus
+                                                aria-label="編輯班級名稱"
+                                            />
+                                            <div className="flex gap-2 justify-end">
+                                                <Btn size="sm" color="mint" icon={<Check size={14} strokeWidth={1.8} />} onClick={() => handleUpdate(cls.id)} ariaLabel="儲存">
+                                                    儲存
+                                                </Btn>
+                                                <Btn size="sm" variant="outline" icon={<X size={14} strokeWidth={1.8} />} onClick={() => setEditingId(null)} ariaLabel="取消">
+                                                    取消
+                                                </Btn>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="p-3 sm:p-4 flex items-center justify-between gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSelect(cls.id)}
+                                                    className="flex-1 text-left font-bold flex items-center gap-2 text-[14px] min-w-0 focus-visible:outline-none focus-visible:text-[var(--ink)]"
+                                                    aria-pressed={isActive}
+                                                >
+                                                    <span className="text-lg shrink-0" aria-hidden="true">🏫</span>
+                                                    <span className="truncate text-[var(--ink)]">{cls.name}</span>
+                                                    {isActive && <Check size={16} strokeWidth={2.2} className="shrink-0 text-[var(--ink)]" />}
+                                                </button>
 
-                                return (
-                                    <div
-                                        key={cls.id}
-                                        className={`border-2 border-[#2D3436] rounded-lg shadow-[3px_3px_0_#2D3436] transition-all overflow-hidden
-                                            ${currentClassId === cls.id ? 'bg-[#54A0FF] text-white' : 'bg-white'}`}
-                                    >
-                                        {editingId === cls.id ? (
-                                            <div className="p-3 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={editName}
-                                                    onChange={(e) => setEditName(e.target.value)}
-                                                    className="flex-1 p-2 border-2 border-[#2D3436] rounded-lg text-[#2D3436] font-bold text-sm"
-                                                    autoFocus
-                                                />
-                                                <div className="flex gap-2 justify-end">
-                                                    <button
-                                                        onClick={() => handleUpdate(cls.id)}
-                                                        className="btn-pop p-2 bg-[#1DD1A1] text-white"
-                                                    >
-                                                        <Check size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setEditingId(null)}
-                                                        className="btn-pop p-2 bg-[#636E72] text-white"
-                                                    >
-                                                        <X size={16} />
-                                                    </button>
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    {isAdmin && owners.length > 0 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => { e.stopPropagation(); toggleExpand(cls.id); }}
+                                                            className="b-soft r-btn h-8 px-2 bg-white inline-flex items-center gap-1 text-[11.5px] font-bold text-[var(--ink-soft)] btn-press"
+                                                            title="查看經營者"
+                                                            aria-expanded={isExpanded}
+                                                        >
+                                                            <Users size={12} strokeWidth={1.8} />
+                                                            <span className="hidden sm:inline">{owners.length}</span>
+                                                            {isExpanded ? <ChevronUp size={12} strokeWidth={1.8} /> : <ChevronDown size={12} strokeWidth={1.8} />}
+                                                        </button>
+                                                    )}
+                                                    {isAdmin && (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => { setEditingId(cls.id); setEditName(cls.name); }}
+                                                                className="b-soft r-btn h-8 w-8 bg-white inline-flex items-center justify-center text-[var(--ink-soft)] hover:text-[var(--sky)] btn-press"
+                                                                aria-label="編輯班級"
+                                                                title="編輯"
+                                                            >
+                                                                <Edit2 size={13} strokeWidth={1.8} />
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleDelete(cls.id)}
+                                                                className="b-soft r-btn h-8 w-8 bg-white inline-flex items-center justify-center text-[var(--ink-soft)] hover:text-[var(--coral)] btn-press"
+                                                                aria-label="刪除班級"
+                                                                title="刪除"
+                                                            >
+                                                                <Trash2 size={13} strokeWidth={1.8} />
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
-                                        ) : (
-                                            <>
-                                                {/* 班級主行 */}
-                                                <div className="p-3 sm:p-4 flex items-center justify-between gap-2">
-                                                    <button
-                                                        onClick={() => handleSelect(cls.id)}
-                                                        className="flex-1 text-left font-bold flex items-center gap-2 text-sm sm:text-base min-w-0"
-                                                    >
-                                                        <span className="text-lg shrink-0">🏫</span>
-                                                        <span className="truncate">{cls.name}</span>
-                                                        {currentClassId === cls.id && <Check size={18} className="shrink-0" />}
-                                                    </button>
-                                                    <div className="flex items-center gap-1 shrink-0">
-                                                        {/* 展開經營者按鈕（僅管理員可見且有經營者時） */}
-                                                        {isAdmin && owners.length > 0 && (
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); toggleExpand(cls.id); }}
-                                                                className={`p-1.5 sm:p-2 rounded transition-colors flex items-center gap-1 text-xs
-                                                                    ${currentClassId === cls.id ? 'hover:bg-white/20' : 'hover:bg-[#A29BFE]/20 text-[#A29BFE]'}`}
-                                                                title="查看經營者"
-                                                            >
-                                                                <Users size={14} />
-                                                                <span className="hidden sm:inline">{owners.length}</span>
-                                                                {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                                            </button>
-                                                        )}
-                                                        {isAdmin && (
-                                                            <>
-                                                                <button
-                                                                    onClick={() => { setEditingId(cls.id); setEditName(cls.name); }}
-                                                                    className={`p-1.5 sm:p-2 transition-colors ${currentClassId === cls.id ? 'hover:bg-white/20' : 'hover:text-[#54A0FF]'}`}
-                                                                >
-                                                                    <Edit2 size={16} />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleDelete(cls.id)}
-                                                                    className={`p-1.5 sm:p-2 transition-colors ${currentClassId === cls.id ? 'hover:bg-white/20' : 'hover:text-[#FF6B6B]'}`}
-                                                                >
-                                                                    <Trash2 size={16} />
-                                                                </button>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </div>
 
-                                                {/* 經營者列表（展開時顯示） */}
-                                                {isAdmin && isExpanded && owners.length > 0 && (
-                                                    <div className={`border-t-2 border-dashed p-2 sm:p-3 space-y-2
-                                                        ${currentClassId === cls.id ? 'border-white/30 bg-white/10' : 'border-[#2D3436]/20 bg-[#F8F4E8]'}`}>
-                                                        <p className={`text-xs font-bold flex items-center gap-1 mb-2
-                                                            ${currentClassId === cls.id ? 'text-white/80' : 'text-[#636E72]'}`}>
-                                                            <Users size={12} />
-                                                            經營者 ({owners.length})
-                                                        </p>
-                                                        {owners.map((owner) => (
-                                                            <div
-                                                                key={owner.id}
-                                                                className={`flex flex-col sm:flex-row sm:items-center gap-2 p-2 rounded-lg border transition-all
-                                                                    ${currentClassId === cls.id
-                                                                        ? 'bg-white/20 border-white/30'
-                                                                        : 'bg-white border-[#2D3436]/20 hover:border-[#54A0FF]'}`}
-                                                            >
-                                                                <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                                    {owner.photoURL ? (
-                                                                        <img src={owner.photoURL} alt="" className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-[#2D3436] shrink-0" />
-                                                                    ) : (
-                                                                        <div className="w-7 h-7 sm:w-8 sm:h-8 bg-[#FECA57] rounded-full border border-[#2D3436] flex items-center justify-center text-xs shrink-0">👤</div>
-                                                                    )}
-                                                                    <div className="min-w-0 flex-1">
-                                                                        <p className={`font-bold text-xs sm:text-sm truncate
-                                                                            ${currentClassId === cls.id ? 'text-white' : 'text-[#2D3436]'}`}>
-                                                                            {owner.displayName}
-                                                                        </p>
-                                                                        {getSchoolDisplay(owner) && (
-                                                                            <p className={`text-[10px] sm:text-xs truncate
-                                                                                ${currentClassId === cls.id ? 'text-white/70' : 'text-[#636E72]'}`}>
-                                                                                🏫 {getSchoolDisplay(owner)}
-                                                                            </p>
-                                                                        )}
-                                                                    </div>
+                                            {/* 經營者列表 */}
+                                            {isAdmin && isExpanded && owners.length > 0 && (
+                                                <div
+                                                    className="border-t border-dashed border-[var(--line-soft)] p-2.5 sm:p-3 space-y-2"
+                                                    style={{ background: 'var(--paper-2)' }}
+                                                >
+                                                    <div className="text-[11px] font-bold text-[var(--ink-soft)] flex items-center gap-1 mb-1 uppercase tracking-wider">
+                                                        <Users size={11} strokeWidth={1.8} /> 經營者 ({owners.length})
+                                                    </div>
+                                                    {owners.map(owner => (
+                                                        <div
+                                                            key={owner.id}
+                                                            className="flex items-center gap-2 p-2 bg-white b-soft r-btn"
+                                                        >
+                                                            {owner.photoURL ? (
+                                                                <img
+                                                                    src={owner.photoURL}
+                                                                    alt=""
+                                                                    className="w-7 h-7 rounded-full border border-[var(--ink)] shrink-0"
+                                                                />
+                                                            ) : (
+                                                                <div
+                                                                    className="w-7 h-7 rounded-full border border-[var(--ink)] flex items-center justify-center text-[10px] font-bold shrink-0"
+                                                                    style={{ background: 'var(--honey)' }}
+                                                                >
+                                                                    {(owner.displayName || '?').charAt(0).toUpperCase()}
                                                                 </div>
-                                                                <button
-                                                                    onClick={() => handleViewUserStudents(owner)}
-                                                                    className={`flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs font-bold transition-all self-end sm:self-auto
-                                                                        ${currentClassId === cls.id
-                                                                            ? 'bg-white text-[#54A0FF] hover:bg-white/90'
-                                                                            : 'bg-[#54A0FF] text-white hover:bg-[#54A0FF]/80'}`}
-                                                                >
-                                                                    <Eye size={12} />
-                                                                    <span className="hidden sm:inline">查看學生</span>
-                                                                    <span className="sm:hidden">查看</span>
-                                                                </button>
+                                                            )}
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="font-bold text-[12.5px] truncate text-[var(--ink)]">
+                                                                    {owner.displayName}
+                                                                </div>
+                                                                {getSchoolDisplay(owner) && (
+                                                                    <div className="text-[10.5px] truncate text-[var(--ink-soft)]">
+                                                                        🏫 {getSchoolDisplay(owner)}
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                )}
+                                                            <Btn
+                                                                size="sm"
+                                                                color="sky"
+                                                                icon={<Eye size={11} strokeWidth={1.8} />}
+                                                                onClick={() => handleViewUserStudents(owner)}
+                                                                className="shrink-0"
+                                                            >
+                                                                <span className="hidden sm:inline">查看學生</span>
+                                                                <span className="sm:hidden">查看</span>
+                                                            </Btn>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
 
-                                                {/* 無經營者提示 */}
-                                                {isAdmin && isExpanded && owners.length === 0 && (
-                                                    <div className={`border-t-2 border-dashed p-3 text-center text-xs
-                                                        ${currentClassId === cls.id ? 'border-white/30 text-white/70' : 'border-[#2D3436]/20 text-[#636E72]'}`}>
-                                                        尚無老師被指派到此班級
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                );
-                            })}
+                                            {isAdmin && isExpanded && owners.length === 0 && (
+                                                <div className="border-t border-dashed border-[var(--line-soft)] p-3 text-center text-[11.5px] text-[var(--ink-soft)]">
+                                                    尚無老師被指派到此班級
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            );
+                        })}
 
-                            {/* 新增班級（僅管理員） */}
-                            {isAdmin && isAdding ? (
-                                <div className="p-3 sm:p-4 border-2 border-dashed border-[#1DD1A1] rounded-lg bg-[#1DD1A1]/10">
-                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                                        <input
-                                            type="text"
-                                            value={newClassName}
-                                            onChange={(e) => setNewClassName(e.target.value)}
-                                            placeholder="輸入班級名稱..."
-                                            className="flex-1 p-2 border-2 border-[#2D3436] rounded-lg font-bold text-sm"
-                                            autoFocus
-                                            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-                                        />
-                                        <div className="flex gap-2 justify-end">
-                                            <button
-                                                onClick={handleAdd}
-                                                className="btn-pop p-2 bg-[#1DD1A1] text-white"
-                                            >
-                                                <Check size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => { setIsAdding(false); setNewClassName(''); }}
-                                                className="btn-pop p-2 bg-[#636E72] text-white"
-                                            >
-                                                <X size={16} />
-                                            </button>
-                                        </div>
+                        {/* 新增班級 */}
+                        {isAdmin && (isAdding ? (
+                            <div className="p-3 b-dash r-card" style={{ background: 'var(--mint-soft)' }}>
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                    <input
+                                        type="text"
+                                        value={newClassName}
+                                        onChange={(e) => setNewClassName(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                                        placeholder="輸入班級名稱…"
+                                        className="flex-1 px-3 h-10 b-ink r-btn font-bold text-[14px] bg-white outline-none focus:ring-2 focus:ring-honey-soft"
+                                        autoFocus
+                                        aria-label="新班級名稱"
+                                    />
+                                    <div className="flex gap-2 justify-end">
+                                        <Btn size="sm" color="mint" icon={<Check size={14} strokeWidth={1.8} />} onClick={handleAdd}>
+                                            新增
+                                        </Btn>
+                                        <Btn size="sm" variant="outline" icon={<X size={14} strokeWidth={1.8} />} onClick={() => { setIsAdding(false); setNewClassName(''); }}>
+                                            取消
+                                        </Btn>
                                     </div>
                                 </div>
-                            ) : isAdmin && (
-                                <button
-                                    onClick={() => setIsAdding(true)}
-                                    className="w-full p-3 sm:p-4 border-2 border-dashed border-[#1DD1A1] rounded-lg text-[#1DD1A1] font-bold flex items-center justify-center gap-2 hover:bg-[#1DD1A1]/10 transition-colors text-sm sm:text-base"
-                                >
-                                    <Plus size={20} />
-                                    新增班級
-                                </button>
-                            )}
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => setIsAdding(true)}
+                                className="w-full p-3 sm:p-4 b-dash r-card text-[var(--mint)] font-bold flex items-center justify-center gap-2 hover:bg-[var(--mint-soft)]/40 transition-colors text-[14px] focus-visible:outline-none focus-visible:bg-[var(--mint-soft)]/40"
+                            >
+                                <Plus size={18} strokeWidth={2} />
+                                新增班級
+                            </button>
+                        ))}
 
-                            {classes.length === 0 && !isAdding && (
-                                <div className="text-center py-8 text-[#636E72]">
-                                    <div className="text-4xl mb-3">🏫</div>
-                                    <p className="font-bold">{isAdmin ? '還沒有班級' : '您尚未被指派任何班級'}</p>
-                                    <p className="text-sm mt-1">{isAdmin ? '點擊上方「新增班級」開始管理' : '請聯繫管理員為您指派班級'}</p>
+                        {classes.length === 0 && !isAdding && (
+                            <div className="text-center py-8 text-[var(--ink-soft)]">
+                                <div className="text-4xl mb-3" aria-hidden="true">🏫</div>
+                                <div className="font-bold text-[14px]">
+                                    {isAdmin ? '還沒有班級' : '您尚未被指派任何班級'}
                                 </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                {/* Footer */}
-                <div className="p-3 sm:p-4 bg-[#E8DCC8] border-t-2 border-dashed border-[#2D3436]/20 text-xs text-[#636E72] text-center">
-                    共 {classes.length} 個班級 {isAdmin && '| 點擊展開查看經營者'}
-                </div>
+                                <div className="text-[12px] mt-1 text-[var(--ink-mute)]">
+                                    {isAdmin ? '點擊上方「新增班級」開始管理' : '請聯繫管理員為您指派班級'}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
-        </div>
+        </ModalShell>
     );
 };
 

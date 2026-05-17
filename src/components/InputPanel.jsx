@@ -1,11 +1,14 @@
-import React, { useRef, useState, useCallback } from 'react';
-import { Users, Plus, RefreshCw, Hash, FileSpreadsheet, Upload } from 'lucide-react';
+import React, { useRef, useState, useCallback, useMemo } from 'react';
+import { Plus, RefreshCw, Hash, FileSpreadsheet, Upload, ArrowRight } from 'lucide-react';
 import { parseExcelFile } from '../utils/excelHelper';
 import { useToast } from '../contexts/ToastContext';
+import { Card, StickerTab } from './atoms';
 
 /**
- * 輸入面板 - 教育手寫普普風
- * 支援手動輸入和 Excel 批次匯入
+ * 學生名單輸入面板（Step 1）
+ *
+ * 新設計：紙質卡片 + peach StickerTab + bg-lined textarea + 紙膠帶頂部裝飾。
+ * 保留既有 Excel 拖拽 / 檔案選擇 / 批次產生座號 / disabled-while-generating 行為。
  */
 const InputPanel = ({
     rawInput,
@@ -16,59 +19,47 @@ const InputPanel = ({
     onGenerateNumbers,
     onResetList,
     onImportFromExcel,
-    isGenerating
+    isGenerating,
 }) => {
     const { toast } = useToast();
     const fileInputRef = useRef(null);
     const [isDragOver, setIsDragOver] = useState(false);
 
-    // 處理 Excel 檔案
+    const lineCount = useMemo(
+        () => rawInput.split('\n').filter(line => line.trim()).length,
+        [rawInput]
+    );
+
+    // ── Excel 檔案處理（沿用既有邏輯） ─────────────────────
     const handleExcelFile = async (file) => {
         if (!file) return;
-
-        // 驗證檔案類型
         if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
             toast.error('請選擇 Excel 或 CSV 檔案');
             return;
         }
-
         try {
             const { headers, rows } = await parseExcelFile(file);
-
-            // 找到姓名欄位 (通常是第一欄或標題含「姓名」)
             let nameColIndex = 0;
             let numberColIndex = 1;
-
             headers.forEach((header, index) => {
                 const h = String(header || '').toLowerCase();
-                if (h.includes('姓名') || h.includes('name')) {
-                    nameColIndex = index;
-                }
-                if (h.includes('座號') || h.includes('學號') || h.includes('編號')) {
-                    numberColIndex = index;
-                }
+                if (h.includes('姓名') || h.includes('name')) nameColIndex = index;
+                if (h.includes('座號') || h.includes('學號') || h.includes('編號')) numberColIndex = index;
             });
-
-            // 提取學生資料
             const students = rows
-                .map(row => {
-                    const name = String(row[nameColIndex] || '').trim();
-                    const number = row[numberColIndex] ? String(row[numberColIndex]).trim() : '';
-                    return { name, number };
-                })
-                .filter(s => s.name); // 過濾空姓名
-
+                .map(row => ({
+                    name: String(row[nameColIndex] || '').trim(),
+                    number: row[numberColIndex] ? String(row[numberColIndex]).trim() : '',
+                }))
+                .filter(s => s.name);
             if (students.length === 0) {
                 toast.error('未找到有效的學生姓名');
                 return;
             }
-
-            // 呼叫匯入函數
             if (onImportFromExcel) {
                 onImportFromExcel(students);
                 toast.success(`✨ 已匯入 ${students.length} 位學生`);
             } else {
-                // 如果沒有提供匯入函數，把姓名填入文字框
                 const names = students.map(s => s.name).join('\n');
                 setRawInput(names);
                 toast.success(`已讀取 ${students.length} 位學生，請點擊「加入」`);
@@ -79,17 +70,8 @@ const InputPanel = ({
         }
     };
 
-    // 拖拽處理
-    const handleDragOver = useCallback((e) => {
-        e.preventDefault();
-        setIsDragOver(true);
-    }, []);
-
-    const handleDragLeave = useCallback((e) => {
-        e.preventDefault();
-        setIsDragOver(false);
-    }, []);
-
+    const handleDragOver = useCallback((e) => { e.preventDefault(); setIsDragOver(true); }, []);
+    const handleDragLeave = useCallback((e) => { e.preventDefault(); setIsDragOver(false); }, []);
     const handleDrop = useCallback((e) => {
         e.preventDefault();
         setIsDragOver(false);
@@ -98,104 +80,137 @@ const InputPanel = ({
     }, []);
 
     return (
-        <div className="flex-1 w-full flex flex-col gap-3 p-3 sm:p-4 bg-[#FF9F43] border-3 border-[#2D3436] rounded-lg shadow-[4px_4px_0_#2D3436] transform rotate-[-0.5deg]">
-            <div className="flex items-center justify-between gap-2 sm:gap-3 text-white font-black text-base sm:text-xl mb-1">
-                <div className="flex items-center gap-2">
-                    <span className="text-2xl">📝</span>
-                    1. 輸入學生名單
-                </div>
+        <div className="relative pt-4 flex-1 w-full">
+            <Card className="overflow-visible">
+                <StickerTab color="peach" number="1">學生名單</StickerTab>
 
-                {/* Excel 匯入按鈕 - 大而清楚 */}
-                <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="btn-pop bg-white text-[#1DD1A1] px-3 sm:px-4 py-2 text-sm sm:text-base font-black flex items-center gap-2 shadow-[3px_3px_0_#2D3436] hover:shadow-[4px_4px_0_#2D3436] hover:-translate-y-0.5 transition-all"
-                    title="從 Excel 匯入學生"
-                >
-                    <FileSpreadsheet size={18} className="sm:w-5 sm:h-5" />
-                    <span className="hidden xs:inline">Excel</span>
-                    <span>匯入</span>
-                </button>
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".xlsx,.xls,.csv"
-                    onChange={(e) => handleExcelFile(e.target.files[0])}
-                    className="hidden"
+                {/* 頂部裝飾紙膠帶 */}
+                <div
+                    className="tape"
+                    style={{ top: -10, right: 60, transform: 'rotate(8deg)' }}
+                    aria-hidden="true"
                 />
-            </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 flex-1">
-                <div className="flex-1 flex flex-col gap-3">
-                    {/* 可拖拽的輸入區 */}
-                    <div
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
-                        onDrop={handleDrop}
-                        className={`flex-1 relative ${isDragOver ? 'ring-4 ring-[#54A0FF] ring-offset-2' : ''}`}
-                    >
-                        <textarea
-                            className="w-full h-full min-h-[100px] sm:min-h-[120px] p-3 sm:p-4 border-3 border-[#2D3436] rounded-lg outline-none text-sm sm:text-base resize-none font-medium placeholder:text-[#9CA3AF] placeholder:leading-relaxed text-[#2D3436] leading-relaxed bg-white shadow-[inset_2px_2px_4px_rgba(0,0,0,0.1)]"
-                            placeholder="📝 使用方式：&#10;&#10;方法一：手動輸入&#10;一行一位學生姓名，如：&#10;王小明&#10;李大華&#10;&#10;方法二：批次產生&#10;下方輸入座號數量後點「產生」&#10;&#10;方法三：Excel 匯入&#10;拖拽 Excel 到此處或點右上角按鈕"
-                            value={rawInput}
-                            onChange={(e) => setRawInput(e.target.value)}
-                            disabled={isGenerating}
-                        />
+                <div className="p-4 sm:p-5 pt-7 grid grid-cols-1 md:grid-cols-[1fr_140px] gap-3 sm:gap-4">
 
-                        {/* 拖拽覆蓋層 */}
-                        {isDragOver && (
-                            <div className="absolute inset-0 bg-[#54A0FF]/90 border-3 border-dashed border-white rounded-lg flex flex-col items-center justify-center text-white">
-                                <Upload size={32} className="mb-2" />
-                                <span className="font-bold">放開以匯入 Excel</span>
+                    {/* ── 左：textarea + 座號 row ───────────────────── */}
+                    <div className="flex flex-col gap-3">
+                        {/* textarea（紙線稿背景） */}
+                        <div
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
+                            className={[
+                                'b-ink r-btn bg-lined relative min-h-[160px]',
+                                isDragOver ? 'ring-2 ring-offset-2 ring-[var(--sky)]' : '',
+                            ].join(' ')}
+                            style={{ boxShadow: 'inset 0 1px 0 rgba(31,27,22,0.04)' }}
+                        >
+                            <div className="absolute top-3 right-3 text-[10px] font-mono text-[var(--ink-mute)] tracking-wider pointer-events-none z-10">
+                                {lineCount} lines · drag .xlsx here
                             </div>
-                        )}
+
+                            <textarea
+                                value={rawInput}
+                                onChange={(e) => setRawInput(e.target.value)}
+                                disabled={isGenerating}
+                                placeholder={[
+                                    '一行一位學生姓名，例如：',
+                                    '王小明',
+                                    '李大華',
+                                    '',
+                                    '或拖拽 .xlsx 到此處批次匯入',
+                                ].join('\n')}
+                                className="w-full min-h-[160px] p-4 pt-4 bg-transparent outline-none text-[14px] leading-[28px] resize-none text-[var(--ink)] placeholder:text-[var(--ink-mute)] placeholder:leading-[28px]"
+                                aria-label="學生名單輸入區"
+                            />
+
+                            {isDragOver && (
+                                <div className="absolute inset-0 bg-[var(--sky-soft)] border-2 border-dashed border-[var(--sky)] rounded-[var(--r-btn)] flex flex-col items-center justify-center text-[var(--ink)] z-20">
+                                    <Upload size={28} strokeWidth={1.8} className="mb-2" />
+                                    <span className="font-bold text-[13px]">放開以匯入 Excel</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 批次產生座號 */}
+                        <div
+                            className="b-ink r-btn flex items-center gap-2 sm:gap-3 px-3 sm:px-3.5 h-12 flex-wrap sm:flex-nowrap"
+                            style={{ background: 'var(--peach-soft)' }}
+                        >
+                            <Hash size={14} strokeWidth={1.8} className="shrink-0" />
+                            <span className="font-bold text-[13px] shrink-0">批次產生</span>
+                            <input
+                                type="number"
+                                min="1"
+                                max="100"
+                                value={numberCount}
+                                onChange={(e) => setNumberCount(Number(e.target.value))}
+                                disabled={isGenerating}
+                                className="w-14 h-8 bg-white text-center b-ink r-btn font-mono font-bold text-[13px] outline-none disabled:opacity-50"
+                                aria-label="座號數量"
+                            />
+                            <span className="font-bold text-[13px] shrink-0">個座號</span>
+                            <button
+                                onClick={onGenerateNumbers}
+                                disabled={isGenerating}
+                                className="ml-auto h-8 px-3 bg-white b-ink r-btn font-bold text-[12px] btn-press sh-sm inline-flex items-center gap-1 shrink-0 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft"
+                            >
+                                產生序號 <ArrowRight size={11} strokeWidth={1.8} />
+                            </button>
+                        </div>
                     </div>
 
-                    {/* 批次產生座號 */}
-                    <div className="flex items-center gap-2 sm:gap-3 bg-white p-2 sm:p-3 border-2 border-[#2D3436] rounded-lg">
-                        <span className="text-[#2D3436] font-bold text-xs sm:text-sm flex items-center gap-1">
-                            <Hash size={14} /> 產生
-                        </span>
-                        <input
-                            type="number"
-                            min="1"
-                            max="100"
-                            value={numberCount}
-                            onChange={(e) => setNumberCount(Number(e.target.value))}
-                            className="w-14 sm:w-16 text-center border-2 border-[#2D3436] text-[#2D3436] font-bold text-xs sm:text-sm py-1.5 outline-none rounded"
-                        />
-                        <span className="text-[#2D3436] text-xs sm:text-sm font-bold">個座號</span>
+                    {/* ── 右：3 顆 CTA 按鈕 ───────────────────── */}
+                    <div className="flex flex-row md:flex-col gap-2 sm:gap-2.5">
+                        {/* 加入名單（主要） */}
                         <button
-                            onClick={onGenerateNumbers}
-                            className="btn-pop ml-auto bg-[#FECA57] text-[#2D3436] px-3 py-1 text-xs sm:text-sm"
+                            onClick={onGenerateStudents}
+                            disabled={isGenerating || !rawInput.trim()}
+                            style={{ background: 'var(--mint)' }}
+                            className="b-ink sh-btn r-btn flex-1 md:flex-none md:h-[88px] py-3 md:py-0 flex flex-col items-center justify-center gap-1 font-black btn-press disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft"
+                            aria-label="加入學生名單"
                         >
-                            產生 🔢
+                            <Plus size={22} strokeWidth={1.8} />
+                            <span className="text-[13px] sm:text-[14px]">加入名單</span>
+                        </button>
+
+                        {/* Excel 匯入 */}
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isGenerating}
+                            style={{ background: 'var(--sky-soft)' }}
+                            className="b-ink sh-sm r-btn flex-1 md:flex-none md:h-11 py-2.5 md:py-0 flex items-center justify-center gap-2 font-bold text-[12px] sm:text-[13px] btn-press disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft"
+                            title="從 Excel 匯入學生"
+                            aria-label="從 Excel 檔案匯入學生"
+                        >
+                            <FileSpreadsheet size={14} strokeWidth={1.8} />
+                            <span>Excel</span>
+                            <span className="hidden md:inline">匯入</span>
+                        </button>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".xlsx,.xls,.csv"
+                            onChange={(e) => handleExcelFile(e.target.files[0])}
+                            className="hidden"
+                        />
+
+                        {/* 清空（ghost） */}
+                        <button
+                            onClick={onResetList}
+                            disabled={isGenerating}
+                            className="b-dash r-btn flex-1 md:flex-none md:h-11 py-2.5 md:py-0 flex items-center justify-center gap-2 font-bold text-[12px] sm:text-[13px] text-[var(--ink-soft)] hover:text-[var(--coral)] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-soft"
+                            aria-label="清空名單"
+                        >
+                            <RefreshCw size={14} strokeWidth={1.8} />
+                            <span>清空</span>
                         </button>
                     </div>
                 </div>
-
-                {/* 按鈕區 */}
-                <div className="flex flex-row sm:flex-col gap-2 sm:gap-3 sm:w-24">
-                    <button
-                        onClick={onGenerateStudents}
-                        disabled={isGenerating}
-                        className="flex-1 btn-pop bg-[#1DD1A1] text-white font-bold px-3 sm:px-2 py-3 sm:py-4 text-sm sm:text-base flex flex-row sm:flex-col items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                        <Plus size={20} />
-                        <span>加入</span>
-                    </button>
-                    <button
-                        onClick={onResetList}
-                        disabled={isGenerating}
-                        className="flex-1 btn-pop bg-white text-[#FF6B6B] font-bold px-3 sm:px-2 py-3 sm:py-4 text-sm sm:text-base flex flex-row sm:flex-col items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                        <RefreshCw size={18} />
-                        <span>清空</span>
-                    </button>
-                </div>
-            </div>
+            </Card>
         </div>
     );
 };
 
 export default InputPanel;
-

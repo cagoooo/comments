@@ -4,8 +4,8 @@
     "description": "AI 學生評語產生器 - 點石成金蜂🐝",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#FFF9E6",
-    "theme_color": "#FECA57",
+    "background_color": "#FBF5E6",
+    "theme_color": "#F4B826",
     "orientation": "portrait",
     "icons": [
         {

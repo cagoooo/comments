@@ -1,10 +1,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Check, XCircle, Users, School, Shield, Clock, Building2, Trash2, FileText, ChevronDown, ChevronUp, Settings2, Key, Gift, Loader2, Eye, ArrowLeft, Save, Edit3, Tag } from 'lucide-react';
-import { userService, USER_ROLES, classService, schoolService, adminConfigService, studentService } from '../firebase';
+import {
+    Check, XCircle, Users, School, Shield, Clock, Building2, Trash2, FileText,
+    ChevronDown, ChevronUp, Settings2, Key, Gift, Loader2, Eye, ArrowLeft,
+    Save, Edit3, Tag, X,
+} from 'lucide-react';
+import {
+    userService, USER_ROLES, classService, schoolService, adminConfigService, studentService,
+} from '../firebase';
+import ModalShell from './ui/ModalShell';
+import { Btn, Chip, Card, KPI } from './atoms';
 
 /**
  * 管理員面板
- * 審核使用者、指派班級、刪除申請
+ *
+ * Props 保留：isOpen / onClose / currentUser
+ * Firebase: userService / classService / schoolService / adminConfigService / studentService
+ *
+ * 三大主視圖：
+ *  (A) 使用者列表（預設）— KPI + 共享 API Key 區塊 + 3 段使用者列表
+ *  (B) 編輯使用者（selectedUser）— 申請資訊 + 進階選項（學校/班級）+ 審核/更新按鈕
+ *  (C) 查看學生資料（viewingStudentsUser）— 學生列表 + inline 編輯
  */
 const AdminPanel = ({ isOpen, onClose, currentUser }) => {
     const [users, setUsers] = useState([]);
@@ -16,46 +31,30 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
     const [selectedSchool, setSelectedSchool] = useState(null);
     const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
-    // 共享 API Key 相關狀態
     const [sharedConfig, setSharedConfig] = useState(null);
     const [sharedApiKeyInput, setSharedApiKeyInput] = useState('');
     const [isSavingSharedKey, setIsSavingSharedKey] = useState(false);
-    const [isTogglingAuth, setIsTogglingAuth] = useState(null); // 正在切換授權的用戶 UID
+    const [isTogglingAuth, setIsTogglingAuth] = useState(null);
 
-    // 查看學生資料相關狀態
-    const [viewingStudentsUser, setViewingStudentsUser] = useState(null); // 正在查看學生資料的用戶
-    const [viewedStudents, setViewedStudents] = useState([]); // 該用戶的學生資料
+    const [viewingStudentsUser, setViewingStudentsUser] = useState(null);
+    const [viewedStudents, setViewedStudents] = useState([]);
     const [isLoadingStudents, setIsLoadingStudents] = useState(false);
-    const [editingStudent, setEditingStudent] = useState(null); // 正在編輯的學生
+    const [editingStudent, setEditingStudent] = useState(null);
     const [isSavingStudent, setIsSavingStudent] = useState(false);
 
-    // 訂閱使用者、班級與學校
     useEffect(() => {
         if (!isOpen) return;
-
         setIsLoading(true);
-
         const unsubUsers = userService.subscribeAll((data) => {
             setUsers(data);
             setIsLoading(false);
         });
-
-        const unsubClasses = classService.subscribe((data) => {
-            setClasses(data);
-        });
-
-        const unsubSchools = schoolService.subscribe((data) => {
-            setSchools(data);
-        });
-
-        // 訂閱共享 API Key 設定
+        const unsubClasses = classService.subscribe((data) => setClasses(data));
+        const unsubSchools = schoolService.subscribe((data) => setSchools(data));
         const unsubSharedConfig = adminConfigService.subscribe((config) => {
             setSharedConfig(config);
-            if (config?.sharedApiKey) {
-                setSharedApiKeyInput(config.sharedApiKey);
-            }
+            if (config?.sharedApiKey) setSharedApiKeyInput(config.sharedApiKey);
         });
-
         return () => {
             unsubUsers();
             unsubClasses();
@@ -64,203 +63,122 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
         };
     }, [isOpen]);
 
-    // 開啟編輯模式
     const handleEditUser = (user) => {
         setSelectedUser(user);
-        // 如果用戶有申請資訊，預設選擇申請的學校和班級
         setSelectedSchool(user.schoolId || user.requestedSchoolId || null);
-        // 將用戶申請的班級名稱找到對應的班級ID
         if (user.assignedClasses?.length > 0) {
             setSelectedClasses(user.assignedClasses);
         } else if (user.requestedClasses?.length > 0) {
-            // 嘗試匹配申請的班級名稱到現有班級
-            const matchedClassIds = user.requestedClasses
-                .map(name => classes.find(c => c.name === name)?.id)
-                .filter(Boolean);
-            setSelectedClasses(matchedClassIds);
+            const matched = user.requestedClasses.map(name => classes.find(c => c.name === name)?.id).filter(Boolean);
+            setSelectedClasses(matched);
         } else {
             setSelectedClasses([]);
         }
     };
 
-    // 切換班級選取
-    const toggleClass = (classId) => {
-        setSelectedClasses(prev =>
-            prev.includes(classId)
-                ? prev.filter(id => id !== classId)
-                : [...prev, classId]
-        );
+    const toggleClass = (id) => {
+        setSelectedClasses(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
     };
 
-    // 審核通過
     const handleApprove = async () => {
         if (!selectedUser) return;
-
-        // 決定使用的學校：使用者申請的現有學校 > 使用者輸入的自訂學校 > 管理員選擇的學校
         let schoolIdToUse = null;
         let customSchoolInfo = null;
-
         if (selectedUser.requestedSchoolId) {
-            // 優先：使用者選擇的現有學校
             schoolIdToUse = selectedUser.requestedSchoolId;
         } else if (selectedUser.requestedSchoolName) {
-            // 其次：使用者輸入的自訂學校
             customSchoolInfo = {
                 name: selectedUser.requestedSchoolName,
-                city: selectedUser.requestedSchoolCity || ''
+                city: selectedUser.requestedSchoolCity || '',
             };
         } else if (selectedSchool) {
-            // 最後：管理員選擇的學校
             schoolIdToUse = selectedSchool;
         }
-
-        // 決定使用的班級：優先使用管理員選擇的，否則嘗試匹配或創建用戶申請的班級
         let classesToUse = selectedClasses;
         if (selectedClasses.length === 0 && selectedUser.requestedClasses?.length > 0) {
-            const classIdsToAssign = [];
-
+            const ids = [];
             for (const className of selectedUser.requestedClasses) {
-                // 先嘗試找現有班級
-                const existingClass = classes.find(c => c.name === className);
-                if (existingClass) {
-                    classIdsToAssign.push(existingClass.id);
+                const existing = classes.find(c => c.name === className);
+                if (existing) {
+                    ids.push(existing.id);
                 } else {
-                    // 班級不存在，自動創建（帶入使用者學校資訊）
                     try {
                         const schoolId = selectedUser.requestedSchoolName
                             ? `${selectedUser.requestedSchoolCity || ''}_${selectedUser.requestedSchoolName}`.trim()
                             : null;
-                        const newClassId = await classService.add({ name: className, schoolId });
-                        if (newClassId) {
-                            classIdsToAssign.push(newClassId);
-                        }
-                    } catch (error) {
-                        console.error('自動創建班級失敗:', className, error);
-                    }
+                        const newId = await classService.add({ name: className, schoolId });
+                        if (newId) ids.push(newId);
+                    } catch (e) { console.error('自動創建班級失敗:', className, e); }
                 }
             }
-            classesToUse = classIdsToAssign;
+            classesToUse = ids;
         }
-
         await userService.approve(selectedUser.id, classesToUse, schoolIdToUse, customSchoolInfo);
         setSelectedUser(null);
         setSelectedClasses([]);
         setSelectedSchool(null);
     };
 
-    // 更新學校與班級指派
     const handleUpdateClasses = async () => {
         if (!selectedUser) return;
-
-        // 決定使用的學校：優先使用管理員選擇的，否則使用用戶申請的
         let schoolToUse = selectedSchool;
         let customSchoolInfo = null;
-
         if (!selectedSchool && selectedUser.requestedSchoolName) {
-            // 使用用戶申請的自訂學校
-            customSchoolInfo = {
-                name: selectedUser.requestedSchoolName,
-                city: selectedUser.requestedSchoolCity
-            };
+            customSchoolInfo = { name: selectedUser.requestedSchoolName, city: selectedUser.requestedSchoolCity };
         } else if (!selectedSchool && selectedUser.requestedSchoolId) {
-            // 使用用戶申請的現有學校
             schoolToUse = selectedUser.requestedSchoolId;
         }
-
-        // 決定使用的班級：優先使用管理員選擇的，否則嘗試匹配或創建用戶申請的班級
         let classesToUse = selectedClasses;
         if (selectedClasses.length === 0 && selectedUser.requestedClasses?.length > 0) {
-            const classIdsToAssign = [];
-
+            const ids = [];
             for (const className of selectedUser.requestedClasses) {
-                // 先嘗試找現有班級
-                const existingClass = classes.find(c => c.name === className);
-                if (existingClass) {
-                    classIdsToAssign.push(existingClass.id);
+                const existing = classes.find(c => c.name === className);
+                if (existing) {
+                    ids.push(existing.id);
                 } else {
-                    // 班級不存在，自動創建（帶入使用者學校資訊）
                     try {
                         const schoolId = customSchoolInfo
                             ? `${customSchoolInfo.city || ''}_${customSchoolInfo.name}`.trim()
                             : (selectedUser.customSchoolName
                                 ? `${selectedUser.customSchoolCity || ''}_${selectedUser.customSchoolName}`.trim()
                                 : null);
-                        const newClassId = await classService.add({ name: className, schoolId });
-                        if (newClassId) {
-                            classIdsToAssign.push(newClassId);
-                        }
-                    } catch (error) {
-                        console.error('自動創建班級失敗:', className, error);
-                    }
+                        const newId = await classService.add({ name: className, schoolId });
+                        if (newId) ids.push(newId);
+                    } catch (e) { console.error('自動創建班級失敗:', className, e); }
                 }
             }
-            classesToUse = classIdsToAssign;
+            classesToUse = ids;
         }
-
         await userService.updateAssignedClasses(selectedUser.id, classesToUse, schoolToUse, customSchoolInfo);
         setSelectedUser(null);
         setSelectedClasses([]);
         setSelectedSchool(null);
     };
 
-    // 拒絕/撤銷
     const handleReject = async (uid) => {
         if (!window.confirm('確定要拒絕/撤銷此使用者的權限嗎？將重置為待填資料狀態。')) return;
         await userService.reject(uid);
     };
 
-    // 刪除使用者
     const handleDelete = async (uid) => {
-        console.log('[AdminPanel] 嘗試刪除使用者:', uid);
-        if (!window.confirm('確定要刪除此使用者嗎？此操作無法復原。')) {
-            console.log('[AdminPanel] 使用者取消刪除');
-            return;
-        }
+        if (!window.confirm('確定要刪除此使用者嗎？此操作無法復原。')) return;
         try {
-            console.log('[AdminPanel] 開始刪除...');
             const result = await userService.delete(uid);
-            if (result.success) {
-                console.log('[AdminPanel] 刪除成功');
-            } else {
-                console.error('[AdminPanel] 刪除失敗:', result.error);
-                alert('刪除失敗: ' + (result.error || '未知錯誤'));
-            }
+            if (!result.success) alert('刪除失敗: ' + (result.error || '未知錯誤'));
         } catch (error) {
             console.error('[AdminPanel] 刪除錯誤:', error);
             alert('刪除失敗: ' + error.message);
         }
     };
 
-    // 取得角色標籤
-    const getRoleBadge = (role) => {
-        switch (role) {
-            case USER_ROLES.ADMIN:
-                return <span className="px-2 py-0.5 bg-[#FF6B9D] text-white text-xs font-bold rounded-full">管理員</span>;
-            case USER_ROLES.TEACHER:
-                return <span className="px-2 py-0.5 bg-[#1DD1A1] text-white text-xs font-bold rounded-full">教師</span>;
-            case USER_ROLES.PENDING_REVIEW:
-                return <span className="px-2 py-0.5 bg-[#FECA57] text-[#2D3436] text-xs font-bold rounded-full">待審核</span>;
-            case USER_ROLES.PENDING_INFO:
-                return <span className="px-2 py-0.5 bg-[#A29BFE] text-white text-xs font-bold rounded-full">待填資料</span>;
-            default:
-                return <span className="px-2 py-0.5 bg-[#FECA57] text-[#2D3436] text-xs font-bold rounded-full">待審核</span>;
-        }
-    };
-
-    // 格式化時間
     const formatTime = (timestamp) => {
         if (!timestamp?.toDate) return '-';
         return timestamp.toDate().toLocaleDateString('zh-TW');
     };
 
-    // 取得學校名稱
-    const getSchoolName = (schoolId) => {
-        return schools.find(s => s.id === schoolId)?.name || '未知學校';
-    };
+    const getSchoolName = (schoolId) => schools.find(s => s.id === schoolId)?.name || '未知學校';
 
-    // ===== 共享 API Key 功能 =====
-
-    // 儲存共享 API Key
+    // ── 共享 API Key ─────────────────────
     const handleSaveSharedApiKey = async () => {
         if (!sharedApiKeyInput.trim()) return;
         setIsSavingSharedKey(true);
@@ -273,75 +191,54 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
         setIsSavingSharedKey(false);
     };
 
-    // 清除共享 API Key
     const handleClearSharedApiKey = async () => {
         if (!window.confirm('確定要清除共享 API Key 嗎？所有已授權用戶將無法使用。')) return;
         setIsSavingSharedKey(true);
         try {
             await adminConfigService.clearSharedApiKey(currentUser.uid);
             setSharedApiKeyInput('');
-        } catch (error) {
-            console.error('清除共享 API Key 失敗:', error);
-        }
+        } catch (error) { console.error('清除共享 API Key 失敗:', error); }
         setIsSavingSharedKey(false);
     };
 
-    // 切換用戶授權
     const handleToggleAuthorization = async (userId) => {
         setIsTogglingAuth(userId);
         try {
-            const isAuthorized = (sharedConfig?.authorizedUsers || []).includes(userId);
-            if (isAuthorized) {
-                await adminConfigService.revokeAccess(userId, currentUser.uid);
-            } else {
-                await adminConfigService.grantAccess(userId, currentUser.uid);
-            }
-        } catch (error) {
-            console.error('切換授權失敗:', error);
-        }
+            const authorized = (sharedConfig?.authorizedUsers || []).includes(userId);
+            if (authorized) await adminConfigService.revokeAccess(userId, currentUser.uid);
+            else await adminConfigService.grantAccess(userId, currentUser.uid);
+        } catch (error) { console.error('切換授權失敗:', error); }
         setIsTogglingAuth(null);
     };
 
-    // 遮蔽顯示 API Key
     const maskApiKey = (key) => {
         if (!key || key.length < 10) return key;
         return key.substring(0, 6) + '••••••••' + key.substring(key.length - 4);
     };
 
-    // 檢查用戶是否已授權
-    const isUserAuthorized = (userId) => {
-        return (sharedConfig?.authorizedUsers || []).includes(userId);
-    };
+    const isUserAuthorized = (userId) => (sharedConfig?.authorizedUsers || []).includes(userId);
 
-    // ===== 查看與編輯學生資料功能 =====
-
-    // 查看用戶的學生資料
+    // ── 查看學生 ─────────────────────
     const handleViewStudents = useCallback((user) => {
         setViewingStudentsUser(user);
         setIsLoadingStudents(true);
         setViewedStudents([]);
         setEditingStudent(null);
-
-        // 訂閱該用戶的學生資料
         const unsubscribe = studentService.subscribeByUserId(user.id, (students) => {
-            const formattedStudents = students.map(student => ({
-                ...student,
-                id: student.id,
-                selectedTags: student.selectedTags || [],
-                manualTraits: student.manualTraits || '',
-                comment: student.comment || ''
+            const formatted = students.map(s => ({
+                ...s,
+                id: s.id,
+                selectedTags: s.selectedTags || [],
+                manualTraits: s.manualTraits || '',
+                comment: s.comment || '',
             }));
-            setViewedStudents(formattedStudents);
+            setViewedStudents(formatted);
             setIsLoadingStudents(false);
         });
-
-        // 儲存取消訂閱函數
         window._adminStudentUnsubscribe = unsubscribe;
     }, []);
 
-    // 取消查看學生資料
     const handleCancelViewStudents = useCallback(() => {
-        // 取消訂閱
         if (window._adminStudentUnsubscribe) {
             window._adminStudentUnsubscribe();
             window._adminStudentUnsubscribe = null;
@@ -351,27 +248,18 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
         setEditingStudent(null);
     }, []);
 
-    // 開始編輯學生
-    const handleEditStudent = useCallback((student) => {
-        setEditingStudent({ ...student });
-    }, []);
+    const handleEditStudent = useCallback((s) => setEditingStudent({ ...s }), []);
+    const handleCancelEdit = useCallback(() => setEditingStudent(null), []);
 
-    // 取消編輯
-    const handleCancelEdit = useCallback(() => {
-        setEditingStudent(null);
-    }, []);
-
-    // 儲存學生資料
     const handleSaveStudent = useCallback(async () => {
         if (!editingStudent || !viewingStudentsUser) return;
-
         setIsSavingStudent(true);
         try {
             await studentService.updateByUserId(viewingStudentsUser.id, editingStudent.id, {
                 name: editingStudent.name,
                 selectedTags: editingStudent.selectedTags,
                 manualTraits: editingStudent.manualTraits,
-                comment: editingStudent.comment
+                comment: editingStudent.comment,
             });
             setEditingStudent(null);
         } catch (error) {
@@ -381,914 +269,928 @@ const AdminPanel = ({ isOpen, onClose, currentUser }) => {
         setIsSavingStudent(false);
     }, [editingStudent, viewingStudentsUser]);
 
-    // 更新編輯中的學生欄位
     const updateEditingField = useCallback((field, value) => {
         setEditingStudent(prev => prev ? { ...prev, [field]: value } : null);
     }, []);
 
-    // 移除編輯中學生的標籤
-    const removeEditingTag = useCallback((tagToRemove) => {
-        setEditingStudent(prev => prev ? {
-            ...prev,
-            selectedTags: prev.selectedTags.filter(t => t !== tagToRemove)
-        } : null);
+    const removeEditingTag = useCallback((tag) => {
+        setEditingStudent(prev => prev ? { ...prev, selectedTags: prev.selectedTags.filter(t => t !== tag) } : null);
     }, []);
 
-    // 計算已授權人數
     const authorizedCount = (sharedConfig?.authorizedUsers || []).length;
-
-    // 僅教師（非管理員）
     const teacherUsers = users.filter(u => u.role === USER_ROLES.TEACHER);
-
-    // 篩選待審核用戶（包含舊版 pending 和新版 pending_review）
-    const pendingReviewUsers = users.filter(u =>
-        u.role === USER_ROLES.PENDING_REVIEW || u.role === USER_ROLES.PENDING
-    );
-
-    // 篩選待填資料用戶
+    const pendingReviewUsers = users.filter(u => u.role === USER_ROLES.PENDING_REVIEW || u.role === USER_ROLES.PENDING);
     const pendingInfoUsers = users.filter(u => u.role === USER_ROLES.PENDING_INFO);
-
-    // 篩選已審核用戶
-    const approvedUsers = users.filter(u =>
-        u.role === USER_ROLES.TEACHER || u.role === USER_ROLES.ADMIN
-    );
+    const approvedUsers = users.filter(u => u.role === USER_ROLES.TEACHER || u.role === USER_ROLES.ADMIN);
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-2 sm:p-4">
-            <div className="card-pop w-full max-w-4xl max-h-[90vh] flex flex-col animate-in bg-[#FFF9E6]">
-                {/* Header */}
-                <div className="p-3 sm:p-5 bg-[#FF6B9D] border-b-3 border-[#2D3436] flex items-center justify-between">
-                    <h3 className="font-black text-white flex items-center gap-2 text-lg sm:text-xl">
-                        <Shield size={24} />
-                        管理員面板
-                    </h3>
-                    <button onClick={onClose} className="btn-pop p-2 bg-white text-[#2D3436]">
-                        <X size={20} />
-                    </button>
+        <ModalShell
+            open={isOpen}
+            onClose={onClose}
+            width={1024}
+            eyebrow="Admin"
+            tapeColor="coral"
+            icon={<Shield size={18} strokeWidth={1.8} />}
+            title="管理員面板"
+            subtitle={
+                <>共 <span className="font-bold text-[var(--ink)]">{users.length}</span> 位使用者 · 審核 / 指派班級 / 共享 API</>
+            }
+            footer={
+                <div className="flex items-center justify-end">
+                    <Btn variant="outline" size="sm" onClick={onClose}>
+                        關閉
+                    </Btn>
                 </div>
-
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-3 sm:p-4 mobile-scroll-hide">
-                    {isLoading ? (
-                        <div className="flex items-center justify-center py-20">
-                            <div className="text-4xl animate-bounce">👥</div>
+            }
+        >
+            <div className="px-4 sm:px-7 py-4 sm:py-5">
+                {isLoading ? (
+                    <div className="flex items-center justify-center py-20 text-4xl bee-bob" aria-label="載入中">
+                        👥
+                    </div>
+                ) : viewingStudentsUser ? (
+                    <ViewStudents
+                        user={viewingStudentsUser}
+                        students={viewedStudents}
+                        isLoadingStudents={isLoadingStudents}
+                        editingStudent={editingStudent}
+                        isSavingStudent={isSavingStudent}
+                        onCancel={handleCancelViewStudents}
+                        onEdit={handleEditStudent}
+                        onCancelEdit={handleCancelEdit}
+                        onSave={handleSaveStudent}
+                        updateField={updateEditingField}
+                        removeTag={removeEditingTag}
+                    />
+                ) : selectedUser ? (
+                    <EditUserPanel
+                        user={selectedUser}
+                        classes={classes}
+                        schools={schools}
+                        selectedClasses={selectedClasses}
+                        selectedSchool={selectedSchool}
+                        showAdvancedOptions={showAdvancedOptions}
+                        setShowAdvancedOptions={setShowAdvancedOptions}
+                        setSelectedSchool={setSelectedSchool}
+                        toggleClass={toggleClass}
+                        getSchoolName={getSchoolName}
+                        onCancel={() => { setSelectedUser(null); setSelectedClasses([]); }}
+                        onApprove={handleApprove}
+                        onUpdate={handleUpdateClasses}
+                    />
+                ) : (
+                    <div className="space-y-4">
+                        {/* 4 KPI */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                            <KPI label="待審核" value={pendingReviewUsers.length} accent="peach" />
+                            <KPI label="待填資料" value={pendingInfoUsers.length} accent="lav" />
+                            <KPI label="教師" value={users.filter(u => u.role === USER_ROLES.TEACHER).length} accent="mint" />
+                            <KPI label="管理員" value={users.filter(u => u.role === USER_ROLES.ADMIN).length} accent="coral" />
                         </div>
-                    ) : viewingStudentsUser ? (
-                        /* 查看與編輯學生資料 */
-                        <div className="space-y-4">
-                            {/* 返回按鈕和用戶資訊 */}
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-gradient-to-r from-[#54A0FF]/10 to-[#1DD1A1]/10 border-2 border-[#54A0FF] rounded-lg">
-                                <button
-                                    onClick={handleCancelViewStudents}
-                                    className="btn-pop p-2 bg-white text-[#54A0FF] flex items-center gap-1"
-                                >
-                                    <ArrowLeft size={16} />
-                                    返回
-                                </button>
-                                <div className="flex items-center gap-3 flex-1">
-                                    {viewingStudentsUser.photoURL ? (
-                                        <img src={viewingStudentsUser.photoURL} alt="" className="w-10 h-10 rounded-full border-2 border-[#54A0FF]" />
-                                    ) : (
-                                        <div className="w-10 h-10 bg-[#54A0FF]/20 rounded-full border-2 border-[#54A0FF] flex items-center justify-center">👤</div>
-                                    )}
-                                    <div className="min-w-0 flex-1">
-                                        <div className="font-bold text-[#2D3436] flex items-center gap-2">
-                                            <Eye size={16} className="text-[#54A0FF]" />
-                                            正在查看：{viewingStudentsUser.displayName}
-                                        </div>
-                                        <div className="text-xs text-[#636E72]">{viewingStudentsUser.email}</div>
-                                    </div>
-                                    <div className="text-sm font-bold text-[#54A0FF]">
-                                        共 {viewedStudents.length} 位學生
-                                    </div>
-                                </div>
-                            </div>
 
-                            {/* 學生列表 */}
-                            {isLoadingStudents ? (
-                                <div className="flex items-center justify-center py-10">
-                                    <Loader2 size={32} className="animate-spin text-[#54A0FF]" />
-                                </div>
-                            ) : viewedStudents.length === 0 ? (
-                                <div className="text-center py-10 text-[#636E72]">
-                                    <div className="text-4xl mb-2">📭</div>
-                                    <p className="font-medium">此用戶尚無學生資料</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {viewedStudents.map((student) => (
-                                        <div key={student.id} className={`bg-white border-2 rounded-lg overflow-hidden ${editingStudent?.id === student.id ? 'border-[#1DD1A1]' : 'border-[#2D3436]'}`}>
-                                            {editingStudent?.id === student.id ? (
-                                                /* 編輯模式 */
-                                                <div className="p-4 space-y-3">
-                                                    <div className="flex items-center justify-between">
-                                                        <h4 className="font-bold text-[#1DD1A1] flex items-center gap-2">
-                                                            <Edit3 size={16} />
-                                                            編輯學生資料
-                                                        </h4>
-                                                        <div className="flex items-center gap-2">
-                                                            <button
-                                                                onClick={handleCancelEdit}
-                                                                disabled={isSavingStudent}
-                                                                className="btn-pop px-3 py-1.5 bg-[#636E72] text-white text-xs font-bold"
-                                                            >
-                                                                取消
-                                                            </button>
-                                                            <button
-                                                                onClick={handleSaveStudent}
-                                                                disabled={isSavingStudent}
-                                                                className="btn-pop px-3 py-1.5 bg-[#1DD1A1] text-white text-xs font-bold flex items-center gap-1"
-                                                            >
-                                                                {isSavingStudent ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                                                                儲存
-                                                            </button>
-                                                        </div>
-                                                    </div>
+                        {/* 共享 API Key 區塊 */}
+                        <SharedApiKeyPanel
+                            sharedConfig={sharedConfig}
+                            sharedApiKeyInput={sharedApiKeyInput}
+                            setSharedApiKeyInput={setSharedApiKeyInput}
+                            isSavingSharedKey={isSavingSharedKey}
+                            authorizedCount={authorizedCount}
+                            teacherUsers={teacherUsers}
+                            isTogglingAuth={isTogglingAuth}
+                            isUserAuthorized={isUserAuthorized}
+                            onToggleAuth={handleToggleAuthorization}
+                            onSave={handleSaveSharedApiKey}
+                            onClear={handleClearSharedApiKey}
+                            maskApiKey={maskApiKey}
+                        />
 
-                                                    {/* 姓名 */}
-                                                    <div>
-                                                        <label className="block text-xs font-bold text-[#636E72] mb-1">👦 姓名</label>
-                                                        <input
-                                                            type="text"
-                                                            value={editingStudent.name || ''}
-                                                            onChange={(e) => updateEditingField('name', e.target.value)}
-                                                            className="w-full px-3 py-2 border-2 border-[#2D3436] rounded-lg font-medium"
-                                                        />
-                                                    </div>
-
-                                                    {/* 形容詞標籤 */}
-                                                    <div>
-                                                        <label className="block text-xs font-bold text-[#636E72] mb-1 flex items-center gap-1">
-                                                            <Tag size={12} /> 形容詞標籤
-                                                        </label>
-                                                        <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 bg-[#F8F4E8] rounded-lg border border-dashed border-[#2D3436]/30">
-                                                            {(editingStudent.selectedTags || []).length === 0 ? (
-                                                                <span className="text-xs text-[#636E72]">無標籤</span>
-                                                            ) : (
-                                                                editingStudent.selectedTags.map((tag, idx) => (
-                                                                    <span
-                                                                        key={idx}
-                                                                        className="px-2 py-0.5 bg-[#54A0FF] text-white text-xs rounded-full flex items-center gap-1"
-                                                                    >
-                                                                        {tag}
-                                                                        <button
-                                                                            onClick={() => removeEditingTag(tag)}
-                                                                            className="hover:bg-white/20 rounded-full p-0.5"
-                                                                        >
-                                                                            <X size={10} />
-                                                                        </button>
-                                                                    </span>
-                                                                ))
-                                                            )}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* 手動輸入特質 */}
-                                                    <div>
-                                                        <label className="block text-xs font-bold text-[#636E72] mb-1">✍️ 手動輸入特質</label>
-                                                        <textarea
-                                                            value={editingStudent.manualTraits || ''}
-                                                            onChange={(e) => updateEditingField('manualTraits', e.target.value)}
-                                                            className="w-full px-3 py-2 border-2 border-[#2D3436] rounded-lg font-medium resize-none"
-                                                            rows={2}
-                                                            placeholder="輸入學生特質..."
-                                                        />
-                                                    </div>
-
-                                                    {/* AI 評語 */}
-                                                    <div>
-                                                        <label className="block text-xs font-bold text-[#636E72] mb-1">🤖 AI 評語</label>
-                                                        <textarea
-                                                            value={editingStudent.comment || ''}
-                                                            onChange={(e) => updateEditingField('comment', e.target.value)}
-                                                            className="w-full px-3 py-2 border-2 border-[#2D3436] rounded-lg font-medium resize-none"
-                                                            rows={4}
-                                                            placeholder="AI 生成的評語..."
-                                                        />
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                /* 檢視模式 */
-                                                <div className="p-3">
-                                                    <div className="flex items-start gap-3">
-                                                        <div className="w-8 h-8 bg-[#FECA57] rounded-full border-2 border-[#2D3436] flex items-center justify-center text-sm font-bold flex-shrink-0">
-                                                            {String(student.id).slice(-2).padStart(2, '0')}
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="font-bold text-[#2D3436] text-sm mb-1">{student.name || '未命名'}</div>
-                                                            {(student.selectedTags || []).length > 0 && (
-                                                                <div className="flex flex-wrap gap-1 mb-1">
-                                                                    {student.selectedTags.slice(0, 5).map((tag, idx) => (
-                                                                        <span key={idx} className="px-1.5 py-0.5 bg-[#54A0FF]/20 text-[#54A0FF] text-xs rounded">
-                                                                            {tag}
-                                                                        </span>
-                                                                    ))}
-                                                                    {student.selectedTags.length > 5 && (
-                                                                        <span className="text-xs text-[#636E72]">+{student.selectedTags.length - 5} 更多</span>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                            {student.manualTraits && (
-                                                                <p className="text-xs text-[#636E72] mb-1 truncate">✍️ {student.manualTraits}</p>
-                                                            )}
-                                                            {student.comment && (
-                                                                <p className="text-xs text-[#2D3436] line-clamp-2">🤖 {student.comment}</p>
-                                                            )}
-                                                        </div>
-                                                        <button
-                                                            onClick={() => handleEditStudent(student)}
-                                                            className="btn-pop p-2 bg-[#54A0FF] text-white flex-shrink-0"
-                                                            title="編輯此學生"
-                                                        >
-                                                            <Edit3 size={14} />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    ) : selectedUser ? (
-                        /* 編輯使用者 */
-                        <div className="space-y-4">
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-white border-2 border-[#2D3436] rounded-lg">
-                                <div className="flex items-center gap-3 flex-1">
-                                    {selectedUser.photoURL ? (
-                                        <img src={selectedUser.photoURL} alt="" className="w-12 h-12 rounded-full border-2 border-[#2D3436]" />
-                                    ) : (
-                                        <div className="w-12 h-12 bg-[#FECA57] rounded-full border-2 border-[#2D3436] flex items-center justify-center">👤</div>
-                                    )}
-                                    <div className="min-w-0 flex-1">
-                                        <div className="font-bold text-[#2D3436] flex flex-wrap items-center gap-2">
-                                            <span className="truncate">{selectedUser.displayName}</span>
-                                            {getRoleBadge(selectedUser.role)}
-                                        </div>
-                                        <div className="text-sm text-[#636E72] truncate">{selectedUser.email}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* 顯示用戶申請資訊 */}
-                            {(selectedUser.requestedSchoolId || selectedUser.requestedSchoolName || selectedUser.requestedClasses?.length > 0) && (
-                                <div className="bg-[#54A0FF]/10 border-2 border-dashed border-[#54A0FF] rounded-lg p-4">
-                                    <h4 className="font-bold text-[#54A0FF] mb-2 flex items-center gap-2 text-sm">
-                                        <FileText size={16} />
-                                        用戶申請資訊
-                                    </h4>
-                                    {selectedUser.requestedSchoolName && (
-                                        <p className="text-sm text-[#2D3436] mb-1">
-                                            <span className="font-medium">申請學校：</span>
-                                            {selectedUser.requestedSchoolCity && `${selectedUser.requestedSchoolCity} `}
-                                            {selectedUser.requestedSchoolName}
-                                        </p>
-                                    )}
-                                    {selectedUser.requestedSchoolId && !selectedUser.requestedSchoolName && (
-                                        <p className="text-sm text-[#2D3436] mb-1">
-                                            <span className="font-medium">申請學校：</span>
-                                            {getSchoolName(selectedUser.requestedSchoolId)}
-                                        </p>
-                                    )}
-                                    {selectedUser.requestedClasses?.length > 0 && (
-                                        <p className="text-sm text-[#2D3436]">
-                                            <span className="font-medium">申請班級：</span>
-                                            {selectedUser.requestedClasses.join('、')}
-                                        </p>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* 進階選項（可摺疊） */}
-                            <div className="border-2 border-dashed border-[#636E72]/30 rounded-lg overflow-hidden">
-                                <button
-                                    onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-                                    className="w-full px-4 py-2.5 bg-[#F8F4E8] flex items-center justify-between hover:bg-[#E8DCC8] transition-colors"
-                                >
-                                    <span className="flex items-center gap-2 text-sm font-medium text-[#636E72]">
-                                        <Settings2 size={16} />
-                                        進階選項（修改學校/班級）
-                                    </span>
-                                    {showAdvancedOptions ? (
-                                        <ChevronUp size={18} className="text-[#636E72]" />
-                                    ) : (
-                                        <ChevronDown size={18} className="text-[#636E72]" />
-                                    )}
-                                </button>
-
-                                {showAdvancedOptions && (
-                                    <div className="p-3 sm:p-4 space-y-3 bg-[#F8F4E8]/50">
-                                        {/* 指派學校 */}
-                                        <div className="bg-white border border-[#2D3436]/30 rounded-lg p-3">
-                                            <h4 className="font-bold text-[#636E72] mb-2 flex items-center gap-2 text-xs sm:text-sm">
-                                                <Building2 size={14} />
-                                                指派其他學校（可選）
-                                            </h4>
-                                            {schools.length === 0 ? (
-                                                <QuickAddSchool onAdd={async (name, city, district) => {
-                                                    await schoolService.add({ name, city, district });
-                                                }} />
-                                            ) : (
-                                                <div className="space-y-2">
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                        {schools.map((school) => (
-                                                            <button
-                                                                key={school.id}
-                                                                onClick={() => setSelectedSchool(selectedSchool === school.id ? null : school.id)}
-                                                                className={`px-2 py-1 border border-[#2D3436]/50 rounded font-medium text-xs transition-all
-                                                                  ${selectedSchool === school.id
-                                                                        ? 'bg-[#A29BFE] text-white border-[#A29BFE]'
-                                                                        : 'bg-white hover:bg-[#A29BFE]/10'}`}
-                                                            >
-                                                                {selectedSchool === school.id && <Check size={12} className="inline mr-0.5" />}
-                                                                🏫 {school.name}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                    <QuickAddSchool compact onAdd={async (name, city, district) => {
-                                                        await schoolService.add({ name, city, district });
-                                                    }} />
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* 指派班級 */}
-                                        <div className="bg-white border border-[#2D3436]/30 rounded-lg p-3">
-                                            <h4 className="font-bold text-[#636E72] mb-2 flex items-center gap-2 text-xs sm:text-sm">
-                                                <School size={14} />
-                                                指派班級（可選）
-                                            </h4>
-                                            {classes.length === 0 ? (
-                                                <QuickAddClass onAdd={async (name) => {
-                                                    await classService.add({ name });
-                                                }} />
-                                            ) : (
-                                                <div className="space-y-2">
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                        {classes.map((cls) => (
-                                                            <button
-                                                                key={cls.id}
-                                                                onClick={() => toggleClass(cls.id)}
-                                                                className={`px-2 py-1 border border-[#2D3436]/50 rounded font-medium text-xs transition-all
-                                                                  ${selectedClasses.includes(cls.id)
-                                                                        ? 'bg-[#54A0FF] text-white border-[#54A0FF]'
-                                                                        : 'bg-white hover:bg-[#54A0FF]/10'}`}
-                                                            >
-                                                                {selectedClasses.includes(cls.id) && <Check size={12} className="inline mr-0.5" />}
-                                                                {cls.name}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                    <QuickAddClass compact onAdd={async (name) => {
-                                                        await classService.add({ name });
-                                                    }} />
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="flex flex-col sm:flex-row gap-2">
-                                <button
-                                    onClick={() => { setSelectedUser(null); setSelectedClasses([]); }}
-                                    className="btn-pop px-4 py-2.5 bg-[#636E72] text-white font-bold order-3 sm:order-1"
-                                >
-                                    取消
-                                </button>
-                                {(selectedUser.role === USER_ROLES.PENDING_REVIEW ||
-                                    selectedUser.role === USER_ROLES.PENDING) ? (
-                                    <button
-                                        onClick={handleApprove}
-                                        className="btn-pop px-4 py-2.5 bg-[#1DD1A1] text-white font-bold flex-1 flex items-center justify-center gap-2 order-1 sm:order-2"
-                                    >
-                                        <Check size={18} />
-                                        審核通過
-                                    </button>
-                                ) : (
-                                    <button
-                                        onClick={handleUpdateClasses}
-                                        className="btn-pop px-4 py-2.5 bg-[#54A0FF] text-white font-bold flex-1 flex items-center justify-center gap-2 order-1 sm:order-2"
-                                    >
-                                        <Check size={18} />
-                                        更新班級
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    ) : (
-                        /* 使用者列表 */
-                        <div className="space-y-3">
-                            {/* 統計 */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4">
-                                <div className="bg-[#FECA57] text-[#2D3436] p-2 sm:p-3 border-2 border-[#2D3436] rounded-lg text-center">
-                                    <div className="text-xl sm:text-2xl font-black">{pendingReviewUsers.length}</div>
-                                    <div className="text-xs font-bold">待審核</div>
-                                </div>
-                                <div className="bg-[#A29BFE] text-white p-2 sm:p-3 border-2 border-[#2D3436] rounded-lg text-center">
-                                    <div className="text-xl sm:text-2xl font-black">{pendingInfoUsers.length}</div>
-                                    <div className="text-xs font-bold">待填資料</div>
-                                </div>
-                                <div className="bg-[#1DD1A1] text-white p-2 sm:p-3 border-2 border-[#2D3436] rounded-lg text-center">
-                                    <div className="text-xl sm:text-2xl font-black">{users.filter(u => u.role === USER_ROLES.TEACHER).length}</div>
-                                    <div className="text-xs font-bold">教師</div>
-                                </div>
-                                <div className="bg-[#FF6B9D] text-white p-2 sm:p-3 border-2 border-[#2D3436] rounded-lg text-center">
-                                    <div className="text-xl sm:text-2xl font-black">{users.filter(u => u.role === USER_ROLES.ADMIN).length}</div>
-                                    <div className="text-xs font-bold">管理員</div>
-                                </div>
-                            </div>
-
-                            {/* 🔑 共享 API Key 管理 */}
-                            <div className="mb-6 bg-gradient-to-r from-[#FF9F43]/10 to-[#FECA57]/10 border-2 border-[#FF9F43] rounded-lg overflow-hidden">
-                                <div className="p-3 bg-[#FF9F43] border-b-2 border-[#2D3436]">
-                                    <h4 className="font-black text-white flex items-center gap-2 text-sm sm:text-base">
-                                        <Key size={18} />
-                                        共享 API Key 管理
-                                        {authorizedCount > 0 && (
-                                            <span className="ml-2 px-2 py-0.5 bg-white/20 rounded-full text-xs">
-                                                {authorizedCount} 人已授權
-                                            </span>
-                                        )}
-                                    </h4>
-                                </div>
-                                <div className="p-3 sm:p-4 space-y-3">
-                                    {/* API Key 輸入區 */}
-                                    <div className="bg-white border-2 border-[#2D3436] rounded-lg p-3">
-                                        <label className="block text-xs font-bold text-[#636E72] mb-2">
-                                            🔐 管理員付費 API Key
-                                        </label>
-                                        <div className="flex flex-col sm:flex-row gap-2">
-                                            <input
-                                                type="password"
-                                                value={sharedApiKeyInput}
-                                                onChange={(e) => setSharedApiKeyInput(e.target.value)}
-                                                placeholder="輸入您的付費 API Key..."
-                                                className="flex-1 px-3 py-2 border-2 border-[#2D3436] rounded-lg text-sm font-medium"
-                                                disabled={isSavingSharedKey}
-                                            />
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={handleSaveSharedApiKey}
-                                                    disabled={!sharedApiKeyInput.trim() || isSavingSharedKey}
-                                                    className="btn-pop px-4 py-2 bg-[#1DD1A1] text-white text-sm font-bold disabled:opacity-50 flex items-center gap-1"
-                                                >
-                                                    {isSavingSharedKey ? <Loader2 size={14} className="animate-spin" /> : '💾'}
-                                                    儲存
-                                                </button>
-                                                {sharedConfig?.sharedApiKey && (
-                                                    <button
-                                                        onClick={handleClearSharedApiKey}
-                                                        disabled={isSavingSharedKey}
-                                                        className="btn-pop px-3 py-2 bg-[#636E72] text-white text-sm font-bold disabled:opacity-50"
-                                                    >
-                                                        清除
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                        {sharedConfig?.sharedApiKey && (
-                                            <p className="text-xs text-[#1DD1A1] mt-2 font-medium">
-                                                ✓ 已設定：{maskApiKey(sharedConfig.sharedApiKey)}
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    {/* 教師授權列表 */}
-                                    {sharedConfig?.sharedApiKey && teacherUsers.length > 0 && (
-                                        <div className="bg-white border-2 border-[#2D3436] rounded-lg p-3">
-                                            <label className="block text-xs font-bold text-[#636E72] mb-2">
-                                                🎁 授權教師使用共享 API Key
-                                            </label>
-                                            <div className="space-y-2 max-h-48 overflow-y-auto">
-                                                {teacherUsers.map((user) => (
-                                                    <div
-                                                        key={user.id}
-                                                        className={`flex items-center gap-3 p-2 rounded-lg border-2 transition-all cursor-pointer
-                                                            ${isUserAuthorized(user.id)
-                                                                ? 'bg-[#1DD1A1]/10 border-[#1DD1A1]'
-                                                                : 'bg-white border-[#2D3436]/20 hover:border-[#2D3436]/50'}`}
-                                                        onClick={() => !isTogglingAuth && handleToggleAuthorization(user.id)}
-                                                    >
-                                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0
-                                                            ${isUserAuthorized(user.id)
-                                                                ? 'bg-[#1DD1A1] border-[#1DD1A1]'
-                                                                : 'border-[#2D3436]/50'}`}
-                                                        >
-                                                            {isTogglingAuth === user.id ? (
-                                                                <Loader2 size={12} className="animate-spin text-white" />
-                                                            ) : isUserAuthorized(user.id) ? (
-                                                                <Check size={12} className="text-white" />
-                                                            ) : null}
-                                                        </div>
-                                                        {user.photoURL ? (
-                                                            <img src={user.photoURL} alt="" className="w-8 h-8 rounded-full border border-[#2D3436]" />
-                                                        ) : (
-                                                            <div className="w-8 h-8 bg-[#FECA57] rounded-full border border-[#2D3436] flex items-center justify-center text-sm">👤</div>
-                                                        )}
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="font-bold text-sm text-[#2D3436] truncate">{user.displayName}</div>
-                                                            <div className="text-xs text-[#636E72] truncate">{user.email}</div>
-                                                        </div>
-                                                        {isUserAuthorized(user.id) && (
-                                                            <Gift size={16} className="text-[#1DD1A1] flex-shrink-0" />
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            <p className="text-xs text-[#636E72] mt-2">
-                                                💡 勾選的教師將自動使用您的 API Key，無需自行申請
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    {/* 無教師提示 */}
-                                    {sharedConfig?.sharedApiKey && teacherUsers.length === 0 && (
-                                        <p className="text-sm text-[#636E72] text-center py-4">
-                                            目前沒有已審核的教師，請先審核教師申請
-                                        </p>
-                                    )}
-
-                                    {/* 未設定 API Key 提示 */}
-                                    {!sharedConfig?.sharedApiKey && (
-                                        <p className="text-sm text-[#636E72] text-center py-2">
-                                            請先設定共享 API Key，即可授權給教師使用
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-
-                            {/* 待審核 */}
-                            {pendingReviewUsers.length > 0 && (
-                                <div className="mb-4">
-                                    <h4 className="font-bold text-[#FECA57] mb-2 flex items-center gap-2 text-sm sm:text-base">
-                                        <Clock size={18} />
-                                        待審核 ({pendingReviewUsers.length})
-                                    </h4>
-                                    {pendingReviewUsers.map((user) => (
-                                        <UserRow
-                                            key={user.id}
-                                            user={user}
-                                            onEdit={handleEditUser}
-                                            onReject={handleReject}
-                                            onDelete={handleDelete}
-                                            getRoleBadge={getRoleBadge}
-                                            formatTime={formatTime}
-                                            classes={classes}
-                                            schools={schools}
-                                            showApplication={true}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* 待填資料 */}
-                            {pendingInfoUsers.length > 0 && (
-                                <div className="mb-4">
-                                    <h4 className="font-bold text-[#A29BFE] mb-2 flex items-center gap-2 text-sm sm:text-base">
-                                        <FileText size={18} />
-                                        待填資料 ({pendingInfoUsers.length})
-                                    </h4>
-                                    {pendingInfoUsers.map((user) => (
-                                        <UserRow
-                                            key={user.id}
-                                            user={user}
-                                            onEdit={null}
-                                            onReject={handleReject}
-                                            onDelete={handleDelete}
-                                            getRoleBadge={getRoleBadge}
-                                            formatTime={formatTime}
-                                            classes={classes}
-                                            schools={schools}
-                                            showApplication={false}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* 已審核 */}
-                            <div>
-                                <h4 className="font-bold text-[#1DD1A1] mb-2 flex items-center gap-2 text-sm sm:text-base">
-                                    <Users size={18} />
-                                    已審核使用者 ({approvedUsers.length})
-                                </h4>
-                                {approvedUsers.map((user) => (
+                        {/* 待審核 */}
+                        {pendingReviewUsers.length > 0 && (
+                            <UserSection
+                                title="待審核"
+                                count={pendingReviewUsers.length}
+                                icon={<Clock size={16} strokeWidth={1.8} style={{ color: 'var(--peach)' }} />}
+                                color="peach"
+                            >
+                                {pendingReviewUsers.map(u => (
                                     <UserRow
-                                        key={user.id}
-                                        user={user}
+                                        key={u.id}
+                                        user={u}
                                         onEdit={handleEditUser}
                                         onReject={handleReject}
                                         onDelete={handleDelete}
-                                        onViewStudents={handleViewStudents}
-                                        getRoleBadge={getRoleBadge}
-                                        formatTime={formatTime}
                                         classes={classes}
                                         schools={schools}
-                                        isCurrentUser={user.id === currentUser?.uid}
-                                        showApplication={false}
+                                        showApplication
+                                        formatTime={formatTime}
                                     />
                                 ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
+                            </UserSection>
+                        )}
 
-                {/* Footer */}
-                <div className="p-3 sm:p-4 bg-[#E8DCC8] border-t-2 border-dashed border-[#2D3436]/20 text-xs text-[#636E72] text-center">
-                    共 {users.length} 位使用者 | 管理員可審核使用者並指派班級
-                </div>
+                        {/* 待填資料 */}
+                        {pendingInfoUsers.length > 0 && (
+                            <UserSection
+                                title="待填資料"
+                                count={pendingInfoUsers.length}
+                                icon={<FileText size={16} strokeWidth={1.8} style={{ color: 'var(--lav)' }} />}
+                                color="lav"
+                            >
+                                {pendingInfoUsers.map(u => (
+                                    <UserRow
+                                        key={u.id}
+                                        user={u}
+                                        onEdit={null}
+                                        onReject={handleReject}
+                                        onDelete={handleDelete}
+                                        classes={classes}
+                                        schools={schools}
+                                        showApplication={false}
+                                        formatTime={formatTime}
+                                    />
+                                ))}
+                            </UserSection>
+                        )}
+
+                        {/* 已審核 */}
+                        <UserSection
+                            title="已審核使用者"
+                            count={approvedUsers.length}
+                            icon={<Users size={16} strokeWidth={1.8} style={{ color: 'var(--mint)' }} />}
+                            color="mint"
+                        >
+                            {approvedUsers.map(u => (
+                                <UserRow
+                                    key={u.id}
+                                    user={u}
+                                    onEdit={handleEditUser}
+                                    onReject={handleReject}
+                                    onDelete={handleDelete}
+                                    onViewStudents={handleViewStudents}
+                                    classes={classes}
+                                    schools={schools}
+                                    isCurrentUser={u.id === currentUser?.uid}
+                                    showApplication={false}
+                                    formatTime={formatTime}
+                                />
+                            ))}
+                        </UserSection>
+                    </div>
+                )}
             </div>
-        </div>
+        </ModalShell>
     );
 };
 
-// 使用者列表項目
-const UserRow = ({ user, onEdit, onReject, onDelete, onViewStudents, getRoleBadge, formatTime, classes, schools, isCurrentUser, showApplication }) => {
+// ── role badge ─────────────────────
+const RoleBadge = ({ role }) => {
+    const map = {
+        [USER_ROLES.ADMIN]: { color: 'coral', label: '管理員' },
+        [USER_ROLES.TEACHER]: { color: 'mint', label: '教師' },
+        [USER_ROLES.PENDING_REVIEW]: { color: 'peach', label: '待審核' },
+        [USER_ROLES.PENDING]: { color: 'peach', label: '待審核' },
+        [USER_ROLES.PENDING_INFO]: { color: 'lav', label: '待填資料' },
+    };
+    const m = map[role] || { color: 'peach', label: '待審核' };
+    return <Chip color={m.color} soft size="sm">{m.label}</Chip>;
+};
+
+// ── UserSection 容器 ─────────────────────
+const UserSection = ({ title, count, icon, children }) => (
+    <div>
+        <h4 className="font-black text-[13px] flex items-center gap-2 mb-2 uppercase tracking-wider text-[var(--ink)]">
+            {icon}
+            {title} <span className="font-mono text-[12px] text-[var(--ink-soft)]">({count})</span>
+        </h4>
+        <div className="space-y-2">{children}</div>
+    </div>
+);
+
+// ── UserRow ─────────────────────
+const UserRow = ({ user, onEdit, onReject, onDelete, onViewStudents, classes, schools, isCurrentUser, showApplication, formatTime }) => {
     const assignedClassNames = (user.assignedClasses || [])
         .map(id => classes.find(c => c.id === id)?.name)
         .filter(Boolean)
         .join(', ');
 
-    const getSchoolName = (schoolId) => {
-        return schools?.find(s => s.id === schoolId)?.name || null;
-    };
+    const getSchoolName = (id) => schools?.find(s => s.id === id)?.name || null;
 
-    const isPending = user.role === USER_ROLES.PENDING_REVIEW ||
-        user.role === USER_ROLES.PENDING ||
-        user.role === USER_ROLES.PENDING_INFO;
+    const isPending = user.role === USER_ROLES.PENDING_REVIEW
+        || user.role === USER_ROLES.PENDING
+        || user.role === USER_ROLES.PENDING_INFO;
 
     return (
-        <div className={`p-3 bg-white border-2 border-[#2D3436] rounded-lg mb-2
-            ${isCurrentUser ? 'ring-2 ring-[#FF6B9D]' : ''}`}>
+        <Card className={`p-3 ${isCurrentUser ? 'ring-2 ring-[var(--honey)]' : ''}`}>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                {/* 用戶基本資訊 */}
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                     {user.photoURL ? (
-                        <img src={user.photoURL} alt="" className="w-10 h-10 rounded-full border-2 border-[#2D3436] flex-shrink-0" />
+                        <img src={user.photoURL} alt="" className="w-10 h-10 rounded-full border-2 border-[var(--ink)] flex-shrink-0" />
                     ) : (
-                        <div className="w-10 h-10 bg-[#FECA57] rounded-full border-2 border-[#2D3436] flex items-center justify-center text-lg flex-shrink-0">👤</div>
+                        <div
+                            className="w-10 h-10 rounded-full border-2 border-[var(--ink)] flex items-center justify-center text-[13px] font-black flex-shrink-0"
+                            style={{ background: 'var(--honey)' }}
+                        >
+                            {(user.displayName || '?').charAt(0).toUpperCase()}
+                        </div>
                     )}
                     <div className="min-w-0 flex-1">
-                        <div className="font-bold text-[#2D3436] text-sm flex flex-wrap items-center gap-1 sm:gap-2">
-                            <span className="truncate">{user.displayName}</span>
-                            {getRoleBadge(user.role)}
-                            {isCurrentUser && <span className="text-xs text-[#636E72]">(你)</span>}
+                        <div className="font-bold text-[13px] flex flex-wrap items-center gap-1.5">
+                            <span className="truncate text-[var(--ink)]">{user.displayName}</span>
+                            <RoleBadge role={user.role} />
+                            {isCurrentUser && <span className="text-[11px] text-[var(--ink-soft)]">(你)</span>}
                         </div>
-                        <div className="text-xs text-[#636E72] truncate">{user.email}</div>
+                        <div className="text-[11.5px] text-[var(--ink-soft)] truncate font-mono">{user.email}</div>
                         {assignedClassNames && (
-                            <div className="text-xs text-[#54A0FF] flex items-center gap-1 mt-0.5">
-                                <School size={10} />
+                            <div className="text-[11.5px] text-[var(--sky)] flex items-center gap-1 mt-0.5">
+                                <School size={11} strokeWidth={1.8} />
                                 <span className="truncate">{assignedClassNames}</span>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* 申請資訊（待審核用戶顯示） */}
+                {/* 申請資訊（待審核才顯示） */}
                 {showApplication && (user.requestedSchoolId || user.requestedSchoolName || user.requestedClasses?.length > 0) && (
-                    <div className="bg-[#54A0FF]/10 rounded-lg p-2 text-xs flex-shrink-0">
-                        <div className="font-medium text-[#54A0FF] mb-1">📋 申請資訊</div>
+                    <div className="b-soft r-btn p-2 text-[11px] flex-shrink-0" style={{ background: 'var(--sky-soft)' }}>
+                        <div className="font-bold text-[var(--sky)] mb-1 inline-flex items-center gap-1">
+                            <FileText size={11} strokeWidth={1.8} /> 申請資訊
+                        </div>
                         {user.requestedSchoolName && (
-                            <div className="text-[#2D3436]">
+                            <div className="text-[var(--ink)]">
                                 學校：{user.requestedSchoolCity && `${user.requestedSchoolCity} `}{user.requestedSchoolName}
                             </div>
                         )}
                         {user.requestedSchoolId && !user.requestedSchoolName && (
-                            <div className="text-[#2D3436]">學校：{getSchoolName(user.requestedSchoolId)}</div>
+                            <div className="text-[var(--ink)]">學校：{getSchoolName(user.requestedSchoolId)}</div>
                         )}
                         {user.requestedClasses?.length > 0 && (
-                            <div className="text-[#2D3436]">班級：{user.requestedClasses.join('、')}</div>
+                            <div className="text-[var(--ink)]">班級：{user.requestedClasses.join('、')}</div>
                         )}
                     </div>
                 )}
 
-                {/* 操作按鈕 */}
-                <div className="flex items-center gap-1 flex-shrink-0 self-end sm:self-center">
+                {/* 操作 */}
+                <div className="flex items-center gap-1.5 flex-shrink-0 self-end sm:self-center">
                     {user.role !== USER_ROLES.ADMIN && (
                         <>
                             {onEdit && (
-                                <button
-                                    onClick={() => onEdit(user)}
-                                    className="btn-pop px-3 py-1.5 bg-[#54A0FF] text-white text-xs font-bold"
-                                >
+                                <Btn size="sm" color="sky" onClick={() => onEdit(user)}>
                                     {isPending ? '審核' : '編輯'}
-                                </button>
+                                </Btn>
                             )}
                             {user.role === USER_ROLES.TEACHER && onViewStudents && (
                                 <button
+                                    type="button"
                                     onClick={() => onViewStudents(user)}
-                                    className="btn-pop p-1.5 bg-[#1DD1A1] text-white"
+                                    className="b-ink sh-sm r-btn h-8 w-8 inline-flex items-center justify-center btn-press"
+                                    style={{ background: 'var(--mint)' }}
                                     title="查看學生資料"
+                                    aria-label="查看學生資料"
                                 >
-                                    <Eye size={14} />
+                                    <Eye size={13} strokeWidth={1.8} />
                                 </button>
                             )}
                             {user.role === USER_ROLES.TEACHER && (
                                 <button
+                                    type="button"
                                     onClick={() => onReject(user.id)}
-                                    className="btn-pop p-1.5 bg-[#FF6B6B] text-white"
+                                    className="b-ink sh-sm r-btn h-8 w-8 inline-flex items-center justify-center btn-press"
+                                    style={{ background: 'var(--coral)' }}
                                     title="撤銷權限"
+                                    aria-label="撤銷權限"
                                 >
-                                    <XCircle size={14} />
+                                    <XCircle size={13} strokeWidth={1.8} />
                                 </button>
                             )}
                             {isPending && (
                                 <button
+                                    type="button"
                                     onClick={() => onDelete(user.id)}
-                                    className="btn-pop p-1.5 bg-[#636E72] text-white"
+                                    className="b-soft r-btn h-8 w-8 bg-white inline-flex items-center justify-center text-[var(--ink-soft)] hover:text-[var(--coral)] btn-press"
                                     title="刪除申請"
+                                    aria-label="刪除申請"
                                 >
-                                    <Trash2 size={14} />
+                                    <Trash2 size={13} strokeWidth={1.8} />
                                 </button>
                             )}
                         </>
                     )}
                 </div>
             </div>
+        </Card>
+    );
+};
+
+// ── 共享 API Key Panel ─────────────────────
+const SharedApiKeyPanel = ({
+    sharedConfig, sharedApiKeyInput, setSharedApiKeyInput, isSavingSharedKey,
+    authorizedCount, teacherUsers, isTogglingAuth, isUserAuthorized,
+    onToggleAuth, onSave, onClear, maskApiKey,
+}) => (
+    <Card style={{ background: 'var(--honey-soft)' }} className="overflow-hidden">
+        <div
+            className="p-3 border-b-2 border-[var(--ink)] flex items-center gap-2"
+            style={{ background: 'var(--honey)' }}
+        >
+            <Key size={16} strokeWidth={1.8} />
+            <span className="font-black text-[14px]">共享 API Key 管理</span>
+            {authorizedCount > 0 && (
+                <Chip color="ink" soft={false} size="sm">{authorizedCount} 人已授權</Chip>
+            )}
+        </div>
+        <div className="p-3 sm:p-4 space-y-3">
+            <div className="bg-white b-ink sh-sm r-card p-3">
+                <label className="block text-[11.5px] font-bold text-[var(--ink-soft)] mb-2 uppercase tracking-wider">
+                    🔐 管理員付費 API Key
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                        type="password"
+                        value={sharedApiKeyInput}
+                        onChange={(e) => setSharedApiKeyInput(e.target.value)}
+                        placeholder="輸入您的付費 API Key…"
+                        className="flex-1 px-3 h-10 b-ink r-btn font-mono text-[13px] outline-none focus:ring-2 focus:ring-honey-soft"
+                        disabled={isSavingSharedKey}
+                    />
+                    <div className="flex gap-2">
+                        <Btn
+                            color="mint"
+                            size="sm"
+                            onClick={onSave}
+                            disabled={!sharedApiKeyInput.trim() || isSavingSharedKey}
+                            icon={isSavingSharedKey ? <Loader2 size={13} strokeWidth={1.8} className="animate-spin" /> : null}
+                        >
+                            儲存
+                        </Btn>
+                        {sharedConfig?.sharedApiKey && (
+                            <Btn
+                                variant="outline"
+                                size="sm"
+                                onClick={onClear}
+                                disabled={isSavingSharedKey}
+                            >
+                                清除
+                            </Btn>
+                        )}
+                    </div>
+                </div>
+                {sharedConfig?.sharedApiKey && (
+                    <p className="text-[11px] text-[var(--mint)] mt-2 font-mono">
+                        ✓ 已設定：{maskApiKey(sharedConfig.sharedApiKey)}
+                    </p>
+                )}
+            </div>
+
+            {/* 授權教師清單 */}
+            {sharedConfig?.sharedApiKey && teacherUsers.length > 0 && (
+                <div className="bg-white b-ink sh-sm r-card p-3">
+                    <label className="block text-[11.5px] font-bold text-[var(--ink-soft)] mb-2 uppercase tracking-wider">
+                        🎁 授權教師使用共享 API Key
+                    </label>
+                    <div className="space-y-2 max-h-56 overflow-y-auto">
+                        {teacherUsers.map(u => {
+                            const authorized = isUserAuthorized(u.id);
+                            const isLoading = isTogglingAuth === u.id;
+                            return (
+                                <div
+                                    key={u.id}
+                                    onClick={() => !isTogglingAuth && onToggleAuth(u.id)}
+                                    className="flex items-center gap-2.5 p-2 b-soft r-btn cursor-pointer"
+                                    style={{
+                                        background: authorized ? 'var(--mint-soft)' : 'white',
+                                        borderColor: authorized ? 'var(--mint)' : undefined,
+                                    }}
+                                    role="checkbox"
+                                    aria-checked={authorized}
+                                    tabIndex={0}
+                                    onKeyDown={(e) => {
+                                        if ((e.key === 'Enter' || e.key === ' ') && !isTogglingAuth) {
+                                            e.preventDefault();
+                                            onToggleAuth(u.id);
+                                        }
+                                    }}
+                                >
+                                    <div
+                                        className="w-5 h-5 b-ink r-btn flex items-center justify-center flex-shrink-0"
+                                        style={{ background: authorized ? 'var(--mint)' : 'white' }}
+                                    >
+                                        {isLoading ? (
+                                            <Loader2 size={11} strokeWidth={2} className="animate-spin" />
+                                        ) : authorized ? (
+                                            <Check size={11} strokeWidth={2.2} />
+                                        ) : null}
+                                    </div>
+                                    {u.photoURL ? (
+                                        <img src={u.photoURL} alt="" className="w-7 h-7 rounded-full border border-[var(--ink)]" />
+                                    ) : (
+                                        <div
+                                            className="w-7 h-7 rounded-full border border-[var(--ink)] flex items-center justify-center text-[10px] font-bold"
+                                            style={{ background: 'var(--honey)' }}
+                                        >
+                                            {(u.displayName || '?').charAt(0).toUpperCase()}
+                                        </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-bold text-[12.5px] truncate">{u.displayName}</div>
+                                        <div className="text-[11px] text-[var(--ink-soft)] truncate font-mono">{u.email}</div>
+                                    </div>
+                                    {authorized && (
+                                        <Gift size={14} strokeWidth={1.8} style={{ color: 'var(--mint)' }} className="flex-shrink-0" />
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <p className="text-[11px] text-[var(--ink-mute)] mt-2">
+                        💡 勾選的教師將自動使用您的 API Key
+                    </p>
+                </div>
+            )}
+
+            {sharedConfig?.sharedApiKey && teacherUsers.length === 0 && (
+                <p className="text-[12px] text-[var(--ink-soft)] text-center py-4">
+                    目前沒有已審核的教師，請先審核教師申請
+                </p>
+            )}
+            {!sharedConfig?.sharedApiKey && (
+                <p className="text-[12px] text-[var(--ink-soft)] text-center py-2">
+                    請先設定共享 API Key，即可授權給教師使用
+                </p>
+            )}
+        </div>
+    </Card>
+);
+
+// ── 編輯使用者面板 ─────────────────────
+const EditUserPanel = ({
+    user, classes, schools, selectedClasses, selectedSchool,
+    showAdvancedOptions, setShowAdvancedOptions, setSelectedSchool, toggleClass,
+    getSchoolName, onCancel, onApprove, onUpdate,
+}) => {
+    const isPending = user.role === USER_ROLES.PENDING_REVIEW || user.role === USER_ROLES.PENDING;
+
+    return (
+        <div className="space-y-4">
+            <Card className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {user.photoURL ? (
+                        <img src={user.photoURL} alt="" className="w-12 h-12 rounded-full border-2 border-[var(--ink)]" />
+                    ) : (
+                        <div
+                            className="w-12 h-12 rounded-full border-2 border-[var(--ink)] flex items-center justify-center text-[14px] font-black"
+                            style={{ background: 'var(--honey)' }}
+                        >
+                            {(user.displayName || '?').charAt(0).toUpperCase()}
+                        </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                        <div className="font-bold text-[14px] flex flex-wrap items-center gap-2">
+                            <span className="truncate">{user.displayName}</span>
+                            <RoleBadge role={user.role} />
+                        </div>
+                        <div className="text-[12px] text-[var(--ink-soft)] truncate font-mono">{user.email}</div>
+                    </div>
+                </div>
+            </Card>
+
+            {/* 申請資訊 */}
+            {(user.requestedSchoolId || user.requestedSchoolName || user.requestedClasses?.length > 0) && (
+                <Card className="p-4 b-dash" style={{ background: 'var(--sky-soft)' }}>
+                    <h4 className="font-bold text-[var(--sky)] mb-2 flex items-center gap-2 text-[13px] uppercase tracking-wider">
+                        <FileText size={14} strokeWidth={1.8} />
+                        用戶申請資訊
+                    </h4>
+                    {user.requestedSchoolName && (
+                        <p className="text-[13px] text-[var(--ink)] mb-1">
+                            <span className="font-bold">申請學校：</span>
+                            {user.requestedSchoolCity && `${user.requestedSchoolCity} `}
+                            {user.requestedSchoolName}
+                        </p>
+                    )}
+                    {user.requestedSchoolId && !user.requestedSchoolName && (
+                        <p className="text-[13px] text-[var(--ink)] mb-1">
+                            <span className="font-bold">申請學校：</span>
+                            {getSchoolName(user.requestedSchoolId)}
+                        </p>
+                    )}
+                    {user.requestedClasses?.length > 0 && (
+                        <p className="text-[13px] text-[var(--ink)]">
+                            <span className="font-bold">申請班級：</span>
+                            {user.requestedClasses.join('、')}
+                        </p>
+                    )}
+                </Card>
+            )}
+
+            {/* 進階選項（摺疊） */}
+            <div className="b-dash r-card overflow-hidden">
+                <button
+                    type="button"
+                    onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+                    className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-[var(--paper-2)]/60 transition-colors"
+                    aria-expanded={showAdvancedOptions}
+                >
+                    <span className="flex items-center gap-2 text-[13px] font-bold text-[var(--ink-soft)]">
+                        <Settings2 size={14} strokeWidth={1.8} />
+                        進階選項（修改學校/班級）
+                    </span>
+                    {showAdvancedOptions
+                        ? <ChevronUp size={16} strokeWidth={1.8} />
+                        : <ChevronDown size={16} strokeWidth={1.8} />}
+                </button>
+
+                {showAdvancedOptions && (
+                    <div className="p-3 sm:p-4 space-y-3" style={{ background: 'var(--paper-2)' }}>
+                        {/* 指派學校 */}
+                        <div className="bg-white b-soft r-btn p-3">
+                            <h4 className="font-bold text-[var(--ink-soft)] mb-2 flex items-center gap-2 text-[12px] uppercase tracking-wider">
+                                <Building2 size={12} strokeWidth={1.8} />
+                                指派其他學校
+                            </h4>
+                            {schools.length === 0 ? (
+                                <QuickAddSchool onAdd={async (n, c, d) => { await schoolService.add({ name: n, city: c, district: d }); }} />
+                            ) : (
+                                <div className="space-y-2">
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {schools.map(s => (
+                                            <button
+                                                key={s.id}
+                                                type="button"
+                                                onClick={() => setSelectedSchool(selectedSchool === s.id ? null : s.id)}
+                                                style={{
+                                                    background: selectedSchool === s.id ? 'var(--lav)' : 'white',
+                                                }}
+                                                className="px-2.5 h-7 b-ink r-btn text-[12px] font-bold inline-flex items-center gap-1 btn-press"
+                                            >
+                                                {selectedSchool === s.id && <Check size={11} strokeWidth={2.2} />}
+                                                🏫 {s.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <QuickAddSchool compact onAdd={async (n, c, d) => { await schoolService.add({ name: n, city: c, district: d }); }} />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 指派班級 */}
+                        <div className="bg-white b-soft r-btn p-3">
+                            <h4 className="font-bold text-[var(--ink-soft)] mb-2 flex items-center gap-2 text-[12px] uppercase tracking-wider">
+                                <School size={12} strokeWidth={1.8} />
+                                指派班級
+                            </h4>
+                            {classes.length === 0 ? (
+                                <QuickAddClass onAdd={async (n) => { await classService.add({ name: n }); }} />
+                            ) : (
+                                <div className="space-y-2">
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {classes.map(c => (
+                                            <button
+                                                key={c.id}
+                                                type="button"
+                                                onClick={() => toggleClass(c.id)}
+                                                style={{
+                                                    background: selectedClasses.includes(c.id) ? 'var(--sky)' : 'white',
+                                                }}
+                                                className="px-2.5 h-7 b-ink r-btn text-[12px] font-bold inline-flex items-center gap-1 btn-press"
+                                            >
+                                                {selectedClasses.includes(c.id) && <Check size={11} strokeWidth={2.2} />}
+                                                {c.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <QuickAddClass compact onAdd={async (n) => { await classService.add({ name: n }); }} />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* 動作 */}
+            <div className="flex flex-col sm:flex-row gap-2 justify-end">
+                <Btn variant="outline" onClick={onCancel}>取消</Btn>
+                {isPending ? (
+                    <Btn color="mint" icon={<Check size={15} strokeWidth={1.8} />} onClick={onApprove}>
+                        審核通過
+                    </Btn>
+                ) : (
+                    <Btn color="sky" icon={<Check size={15} strokeWidth={1.8} />} onClick={onUpdate}>
+                        更新班級
+                    </Btn>
+                )}
+            </div>
         </div>
     );
 };
 
-// 快速建立班級元件
+// ── 查看學生子畫面 ─────────────────────
+const ViewStudents = ({
+    user, students, isLoadingStudents, editingStudent, isSavingStudent,
+    onCancel, onEdit, onCancelEdit, onSave, updateField, removeTag,
+}) => (
+    <div className="space-y-4">
+        <Card className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3" style={{ background: 'var(--sky-soft)' }}>
+            <Btn
+                variant="outline"
+                size="sm"
+                icon={<ArrowLeft size={14} strokeWidth={1.8} />}
+                onClick={onCancel}
+            >
+                返回
+            </Btn>
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+                {user.photoURL ? (
+                    <img src={user.photoURL} alt="" className="w-10 h-10 rounded-full border-2 border-[var(--ink)]" />
+                ) : (
+                    <div
+                        className="w-10 h-10 rounded-full border-2 border-[var(--ink)] flex items-center justify-center text-[12px] font-black"
+                        style={{ background: 'var(--honey)' }}
+                    >
+                        {(user.displayName || '?').charAt(0).toUpperCase()}
+                    </div>
+                )}
+                <div className="min-w-0 flex-1">
+                    <div className="font-bold text-[13.5px] flex items-center gap-2">
+                        <Eye size={14} strokeWidth={1.8} style={{ color: 'var(--sky)' }} />
+                        正在查看：{user.displayName}
+                    </div>
+                    <div className="text-[11.5px] text-[var(--ink-soft)] truncate font-mono">{user.email}</div>
+                </div>
+                <div className="text-[12.5px] font-mono font-bold text-[var(--sky)]">
+                    共 {students.length} 位
+                </div>
+            </div>
+        </Card>
+
+        {isLoadingStudents ? (
+            <div className="flex items-center justify-center py-10">
+                <Loader2 size={28} className="animate-spin text-[var(--sky)]" strokeWidth={1.8} />
+            </div>
+        ) : students.length === 0 ? (
+            <div className="text-center py-10 text-[var(--ink-soft)]">
+                <div className="text-4xl mb-2" aria-hidden="true">📭</div>
+                <p className="font-bold text-[13px]">此用戶尚無學生資料</p>
+            </div>
+        ) : (
+            <div className="space-y-2">
+                {students.map(s => (
+                    <Card
+                        key={s.id}
+                        className={editingStudent?.id === s.id ? 'ring-2 ring-[var(--mint)]' : ''}
+                    >
+                        {editingStudent?.id === s.id ? (
+                            <div className="p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="font-bold text-[var(--mint)] flex items-center gap-2 text-[13px]">
+                                        <Edit3 size={14} strokeWidth={1.8} />
+                                        編輯學生資料
+                                    </h4>
+                                    <div className="flex items-center gap-2">
+                                        <Btn variant="outline" size="sm" onClick={onCancelEdit} disabled={isSavingStudent}>取消</Btn>
+                                        <Btn
+                                            color="mint"
+                                            size="sm"
+                                            onClick={onSave}
+                                            disabled={isSavingStudent}
+                                            icon={isSavingStudent
+                                                ? <Loader2 size={12} strokeWidth={1.8} className="animate-spin" />
+                                                : <Save size={12} strokeWidth={1.8} />}
+                                        >
+                                            儲存
+                                        </Btn>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[11px] font-bold text-[var(--ink-soft)] mb-1 uppercase tracking-wider">👦 姓名</label>
+                                    <input
+                                        type="text"
+                                        value={editingStudent.name || ''}
+                                        onChange={(e) => updateField('name', e.target.value)}
+                                        className="w-full px-3 h-9 b-ink r-btn font-bold text-[13px] outline-none focus:ring-2 focus:ring-honey-soft"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[11px] font-bold text-[var(--ink-soft)] mb-1 uppercase tracking-wider inline-flex items-center gap-1">
+                                        <Tag size={11} strokeWidth={1.8} /> 形容詞標籤
+                                    </label>
+                                    <div className="flex flex-wrap gap-1.5 min-h-[36px] p-2 b-dash r-btn" style={{ background: 'var(--paper-2)' }}>
+                                        {(editingStudent.selectedTags || []).length === 0 ? (
+                                            <span className="text-[11.5px] text-[var(--ink-mute)] self-center">無標籤</span>
+                                        ) : (
+                                            editingStudent.selectedTags.map((tag, idx) => (
+                                                <Chip key={idx} color="sky" soft size="sm" onClose={() => removeTag(tag)}>
+                                                    {tag}
+                                                </Chip>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[11px] font-bold text-[var(--ink-soft)] mb-1 uppercase tracking-wider">✍️ 手動輸入特質</label>
+                                    <textarea
+                                        value={editingStudent.manualTraits || ''}
+                                        onChange={(e) => updateField('manualTraits', e.target.value)}
+                                        rows={2}
+                                        placeholder="輸入學生特質…"
+                                        className="w-full px-3 py-2 b-ink r-btn font-medium text-[13px] resize-none outline-none focus:ring-2 focus:ring-honey-soft"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[11px] font-bold text-[var(--ink-soft)] mb-1 uppercase tracking-wider">🤖 AI 評語</label>
+                                    <textarea
+                                        value={editingStudent.comment || ''}
+                                        onChange={(e) => updateField('comment', e.target.value)}
+                                        rows={4}
+                                        placeholder="AI 生成的評語…"
+                                        className="w-full px-3 py-2 b-ink r-btn font-medium text-[13px] resize-none outline-none focus:ring-2 focus:ring-honey-soft bg-lined leading-[28px]"
+                                    />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="p-3">
+                                <div className="flex items-start gap-3">
+                                    <div
+                                        className="w-8 h-8 b-ink rounded-full flex items-center justify-center text-[12px] font-bold flex-shrink-0"
+                                        style={{ background: 'var(--honey-soft)' }}
+                                    >
+                                        {String(s.id).slice(-2).padStart(2, '0')}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-bold text-[13px] mb-1">{s.name || '未命名'}</div>
+                                        {(s.selectedTags || []).length > 0 && (
+                                            <div className="flex flex-wrap gap-1 mb-1">
+                                                {s.selectedTags.slice(0, 5).map((t, i) => (
+                                                    <Chip key={i} color="sky" soft size="sm">{t}</Chip>
+                                                ))}
+                                                {s.selectedTags.length > 5 && (
+                                                    <span className="text-[10.5px] text-[var(--ink-soft)] self-center">+{s.selectedTags.length - 5}</span>
+                                                )}
+                                            </div>
+                                        )}
+                                        {s.manualTraits && (
+                                            <p className="text-[11.5px] text-[var(--ink-soft)] mb-1 truncate">✍️ {s.manualTraits}</p>
+                                        )}
+                                        {s.comment && (
+                                            <p className="text-[11.5px] text-[var(--ink)] line-clamp-2">🤖 {s.comment}</p>
+                                        )}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => onEdit(s)}
+                                        className="b-ink sh-sm r-btn h-8 w-8 inline-flex items-center justify-center btn-press flex-shrink-0"
+                                        style={{ background: 'var(--sky)' }}
+                                        title="編輯此學生"
+                                        aria-label="編輯此學生"
+                                    >
+                                        <Edit3 size={13} strokeWidth={1.8} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </Card>
+                ))}
+            </div>
+        )}
+    </div>
+);
+
+// ── QuickAdd 子元件 ─────────────────────
 const QuickAddClass = ({ onAdd, compact = false }) => {
-    const [newClassName, setNewClassName] = useState('');
-    const [isAdding, setIsAdding] = useState(false);
+    const [name, setName] = useState('');
+    const [adding, setAdding] = useState(false);
 
-    const handleAdd = async () => {
-        if (!newClassName.trim()) return;
-        setIsAdding(true);
+    const handle = async () => {
+        if (!name.trim()) return;
+        setAdding(true);
         try {
-            await onAdd(newClassName.trim());
-            setNewClassName('');
-        } catch (error) {
-            console.error('建立班級失敗:', error);
-        }
-        setIsAdding(false);
-    };
-
-    const handleKeyDown = (e) => {
-        if (e.key === 'Enter') {
-            handleAdd();
-        }
+            await onAdd(name.trim());
+            setName('');
+        } catch (e) { console.error('建立班級失敗:', e); }
+        setAdding(false);
     };
 
     if (compact) {
         return (
-            <div className="flex gap-2 items-center pt-2 border-t border-dashed border-[#2D3436]/20">
+            <div className="flex gap-2 pt-2 border-t border-dashed border-[var(--line-soft)]">
                 <input
                     type="text"
-                    value={newClassName}
-                    onChange={(e) => setNewClassName(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="新增班級..."
-                    className="flex-1 px-3 py-1.5 border-2 border-[#2D3436] rounded-lg text-sm"
-                    disabled={isAdding}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handle()}
+                    placeholder="新增班級…"
+                    className="flex-1 px-3 h-8 b-ink r-btn text-[12px] outline-none focus:ring-2 focus:ring-honey-soft"
+                    disabled={adding}
                 />
-                <button
-                    onClick={handleAdd}
-                    disabled={!newClassName.trim() || isAdding}
-                    className="btn-pop px-3 py-1.5 bg-[#1DD1A1] text-white text-xs font-bold disabled:opacity-50"
-                >
-                    {isAdding ? '...' : '+ 新增'}
-                </button>
+                <Btn size="sm" color="mint" onClick={handle} disabled={!name.trim() || adding}>
+                    {adding ? '…' : '+ 新增'}
+                </Btn>
             </div>
         );
     }
 
     return (
-        <div className="space-y-3">
-            <p className="text-sm text-[#636E72]">尚無班級，請建立第一個班級：</p>
+        <div className="space-y-2">
+            <p className="text-[12px] text-[var(--ink-soft)]">尚無班級，請建立第一個班級：</p>
             <div className="flex gap-2">
                 <input
                     type="text"
-                    value={newClassName}
-                    onChange={(e) => setNewClassName(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="輸入班級名稱 (例如：一年甲班)"
-                    className="flex-1 px-3 py-2 border-2 border-[#2D3436] rounded-lg font-medium"
-                    disabled={isAdding}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handle()}
+                    placeholder="輸入班級名稱（例：一年甲班）"
+                    className="flex-1 px-3 h-10 b-ink r-btn font-medium text-[13px] outline-none focus:ring-2 focus:ring-honey-soft"
+                    disabled={adding}
                 />
-                <button
-                    onClick={handleAdd}
-                    disabled={!newClassName.trim() || isAdding}
-                    className="btn-pop px-4 py-2 bg-[#1DD1A1] text-white font-bold disabled:opacity-50 flex items-center gap-1"
-                >
-                    {isAdding ? '建立中...' : (
-                        <>
-                            <span>+</span> 建立班級
-                        </>
-                    )}
-                </button>
+                <Btn color="mint" onClick={handle} disabled={!name.trim() || adding}>
+                    {adding ? '建立中…' : '+ 建立班級'}
+                </Btn>
             </div>
         </div>
     );
 };
 
-// 快速建立學校元件
+const CITIES = [
+    '台北市', '新北市', '桃園市', '台中市', '台南市', '高雄市',
+    '基隆市', '新竹市', '新竹縣', '苗栗縣', '彰化縣', '南投縣',
+    '雲林縣', '嘉義市', '嘉義縣', '屏東縣', '宜蘭縣', '花蓮縣',
+    '台東縣', '澎湖縣', '金門縣', '連江縣',
+];
+
 const QuickAddSchool = ({ onAdd, compact = false }) => {
-    const [newSchoolName, setNewSchoolName] = useState('');
-    const [newSchoolCity, setNewSchoolCity] = useState('');
-    const [isAdding, setIsAdding] = useState(false);
+    const [name, setName] = useState('');
+    const [city, setCity] = useState('');
+    const [adding, setAdding] = useState(false);
 
-    const handleAdd = async () => {
-        if (!newSchoolName.trim()) return;
-        setIsAdding(true);
+    const handle = async () => {
+        if (!name.trim()) return;
+        setAdding(true);
         try {
-            await onAdd(newSchoolName.trim(), newSchoolCity.trim() || null, null);
-            setNewSchoolName('');
-            setNewSchoolCity('');
-        } catch (error) {
-            console.error('建立學校失敗:', error);
-        }
-        setIsAdding(false);
+            await onAdd(name.trim(), city.trim() || null, null);
+            setName('');
+            setCity('');
+        } catch (e) { console.error('建立學校失敗:', e); }
+        setAdding(false);
     };
-
-    const handleKeyDown = (e) => {
-        if (e.key === 'Enter') {
-            handleAdd();
-        }
-    };
-
-    // 台灣縣市列表
-    const cities = [
-        '台北市', '新北市', '桃園市', '台中市', '台南市', '高雄市',
-        '基隆市', '新竹市', '新竹縣', '苗栗縣', '彰化縣', '南投縣',
-        '雲林縣', '嘉義市', '嘉義縣', '屏東縣', '宜蘭縣', '花蓮縣',
-        '台東縣', '澎湖縣', '金門縣', '連江縣'
-    ];
 
     if (compact) {
         return (
-            <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-dashed border-[#2D3436]/20">
+            <div className="flex flex-wrap gap-2 pt-2 border-t border-dashed border-[var(--line-soft)]">
                 <select
-                    value={newSchoolCity}
-                    onChange={(e) => setNewSchoolCity(e.target.value)}
-                    className="px-2 py-1.5 border-2 border-[#2D3436] rounded-lg text-sm bg-white"
-                    disabled={isAdding}
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className="px-2 h-8 b-ink r-btn text-[12px] bg-white outline-none focus:ring-2 focus:ring-honey-soft"
+                    disabled={adding}
                 >
                     <option value="">縣市</option>
-                    {cities.map(city => (
-                        <option key={city} value={city}>{city}</option>
-                    ))}
+                    {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <input
                     type="text"
-                    value={newSchoolName}
-                    onChange={(e) => setNewSchoolName(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="學校名稱..."
-                    className="flex-1 min-w-[120px] px-3 py-1.5 border-2 border-[#2D3436] rounded-lg text-sm"
-                    disabled={isAdding}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handle()}
+                    placeholder="學校名稱…"
+                    className="flex-1 min-w-[120px] px-3 h-8 b-ink r-btn text-[12px] outline-none focus:ring-2 focus:ring-honey-soft"
+                    disabled={adding}
                 />
-                <button
-                    onClick={handleAdd}
-                    disabled={!newSchoolName.trim() || isAdding}
-                    className="btn-pop px-3 py-1.5 bg-[#A29BFE] text-white text-xs font-bold disabled:opacity-50"
-                >
-                    {isAdding ? '...' : '+ 新增'}
-                </button>
+                <Btn size="sm" color="lav" onClick={handle} disabled={!name.trim() || adding}>
+                    {adding ? '…' : '+ 新增'}
+                </Btn>
             </div>
         );
     }
 
     return (
-        <div className="space-y-3">
-            <p className="text-sm text-[#636E72]">尚無學校，請建立第一個學校：</p>
+        <div className="space-y-2">
+            <p className="text-[12px] text-[var(--ink-soft)]">尚無學校，請建立第一個學校：</p>
             <div className="flex gap-2 flex-wrap">
                 <select
-                    value={newSchoolCity}
-                    onChange={(e) => setNewSchoolCity(e.target.value)}
-                    className="px-3 py-2 border-2 border-[#2D3436] rounded-lg font-medium bg-white"
-                    disabled={isAdding}
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className="px-3 h-10 b-ink r-btn font-medium text-[13px] bg-white outline-none focus:ring-2 focus:ring-honey-soft"
+                    disabled={adding}
                 >
                     <option value="">選擇縣市</option>
-                    {cities.map(city => (
-                        <option key={city} value={city}>{city}</option>
-                    ))}
+                    {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <input
                     type="text"
-                    value={newSchoolName}
-                    onChange={(e) => setNewSchoolName(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="輸入學校名稱 (例如：台北市立國語實小)"
-                    className="flex-1 min-w-[200px] px-3 py-2 border-2 border-[#2D3436] rounded-lg font-medium"
-                    disabled={isAdding}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handle()}
+                    placeholder="輸入學校名稱"
+                    className="flex-1 min-w-[200px] px-3 h-10 b-ink r-btn font-medium text-[13px] outline-none focus:ring-2 focus:ring-honey-soft"
+                    disabled={adding}
                 />
-                <button
-                    onClick={handleAdd}
-                    disabled={!newSchoolName.trim() || isAdding}
-                    className="btn-pop px-4 py-2 bg-[#A29BFE] text-white font-bold disabled:opacity-50 flex items-center gap-1"
-                >
-                    {isAdding ? '建立中...' : (
-                        <>
-                            <span>🏫</span> 建立學校
-                        </>
-                    )}
-                </button>
+                <Btn color="lav" onClick={handle} disabled={!name.trim() || adding}>
+                    {adding ? '建立中…' : '🏫 建立學校'}
+                </Btn>
             </div>
         </div>
     );
