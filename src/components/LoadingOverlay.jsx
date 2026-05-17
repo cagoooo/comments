@@ -1,44 +1,107 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Card } from './atoms';
 
 /**
- * 載入覆蓋層 - 教育手寫普普風
+ * 載入覆蓋層 — 批次生成評語時顯示
+ *
+ * 蜜蜂 bee-bob 動畫 + 蜜糖進度條 + 鼓勵語。
  */
 const LoadingOverlay = ({ progress }) => {
-    const percentage = progress.total > 0 ? (progress.current / progress.total) * 100 : 0;
+    const percentage = progress?.total > 0
+        ? Math.round((progress.current / progress.total) * 100)
+        : 0;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#2D3436]/70 backdrop-blur-md p-4">
-            <div className="card-pop w-[95%] sm:w-[90%] max-w-2xl flex flex-col items-center justify-center p-6 sm:p-10 text-center animate-in bg-[#FFF9E6]">
+        <div
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-md"
+            style={{ background: 'rgba(31, 27, 22, 0.55)' }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="評語產生中"
+            aria-live="polite"
+        >
+            <Card className="w-[95%] sm:w-[90%] max-w-xl flex flex-col items-center text-center p-6 sm:p-10">
+                {/* 紙膠帶頂部裝飾 */}
+                <div
+                    className="tape"
+                    style={{ top: -10, left: 60, transform: 'rotate(-3deg)' }}
+                    aria-hidden="true"
+                />
+                <div
+                    className="tape"
+                    style={{
+                        top: -10,
+                        right: 80,
+                        transform: 'rotate(4deg)',
+                        background: 'linear-gradient(180deg, rgba(185,168,230,0.65), rgba(185,168,230,0.45))',
+                    }}
+                    aria-hidden="true"
+                />
 
-                {/* 蜜蜂動畫 */}
-                <div className="mb-4 sm:mb-6 text-6xl sm:text-8xl animate-bounce-soft">
+                {/* 蜜蜂方塊 + bee-bob 動畫 */}
+                <div
+                    className="bee-bob mb-5 sm:mb-6"
+                    style={{
+                        width: 96,
+                        height: 96,
+                        background: 'var(--honey)',
+                        border: 'var(--b-w) solid var(--ink)',
+                        boxShadow: 'var(--shadow-card)',
+                        borderRadius: 18,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 56,
+                        lineHeight: 1,
+                    }}
+                    aria-hidden="true"
+                >
                     🐝
                 </div>
 
-                <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-[#2D3436] mb-4 sm:mb-6">
-                    <span className="relative inline-block">
-                        評語產生中
-                        <span className="absolute bottom-1 left-0 right-0 h-3 bg-[#FECA57] -z-10 transform rotate-1"></span>
-                    </span>
-                    <span className="animate-pulse">...</span>
+                {/* 標題 */}
+                <div className="mb-1 text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.2em] text-[var(--ink-soft)]">
+                    AI Writing in Progress
+                </div>
+                <h2 className="text-[24px] sm:text-[32px] font-black tracking-tight mb-5 sm:mb-6 uw inline-block">
+                    評語產生中…
                 </h2>
 
-                {/* 進度條 - 鉛筆風格 */}
-                <div className="w-full max-w-md bg-white border-3 border-[#2D3436] h-8 sm:h-10 mb-3 sm:mb-4 overflow-hidden rounded-full shadow-[4px_4px_0_#2D3436]">
+                {/* 進度條 — 蜜糖橫條 */}
+                <div
+                    className="w-full max-w-md b-ink r-card h-7 sm:h-8 mb-3 overflow-hidden relative"
+                    style={{ background: 'var(--paper-2)' }}
+                    role="progressbar"
+                    aria-valuenow={percentage}
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                >
                     <div
-                        className="h-full transition-all duration-300 ease-out bg-gradient-to-r from-[#FF6B9D] via-[#FECA57] to-[#1DD1A1]"
-                        style={{ width: `${percentage}%` }}
+                        className="h-full transition-all duration-300 ease-out"
+                        style={{
+                            width: `${percentage}%`,
+                            background: 'var(--honey)',
+                            borderRight: percentage > 0 && percentage < 100 ? '2px solid var(--ink)' : 'none',
+                        }}
                     />
+                    <div className="absolute inset-0 flex items-center justify-center font-mono font-black text-[12px] sm:text-[13px]">
+                        {percentage}%
+                    </div>
                 </div>
-                <p className="text-lg sm:text-2xl text-[#2D3436] font-bold mb-4 sm:mb-6">
-                    ✏️ {progress.current} / {progress.total} 位同學
+
+                {/* 進度數字 */}
+                <p className="text-[14px] sm:text-[16px] font-bold text-[var(--ink)] mb-4">
+                    <span className="font-mono">{progress?.current ?? 0}</span>
+                    <span className="text-[var(--ink-mute)] mx-1.5">/</span>
+                    <span className="font-mono">{progress?.total ?? 0}</span>
+                    <span className="ml-1.5 text-[var(--ink-soft)] text-[13px]">位同學</span>
                 </p>
 
-                <p className="text-xl sm:text-2xl md:text-3xl text-[#FF6B9D] font-black">
+                {/* 鼓勵語 */}
+                <p className="text-[14px] sm:text-[16px] font-bold" style={{ color: 'var(--coral)' }}>
                     辛苦了各位老師 ❤️
                 </p>
-            </div>
+            </Card>
         </div>
     );
 };

@@ -1,8 +1,17 @@
 import React from 'react';
-import { Sparkles, CheckSquare, Settings, Download, Trash2 } from 'lucide-react';
+import { Sparkles, Check, Download, Trash2, FileSpreadsheet, Eye } from 'lucide-react';
+import { Card, StickerTab } from './atoms';
 
 /**
- * 生成控制面板 - 教育手寫普普風
+ * AI 評語產生控制面板（Step 2）
+ *
+ * 新設計：紙質卡片 + honey StickerTab + tone 卡片三選一 + 自繪 slider + 下載 chips。
+ * 保留全部既有 props 與行為（extraSettings、selectedIds、isViewingMode、disabled 邏輯）。
+ *
+ * 變動：
+ *  - 字數 slider range 從 20~500 改為 40~160 step=10（對齊 proto 視覺；
+ *    既有預設 80 仍在範圍內，超出範圍的歷史值會 clamp）
+ *  - 下載新增 XLSX 按鈕（既有 downloadHelper 已支援）
  */
 const GeneratePanel = ({
     students,
@@ -15,135 +24,221 @@ const GeneratePanel = ({
     onDownload,
     onDeleteSelected,
     onResetList,
-    isViewingMode = false
+    isViewingMode = false,
 }) => {
+    const tones = [
+        { id: 'normal', label: '標準', desc: '溫和平衡' },
+        { id: 'casual', label: '口語', desc: '親近自然' },
+        { id: 'formal', label: '正式', desc: '莊重莊嚴' },
+    ];
+
+    const WORDS_MIN = 40;
+    const WORDS_MAX = 160;
+    const wordCount = Math.max(WORDS_MIN, Math.min(WORDS_MAX, extraSettings.wordCount || 80));
+    const wordsPct = ((wordCount - WORDS_MIN) / (WORDS_MAX - WORDS_MIN)) * 100;
+
+    const setTone = (id) => setExtraSettings(p => ({ ...p, tone: id }));
+    const setWords = (n) => setExtraSettings(p => ({ ...p, wordCount: n }));
+
+    const selectedCount = selectedIds?.size ?? 0;
+    const hasStudents = students?.length > 0;
+    const canGenerateSelected = selectedCount > 0 && !isGenerating;
+    const canGenerateAll = hasStudents && !isGenerating;
+
     return (
-        <div className="flex-1 w-full flex flex-col gap-3 sm:gap-4 p-3 sm:p-4 bg-[#54A0FF] border-3 border-[#2D3436] rounded-lg shadow-[4px_4px_0_#2D3436] transform rotate-[0.5deg]">
-            <div className="flex items-center gap-2 sm:gap-3 text-white font-black text-base sm:text-xl">
-                <span className="text-2xl">✨</span>
-                2. AI 魔法產生評語
-            </div>
+        <div className="relative pt-4 flex-1 w-full">
+            <Card className="overflow-visible">
+                <StickerTab color="honey" number="2">AI 魔法產生</StickerTab>
 
-            {/* 額外條件設定 */}
-            <div className="bg-white/90 border-2 border-[#2D3436] rounded-lg p-2 sm:p-3 flex flex-col gap-2 sm:gap-3">
-                <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-[#2D3436] border-b-2 border-dashed border-[#E8DCC8] pb-2">
-                    <span className="flex items-center gap-1">⚙️ 設定</span>
-                </div>
+                {/* 頂部裝飾紙膠帶（薰衣草色） */}
+                <div
+                    className="tape"
+                    style={{
+                        top: -10,
+                        right: 80,
+                        transform: 'rotate(-6deg)',
+                        background: 'linear-gradient(180deg, rgba(185,168,230,0.7), rgba(185,168,230,0.5))',
+                    }}
+                    aria-hidden="true"
+                />
 
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                    {/* 語氣選擇 */}
-                    <div className="flex bg-[#FFF9E6] border-2 border-[#2D3436] rounded-lg overflow-hidden">
-                        {[
-                            { val: 'normal', label: '標準', emoji: '📝' },
-                            { val: 'casual', label: '口語', emoji: '💬' },
-                            { val: 'formal', label: '正式', emoji: '📋' }
-                        ].map(opt => (
-                            <button
-                                key={opt.val}
-                                onClick={() => setExtraSettings(p => ({ ...p, tone: opt.val }))}
-                                className={`px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-bold transition-colors 
-                  ${extraSettings.tone === opt.val
-                                        ? 'bg-[#FF6B9D] text-white'
-                                        : 'text-[#2D3436] hover:bg-[#FECA57]'}`}
-                            >
-                                <span className="hidden sm:inline">{opt.emoji}</span> {opt.label}
-                            </button>
-                        ))}
+                <div className="p-4 sm:p-5 pt-7 space-y-4">
+
+                    {/* ── 語氣 三選一 ───────────────────── */}
+                    <div>
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--ink-soft)]">
+                                語氣風格
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                            {tones.map(t => {
+                                const active = extraSettings.tone === t.id;
+                                return (
+                                    <button
+                                        key={t.id}
+                                        onClick={() => setTone(t.id)}
+                                        disabled={isGenerating}
+                                        style={{ background: active ? 'var(--honey)' : 'var(--paper-2)' }}
+                                        className={[
+                                            'b-ink r-btn h-[58px] px-3 text-left flex flex-col justify-center btn-press',
+                                            active ? 'sh-btn' : '',
+                                            isGenerating ? 'opacity-60 cursor-not-allowed' : '',
+                                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft',
+                                        ].filter(Boolean).join(' ')}
+                                        aria-pressed={active}
+                                        aria-label={`語氣：${t.label}（${t.desc}）`}
+                                    >
+                                        <div className="font-black text-[14px]">{t.label}</div>
+                                        <div className="text-[10.5px] text-[var(--ink-soft)] mt-0.5">{t.desc}</div>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
 
-                    {/* 字數設定 */}
-                    <div className="flex items-center gap-2 bg-[#FFF9E6] border-2 border-[#2D3436] rounded-lg px-2 sm:px-3 py-1.5 ml-auto">
-                        <span className="text-xs sm:text-sm font-bold text-[#2D3436]">📏 字數</span>
-                        <input
-                            type="number"
-                            min="20" max="500" step="10"
-                            value={extraSettings.wordCount}
-                            onChange={e => setExtraSettings(p => ({ ...p, wordCount: Number(e.target.value) }))}
-                            className="w-12 text-xs sm:text-sm font-bold text-[#2D3436] text-center outline-none bg-white border-2 border-[#2D3436] rounded"
-                        />
-                    </div>
-                </div>
-            </div>
-
-            {/* 生成按鈕 - 檢視模式下隱藏 */}
-            {!isViewingMode && (
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                    <button
-                        onClick={onGenerateSelected}
-                        disabled={selectedIds.size === 0 || isGenerating}
-                        className={`flex-1 btn-pop py-3 sm:py-4 text-sm sm:text-base font-black flex items-center justify-center gap-2 
-            ${selectedIds.size > 0 && !isGenerating
-                                ? 'bg-white text-[#2D3436]'
-                                : 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60'}`}
-                    >
-                        <CheckSquare size={18} />
-                        {isGenerating ? "產生中..." : `生成已選 (${selectedIds.size})`}
-                    </button>
-
-                    <button
-                        onClick={onGenerateAll}
-                        disabled={students.length === 0 || isGenerating}
-                        className={`flex-1 btn-pop py-3 sm:py-4 text-sm sm:text-base font-black flex items-center justify-center gap-2
-            ${students.length > 0 && !isGenerating
-                                ? 'bg-[#FECA57] text-[#2D3436]'
-                                : 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60'}`}
-                    >
-                        <span className="text-xl">🐝</span>
-                        {isGenerating ? "AI 撰寫中..." : "全部生成！"}
-                    </button>
-                </div>
-            )}
-
-            {/* 檢視模式提示 */}
-            {isViewingMode && (
-                <div className="bg-white/80 border-2 border-dashed border-[#2D3436]/30 rounded-lg p-3 text-center">
-                    <span className="text-sm font-bold text-[#636E72]">
-                        👀 檢視模式 - 可匯出學生資料
-                    </span>
-                </div>
-            )}
-
-            {/* 下載與刪除 */}
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm pt-2 border-t-2 border-dashed border-white/50">
-                <div className="flex gap-2 sm:gap-3">
-                    <button
-                        onClick={() => onDownload('txt')}
-                        disabled={students.length === 0}
-                        className="btn-pop bg-white text-[#2D3436] px-2 sm:px-3 py-1 flex items-center gap-1 disabled:opacity-50"
-                    >
-                        <Download size={14} /> TXT
-                    </button>
-                    <button
-                        onClick={() => onDownload('csv')}
-                        disabled={students.length === 0}
-                        className="btn-pop bg-white text-[#2D3436] px-2 sm:px-3 py-1 flex items-center gap-1 disabled:opacity-50"
-                    >
-                        <Download size={14} /> CSV
-                    </button>
-                </div>
-
-                {/* 刪除按鈕 - 檢視模式下隱藏 */}
-                {!isViewingMode && (
-                    <div className="flex gap-2">
-                        {selectedIds.size > 0 && (
-                            <button
-                                onClick={onDeleteSelected}
-                                disabled={isGenerating}
-                                className="btn-pop bg-[#FF6B6B] text-white px-2 sm:px-3 py-1 flex items-center gap-1 text-xs sm:text-sm disabled:opacity-50"
-                            >
-                                <Trash2 size={12} /> 刪除 ({selectedIds.size})
-                            </button>
-                        )}
-                        <button
-                            onClick={onResetList}
-                            disabled={isGenerating || students.length === 0}
-                            className="text-white/80 hover:text-white font-bold transition-colors disabled:opacity-50"
+                    {/* ── 字數上限 slider ───────────────────── */}
+                    <div>
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--ink-soft)]">
+                                字數上限
+                            </span>
+                            <span className="font-mono font-bold text-[14px]">
+                                {wordCount} <span className="text-[11px] text-[var(--ink-soft)]">字</span>
+                            </span>
+                        </div>
+                        <div
+                            className="b-ink r-btn px-3 h-12 flex items-center gap-3"
+                            style={{ background: 'var(--paper-2)' }}
                         >
-                            🗑️ 全刪
-                        </button>
+                            <span className="text-[10px] font-mono text-[var(--ink-soft)] shrink-0">{WORDS_MIN}</span>
+                            <div className="flex-1 relative h-2">
+                                <div className="absolute inset-0 rounded-full bg-white border-2 border-[var(--ink)]" />
+                                <div
+                                    className="absolute inset-y-0 left-0 rounded-full border-2 border-[var(--ink)]"
+                                    style={{
+                                        width: `${wordsPct}%`,
+                                        background: 'var(--honey)',
+                                    }}
+                                />
+                                <input
+                                    type="range"
+                                    min={WORDS_MIN}
+                                    max={WORDS_MAX}
+                                    step={10}
+                                    value={wordCount}
+                                    onChange={(e) => setWords(Number(e.target.value))}
+                                    disabled={isGenerating}
+                                    className="absolute inset-0 w-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                    aria-label="評語字數上限"
+                                />
+                                <div
+                                    className="progress-nub absolute top-1/2 -translate-y-1/2 pointer-events-none"
+                                    style={{ left: `calc(${wordsPct}% - 8px)` }}
+                                />
+                            </div>
+                            <span className="text-[10px] font-mono text-[var(--ink-soft)] shrink-0">{WORDS_MAX}</span>
+                        </div>
                     </div>
-                )}
-            </div>
+
+                    {/* ── 生成 ACTION ───────────────────── */}
+                    {!isViewingMode ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.4fr] gap-2 pt-1">
+                            <button
+                                onClick={onGenerateSelected}
+                                disabled={!canGenerateSelected}
+                                style={{ background: canGenerateSelected ? 'var(--mint-soft)' : 'var(--paper-2)' }}
+                                className={[
+                                    'b-ink r-btn h-12 flex items-center justify-center gap-2 font-bold text-[13px] btn-press',
+                                    canGenerateSelected ? 'sh-btn' : 'sh-sm opacity-60 cursor-not-allowed',
+                                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft',
+                                ].join(' ')}
+                                aria-label={`生成已選 ${selectedCount} 位學生的評語`}
+                            >
+                                <Check size={14} strokeWidth={1.8} />
+                                {isGenerating ? '產生中…' : `生成已選 (${selectedCount})`}
+                            </button>
+                            <button
+                                onClick={onGenerateAll}
+                                disabled={!canGenerateAll}
+                                style={{ background: 'var(--honey)' }}
+                                className={[
+                                    'b-ink sh-btn r-btn h-12 flex items-center justify-center gap-2 font-black text-[14.5px] btn-press relative overflow-hidden',
+                                    !canGenerateAll ? 'opacity-60 cursor-not-allowed' : '',
+                                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft',
+                                ].join(' ')}
+                                aria-label="生成全部學生的評語（快捷鍵 Cmd/Ctrl + G）"
+                            >
+                                <Sparkles size={17} strokeWidth={1.8} />
+                                {isGenerating ? 'AI 撰寫中…' : '全部生成！'}
+                                <span className="absolute right-3 top-1.5 text-[10px] font-mono opacity-50 hidden sm:inline">
+                                    ⌘G
+                                </span>
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="b-dash r-btn p-3 text-center text-[13px] font-bold text-[var(--ink-soft)] flex items-center justify-center gap-2">
+                            <Eye size={14} strokeWidth={1.8} />
+                            檢視模式 — 可匯出學生資料
+                        </div>
+                    )}
+
+                    {/* ── 下載 + 全部清空 ───────────────────── */}
+                    <div className="pt-2 border-t-2 border-dashed border-[var(--line-soft)] flex flex-wrap items-center justify-between gap-2 text-[12px] font-bold">
+                        <div className="flex items-center gap-1 flex-wrap">
+                            <span className="text-[var(--ink-soft)] mr-1">下載</span>
+                            <button
+                                onClick={() => onDownload('txt')}
+                                disabled={!hasStudents}
+                                className="px-2.5 h-7 b-ink r-btn sh-sm bg-white inline-flex items-center gap-1 btn-press disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft"
+                                aria-label="下載 TXT"
+                            >
+                                <Download size={11} strokeWidth={1.8} /> TXT
+                            </button>
+                            <button
+                                onClick={() => onDownload('csv')}
+                                disabled={!hasStudents}
+                                className="px-2.5 h-7 b-ink r-btn sh-sm bg-white inline-flex items-center gap-1 btn-press disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft"
+                                aria-label="下載 CSV"
+                            >
+                                <Download size={11} strokeWidth={1.8} /> CSV
+                            </button>
+                            <button
+                                onClick={() => onDownload('xlsx')}
+                                disabled={!hasStudents}
+                                className="px-2.5 h-7 b-ink r-btn sh-sm bg-white inline-flex items-center gap-1 btn-press disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft"
+                                aria-label="下載 XLSX"
+                            >
+                                <FileSpreadsheet size={11} strokeWidth={1.8} /> XLSX
+                            </button>
+                        </div>
+
+                        {!isViewingMode && (
+                            <div className="flex items-center gap-2">
+                                {selectedCount > 0 && (
+                                    <button
+                                        onClick={onDeleteSelected}
+                                        disabled={isGenerating}
+                                        style={{ background: 'var(--coral-soft)' }}
+                                        className="px-2.5 h-7 b-ink r-btn sh-sm inline-flex items-center gap-1 btn-press disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-soft"
+                                        aria-label={`刪除已選 ${selectedCount} 位學生`}
+                                    >
+                                        <Trash2 size={11} strokeWidth={1.8} /> 刪除 ({selectedCount})
+                                    </button>
+                                )}
+                                <button
+                                    onClick={onResetList}
+                                    disabled={isGenerating || !hasStudents}
+                                    className="text-[var(--ink-soft)] hover:text-[var(--coral)] inline-flex items-center gap-1 disabled:opacity-50"
+                                    aria-label="全部清空"
+                                >
+                                    <Trash2 size={11} strokeWidth={1.8} /> 全部清空
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </Card>
         </div>
     );
 };

@@ -1,31 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { X, Heart, Trash2, Copy, BookOpen } from 'lucide-react';
+import { Heart, Trash2, Copy, BookOpen, Search, Check } from 'lucide-react';
 import { templateService } from '../firebase';
+import ModalShell from './ui/ModalShell';
+import { Btn, Chip } from './atoms';
 
 /**
- * 範本庫 Modal
- * 查看、套用、刪除收藏的評語範本
+ * 範本庫 Modal — 查看、套用、刪除、分類收藏的評語範本
+ *
+ * Props 保留：isOpen / onClose / onApplyTemplate。
+ * Firebase 邏輯（subscribe / update / delete / incrementUsage）完全保留。
+ *
+ * 視覺：ModalShell + 2-col 範本卡 grid + bg-lined 預覽 + hover 浮起 + chip 標籤
  */
 const TemplateModal = ({ isOpen, onClose, onApplyTemplate }) => {
     const [templates, setTemplates] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState('全部');
+    const [query, setQuery] = useState('');
+
     const categories = ['全部', '學業', '品德', '人際', '其他'];
 
     // 訂閱範本即時更新
     useEffect(() => {
         if (!isOpen) return;
-
         setIsLoading(true);
         const unsubscribe = templateService.subscribe((data) => {
             setTemplates(data);
             setIsLoading(false);
         });
-
         return () => unsubscribe();
     }, [isOpen]);
 
-    // 刪除範本
     const handleDelete = async (id) => {
         try {
             await templateService.delete(id);
@@ -34,7 +39,6 @@ const TemplateModal = ({ isOpen, onClose, onApplyTemplate }) => {
         }
     };
 
-    // 套用範本
     const handleApply = async (template) => {
         try {
             await templateService.incrementUsage(template.id);
@@ -45,7 +49,6 @@ const TemplateModal = ({ isOpen, onClose, onApplyTemplate }) => {
         }
     };
 
-    // 複製到剪貼簿
     const handleCopy = async (content) => {
         try {
             await navigator.clipboard.writeText(content);
@@ -54,7 +57,6 @@ const TemplateModal = ({ isOpen, onClose, onApplyTemplate }) => {
         }
     };
 
-    // 更新分類
     const handleCategoryChange = async (id, newCategory) => {
         try {
             await templateService.update(id, { category: newCategory });
@@ -63,148 +65,222 @@ const TemplateModal = ({ isOpen, onClose, onApplyTemplate }) => {
         }
     };
 
-    // 篩選範本
-    const filteredTemplates = templates.filter(t => {
-        if (selectedCategory === '全部') return true;
+    // 篩選：分類 + 搜尋
+    const filtered = templates.filter(t => {
         const cat = t.category || '其他';
-        return cat === selectedCategory;
+        if (selectedCategory !== '全部' && cat !== selectedCategory) return false;
+        if (query.trim()) {
+            const q = query.trim().toLowerCase();
+            const hit = (t.content || '').toLowerCase().includes(q)
+                || (t.studentName || '').toLowerCase().includes(q)
+                || (t.tags || []).some(tag => (tag || '').toLowerCase().includes(q));
+            if (!hit) return false;
+        }
+        return true;
     });
 
-    if (!isOpen) return null;
+    // 每個分類的範本數（用於 chip 數字）
+    const countByCategory = (cat) => {
+        if (cat === '全部') return templates.length;
+        return templates.filter(t => (t.category || '其他') === cat).length;
+    };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-2 sm:p-4">
-            <div className="card-pop w-full max-w-2xl max-h-[90vh] flex flex-col animate-in bg-[#FFF9E6]">
-                {/* Header */}
-                <div className="p-3 sm:p-5 bg-[#FF6B9D] border-b-3 border-[#2D3436] flex items-center justify-between">
-                    <h3 className="font-black text-white flex items-center gap-2 text-lg sm:text-xl">
-                        <Heart size={24} />
-                        我的評語範本庫
-                    </h3>
-                    <button
-                        onClick={onClose}
-                        className="btn-pop p-2 bg-white text-[#2D3436]"
-                    >
-                        <X size={20} />
-                    </button>
+        <ModalShell
+            open={isOpen}
+            onClose={onClose}
+            width={1080}
+            eyebrow="My Templates"
+            tapeColor="lav"
+            icon={<Heart size={18} strokeWidth={1.8} />}
+            title="範本百寶箱"
+            subtitle={
+                <>
+                    你已收藏 <span className="font-bold text-[var(--ink)]">{templates.length}</span> 則範本 ·
+                    點任一張即可套用到目前聚焦的學生
+                </>
+            }
+            footer={
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="text-[12px] text-[var(--ink-soft)]">
+                        共 {filtered.length} 個 · 範本儲存在雲端跨裝置同步
+                    </div>
+                    <Btn variant="outline" size="sm" onClick={onClose}>
+                        關閉
+                    </Btn>
                 </div>
-
-                {/* Category Tabs */}
-                <div className="flex overflow-x-auto p-2 gap-2 border-b-2 border-[#2D3436] bg-white mobile-scroll-hide">
-                    {categories.map(cat => (
-                        <button
-                            key={cat}
-                            onClick={() => setSelectedCategory(cat)}
-                            className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-all border-2 ${selectedCategory === cat
-                                ? 'bg-[#FF6B9D] text-white border-[#2D3436] shadow-[2px_2px_0_#2D3436]'
-                                : 'bg-white text-[#636E72] border-transparent hover:bg-gray-100'
-                                }`}
-                        >
-                            {cat}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-3 sm:p-4 mobile-scroll-hide">
-                    {isLoading ? (
-                        <div className="flex items-center justify-center py-20">
-                            <div className="text-4xl animate-bounce">🐝</div>
-                        </div>
-                    ) : filteredTemplates.length === 0 ? (
-                        <div className="text-center py-16">
-                            <div className="text-5xl mb-4">📚</div>
-                            <p className="text-lg font-bold text-[#636E72]">
-                                {selectedCategory === '全部' ? '還沒有收藏的範本' : `沒有「${selectedCategory}」類別的範本`}
-                            </p>
-                            <p className="text-sm text-[#636E72]/70 mt-2">
-                                在學生評語旁點擊 ❤️ 收藏 即可加入範本庫
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            {filteredTemplates.map((template) => (
-                                <div
-                                    key={template.id}
-                                    className="bg-white border-2 border-[#2D3436] rounded-lg overflow-hidden shadow-[3px_3px_0_#2D3436]"
+            }
+        >
+            <div className="px-5 sm:px-7 pt-4 pb-2">
+                {/* 搜尋 + 分類 chip */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
+                    <div className="flex-1 b-ink r-btn h-11 px-3 bg-white flex items-center gap-2 sh-sm focus-within:ring-2 focus-within:ring-honey-soft">
+                        <Search size={14} strokeWidth={1.8} className="text-[var(--ink-soft)]" />
+                        <input
+                            type="text"
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            placeholder="搜尋範本標題、內容、標籤…"
+                            className="flex-1 bg-transparent outline-none text-[13px] placeholder:text-[var(--ink-mute)]"
+                            aria-label="搜尋範本"
+                        />
+                    </div>
+                    <div className="flex items-center gap-1 b-ink r-btn p-1 bg-white sh-sm h-11 overflow-x-auto">
+                        {categories.map(cat => {
+                            const active = selectedCategory === cat;
+                            const n = countByCategory(cat);
+                            return (
+                                <button
+                                    key={cat}
+                                    type="button"
+                                    onClick={() => setSelectedCategory(cat)}
+                                    style={{
+                                        background: active ? 'var(--ink)' : 'transparent',
+                                        color: active ? 'var(--paper)' : 'var(--ink)',
+                                    }}
+                                    className="px-3 h-8 text-[12.5px] font-bold rounded-md inline-flex items-center gap-1.5 shrink-0"
+                                    aria-pressed={active}
                                 >
-                                    {/* 範本標題 */}
-                                    <div className="p-3 bg-[#FECA57] border-b-2 border-[#2D3436] flex items-center justify-between flex-wrap gap-2">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-[#2D3436]">
-                                                {template.studentName || '未命名'}
-                                            </span>
-                                            {template.tags && template.tags.length > 0 && (
-                                                <div className="flex gap-1 flex-wrap">
-                                                    {template.tags.slice(0, 3).map((tag, idx) => (
-                                                        <span key={idx} className="px-2 py-0.5 bg-white text-[#2D3436] text-xs rounded-full border border-[#2D3436]">
-                                                            {tag}
-                                                        </span>
-                                                    ))}
-                                                    {template.tags.length > 3 && (
-                                                        <span className="text-xs text-[#2D3436]">+{template.tags.length - 3}</span>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
+                                    <span>{cat}</span>
+                                    <span className={`font-mono text-[11px] ${active ? 'opacity-70' : 'text-[var(--ink-soft)]'}`}>
+                                        {n}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
 
-                                        <div className="flex items-center gap-2">
-                                            {/* 分類選擇 */}
-                                            <select
-                                                value={template.category || '其他'}
-                                                onChange={(e) => handleCategoryChange(template.id, e.target.value)}
-                                                className="text-xs px-2 py-1 rounded border border-[#2D3436] bg-white cursor-pointer hover:bg-gray-50 focus:outline-none"
-                                                onClick={(e) => e.stopPropagation()}
-                                            >
-                                                {categories.filter(c => c !== '全部').map(cat => (
-                                                    <option key={cat} value={cat}>{cat}</option>
-                                                ))}
-                                            </select>
-                                            <span className="text-xs text-[#2D3436]/70 whitespace-nowrap">
-                                                使用 {template.usageCount || 0} 次
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* 範本內容 */}
-                                    <div className="p-3 text-sm text-[#2D3436] leading-relaxed max-h-[120px] overflow-y-auto">
-                                        {template.content}
-                                    </div>
-
-                                    {/* 操作按鈕 */}
-                                    <div className="p-2 bg-[#FFF9E6] border-t border-dashed border-[#E8DCC8] flex items-center justify-end gap-2">
-                                        <button
-                                            onClick={() => handleCopy(template.content)}
-                                            className="btn-pop px-3 py-1.5 bg-white text-[#2D3436] text-xs font-bold flex items-center gap-1"
-                                        >
-                                            <Copy size={12} />
-                                            複製
-                                        </button>
-                                        <button
-                                            onClick={() => handleApply(template)}
-                                            className="btn-pop px-3 py-1.5 bg-[#1DD1A1] text-white text-xs font-bold flex items-center gap-1"
-                                        >
-                                            <BookOpen size={12} />
-                                            套用
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(template.id)}
-                                            className="btn-pop px-3 py-1.5 bg-[#FF6B6B] text-white text-xs font-bold flex items-center gap-1"
-                                        >
-                                            <Trash2 size={12} />
-                                            刪除
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
+            {/* 範本 grid */}
+            <div className="px-5 sm:px-7 pb-6">
+                {isLoading ? (
+                    <div className="flex items-center justify-center py-20 text-4xl bee-bob" aria-label="載入中">
+                        🐝
+                    </div>
+                ) : filtered.length === 0 ? (
+                    <div className="text-center py-16 text-[var(--ink-soft)]">
+                        <div className="text-4xl mb-3" aria-hidden="true">📭</div>
+                        <div className="font-bold">
+                            {selectedCategory === '全部' && !query.trim()
+                                ? '還沒有收藏的範本'
+                                : `沒有符合的範本`}
                         </div>
+                        <div className="text-[12px] mt-1 text-[var(--ink-mute)]">
+                            {selectedCategory === '全部' && !query.trim()
+                                ? '在學生評語旁點擊 ❤️ 收藏，即可加入範本庫'
+                                : '試試其他關鍵字或分類'}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                        {filtered.map(template => (
+                            <TemplateCard
+                                key={template.id}
+                                template={template}
+                                categories={categories}
+                                onApply={handleApply}
+                                onCopy={handleCopy}
+                                onDelete={handleDelete}
+                                onCategoryChange={handleCategoryChange}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+        </ModalShell>
+    );
+};
+
+const TAG_COLORS = ['peach', 'mint', 'sky', 'lav', 'honey'];
+
+const TemplateCard = ({ template, categories, onApply, onCopy, onDelete, onCategoryChange }) => {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopyClick = async () => {
+        await onCopy(template.content);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+    };
+
+    return (
+        <div className="bg-white b-ink sh-sm r-card overflow-hidden relative group hover:sh-card hover:-translate-y-0.5 transition-all">
+            {/* head */}
+            <div className="px-4 pt-3 pb-2.5 flex items-start justify-between gap-3 border-b border-dashed border-[var(--ink)]/15">
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: 'var(--honey)' }} />
+                        <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-[var(--ink-soft)] truncate">
+                            {template.studentName || '未命名'}
+                        </span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2 text-[10.5px] font-mono text-[var(--ink-soft)]">
+                        <select
+                            value={template.category || '其他'}
+                            onChange={(e) => onCategoryChange(template.id, e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="b-soft r-btn bg-white px-1.5 py-0.5 text-[10.5px] font-bold cursor-pointer focus:outline-none focus:ring-2 focus:ring-honey-soft"
+                            aria-label="變更分類"
+                        >
+                            {categories.filter(c => c !== '全部').map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                        </select>
+                        <span>· 已用 {template.usageCount || 0} 次</span>
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => onDelete(template.id)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity w-7 h-7 b-soft r-btn bg-white inline-flex items-center justify-center text-[var(--ink-soft)] hover:text-[var(--coral)] shrink-0"
+                    aria-label="刪除範本"
+                    title="刪除範本"
+                >
+                    <Trash2 size={12} strokeWidth={1.8} />
+                </button>
+            </div>
+
+            {/* preview（bg-lined 紙線稿） */}
+            <div className="px-4 py-3 bg-lined text-[13px] leading-[28px] clamp-3 text-[var(--ink)]/90">
+                {template.content}
+            </div>
+
+            {/* tags */}
+            {template.tags && template.tags.length > 0 && (
+                <div className="px-4 pt-2 flex items-center gap-1.5 flex-wrap">
+                    {template.tags.slice(0, 4).map((tag, idx) => (
+                        <Chip key={`${tag}-${idx}`} color={TAG_COLORS[idx % TAG_COLORS.length]} soft size="sm">
+                            {tag}
+                        </Chip>
+                    ))}
+                    {template.tags.length > 4 && (
+                        <span className="text-[10.5px] font-mono text-[var(--ink-soft)]">+{template.tags.length - 4}</span>
                     )}
                 </div>
+            )}
 
-                {/* Footer */}
-                <div className="p-3 sm:p-4 bg-[#E8DCC8] border-t-2 border-dashed border-[#2D3436]/20 text-xs text-[#636E72] text-center">
-                    共 {filteredTemplates.length} 個範本 | 範本儲存在雲端，跨裝置同步
-                </div>
+            {/* action strip */}
+            <div className="px-4 pt-3 pb-4 flex items-center gap-2">
+                <button
+                    type="button"
+                    onClick={() => onApply(template)}
+                    style={{ background: 'var(--mint)' }}
+                    className="flex-1 b-ink sh-sm r-btn h-9 inline-flex items-center justify-center gap-1.5 font-bold text-[12.5px] btn-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft"
+                >
+                    <Check size={13} strokeWidth={1.8} />
+                    套用
+                </button>
+                <button
+                    type="button"
+                    onClick={handleCopyClick}
+                    className="b-ink r-btn h-9 w-9 bg-white sh-sm inline-flex items-center justify-center btn-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft"
+                    title={copied ? '已複製' : '複製內容'}
+                    aria-label={copied ? '已複製' : '複製內容'}
+                >
+                    {copied
+                        ? <Check size={13} strokeWidth={1.8} style={{ color: 'var(--mint)' }} />
+                        : <Copy size={13} strokeWidth={1.8} />}
+                </button>
             </div>
         </div>
     );

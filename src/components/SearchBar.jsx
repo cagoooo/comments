@@ -1,227 +1,227 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, X, Filter, MessageSquare, Tag, History } from 'lucide-react';
+import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import { Search, X, MessageSquare, Tag, History } from 'lucide-react';
 
 // 搜尋歷史 localStorage key
 const SEARCH_HISTORY_KEY = 'student_search_history';
 const MAX_HISTORY_SIZE = 5;
 
 /**
- * 學生搜尋與篩選元件
- * 支援即時搜尋、搜尋歷史、篩選器
+ * 學生搜尋與篩選列
+ *
+ * 新設計：紙質 chunky 搜尋框 + ⌘K hint + 兩個 3-態 filter chip + 結果統計徽章。
+ * 保留既有：搜尋歷史 dropdown、hasComment/hasTag null↔true↔false 切換、結果計數。
+ *
+ * App.jsx 全域 ⌘K shortcut 尚未實作（Batch 11），但這個元件已掛 forwardRef 給未來連結。
  */
-const SearchBar = ({
+const SearchBar = forwardRef(function SearchBar({
     searchQuery,
     setSearchQuery,
     filters,
     setFilters,
     totalCount,
-    filteredCount
-}) => {
+    filteredCount,
+}, ref) {
     const [showHistory, setShowHistory] = useState(false);
     const [searchHistory, setSearchHistory] = useState([]);
     const inputRef = useRef(null);
     const historyRef = useRef(null);
 
-    // 從 localStorage 載入搜尋歷史
+    // 對外暴露 focus 介面（給 ⌘K 全域 shortcut 使用）
+    useImperativeHandle(ref, () => ({
+        focus: () => inputRef.current?.focus(),
+        select: () => inputRef.current?.select(),
+    }), []);
+
+    // 載入搜尋歷史
     useEffect(() => {
         try {
             const saved = localStorage.getItem(SEARCH_HISTORY_KEY);
-            if (saved) {
-                setSearchHistory(JSON.parse(saved));
-            }
+            if (saved) setSearchHistory(JSON.parse(saved));
         } catch (e) {
             console.error('載入搜尋歷史失敗:', e);
         }
     }, []);
 
-    // 儲存搜尋歷史
+    // 儲存歷史
     const saveToHistory = (query) => {
         if (!query.trim()) return;
-
         setSearchHistory(prev => {
-            // 移除重複項目
             const filtered = prev.filter(item => item !== query);
-            // 加到最前面
-            const newHistory = [query, ...filtered].slice(0, MAX_HISTORY_SIZE);
-
-            // 儲存到 localStorage
+            const next = [query, ...filtered].slice(0, MAX_HISTORY_SIZE);
             try {
-                localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(newHistory));
+                localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(next));
             } catch (e) {
                 console.error('儲存搜尋歷史失敗:', e);
             }
-
-            return newHistory;
+            return next;
         });
     };
 
-    // 點擊外部關閉歷史下拉選單
+    // 點外部關閉歷史 dropdown
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (historyRef.current && !historyRef.current.contains(e.target)) {
                 setShowHistory(false);
             }
         };
-
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // 處理搜尋
-    const handleSearch = (e) => {
-        const value = e.target.value;
-        setSearchQuery(value);
-    };
-
-    // 處理搜尋確認（Enter 或失焦）
     const handleSearchConfirm = () => {
-        if (searchQuery.trim()) {
-            saveToHistory(searchQuery.trim());
-        }
+        if (searchQuery.trim()) saveToHistory(searchQuery.trim());
         setShowHistory(false);
     };
 
-    // 選擇歷史項目
     const selectHistory = (item) => {
         setSearchQuery(item);
         setShowHistory(false);
         inputRef.current?.focus();
     };
 
-    // 清除搜尋
     const clearSearch = () => {
         setSearchQuery('');
         inputRef.current?.focus();
     };
 
-    // 清除單筆歷史
     const removeHistoryItem = (e, item) => {
         e.stopPropagation();
         setSearchHistory(prev => {
-            const newHistory = prev.filter(h => h !== item);
+            const next = prev.filter(h => h !== item);
             try {
-                localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(newHistory));
+                localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(next));
             } catch (err) {
                 console.error('儲存搜尋歷史失敗:', err);
             }
-            return newHistory;
+            return next;
         });
     };
 
-    // 切換篩選器
-    const toggleFilter = (filterKey) => {
+    // 3 態切換：null → true → false → null
+    const toggleFilter = (key) => {
         setFilters(prev => ({
             ...prev,
-            [filterKey]: prev[filterKey] === null ? true : prev[filterKey] === true ? false : null
+            [key]: prev[key] === null ? true : prev[key] === true ? false : null,
         }));
     };
 
-    // 取得篩選器按鈕樣式
-    const getFilterButtonStyle = (value) => {
-        if (value === true) return 'bg-[#1DD1A1] text-white';
-        if (value === false) return 'bg-[#FF6B6B] text-white';
-        return 'bg-white text-[#2D3436] hover:bg-[#FECA57]';
+    /**
+     * Filter chip 樣式 — null（未選）/ true（要）/ false（不要）三態。
+     * null: paper-2 底 + ink-soft；true: mint 底；false: coral 底
+     */
+    const filterChipStyle = (val) => {
+        if (val === true) return { background: 'var(--mint)', color: 'var(--ink)' };
+        if (val === false) return { background: 'var(--coral)', color: 'var(--ink)' };
+        return { background: 'var(--paper-2)', color: 'var(--ink-soft)' };
     };
 
-    // 取得篩選器標籤
-    const getFilterLabel = (key, value) => {
-        const labels = {
-            hasComment: { true: '有評語', false: '無評語', null: '評語' },
-            hasTag: { true: '有標籤', false: '無標籤', null: '標籤' }
-        };
-        return labels[key][value];
+    const filterLabels = {
+        hasComment: { true: '有評語', false: '無評語', null: '評語' },
+        hasTag: { true: '有標籤', false: '無標籤', null: '標籤' },
     };
+
+    const isFiltered = searchQuery || filters.hasComment !== null || filters.hasTag !== null;
 
     return (
         <div className="mb-4 space-y-3">
-            {/* 搜尋輸入區 */}
-            <div className="relative" ref={historyRef}>
-                <div className="relative flex items-center">
-                    <Search size={18} className="absolute left-3 text-[#636E72]" />
-                    <input
-                        ref={inputRef}
-                        type="text"
-                        value={searchQuery}
-                        onChange={handleSearch}
-                        onFocus={() => searchHistory.length > 0 && setShowHistory(true)}
-                        onBlur={() => setTimeout(handleSearchConfirm, 200)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearchConfirm()}
-                        placeholder="🔍 搜尋學生（姓名、標籤、評語內容）..."
-                        className="w-full pl-10 pr-10 py-3 text-sm font-medium border-3 border-[#2D3436] rounded-lg bg-white focus:border-[#54A0FF] focus:ring-2 focus:ring-[#54A0FF]/30 outline-none transition-all shadow-[3px_3px_0_#2D3436]"
-                    />
-                    {searchQuery && (
-                        <button
-                            onClick={clearSearch}
-                            className="absolute right-3 text-[#636E72] hover:text-[#FF6B6B] transition-colors"
-                        >
-                            <X size={18} />
-                        </button>
+            {/* ── 搜尋列 + ⌘K + filter chips ───────────────────── */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3" ref={historyRef}>
+
+                {/* 搜尋框 */}
+                <div className="relative flex-1">
+                    <div className="b-ink r-btn h-12 px-4 flex items-center gap-2 bg-white sh-sm focus-within:ring-2 focus-within:ring-honey-soft">
+                        <Search size={16} strokeWidth={1.8} className="text-[var(--ink-soft)] shrink-0" />
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onFocus={() => searchHistory.length > 0 && setShowHistory(true)}
+                            onBlur={() => setTimeout(handleSearchConfirm, 200)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSearchConfirm()}
+                            placeholder="搜尋姓名、標籤、評語內容…"
+                            className="flex-1 bg-transparent outline-none text-[14px] placeholder:text-[var(--ink-mute)]"
+                            aria-label="搜尋學生"
+                        />
+                        {searchQuery ? (
+                            <button
+                                onClick={clearSearch}
+                                className="text-[var(--ink-soft)] hover:text-[var(--coral)] transition-colors shrink-0"
+                                aria-label="清除搜尋"
+                                type="button"
+                            >
+                                <X size={16} strokeWidth={1.8} />
+                            </button>
+                        ) : (
+                            <kbd className="font-mono text-[10px] text-[var(--ink-soft)] border border-[var(--line-soft)] rounded px-1.5 py-0.5 bg-[var(--paper-2)] shrink-0 hidden sm:inline">
+                                ⌘ K
+                            </kbd>
+                        )}
+                    </div>
+
+                    {/* 搜尋歷史 dropdown */}
+                    {showHistory && searchHistory.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-white b-ink sh-card r-card z-20 overflow-hidden">
+                            <div className="px-3 py-2 bg-[var(--paper-2)] border-b border-[var(--line-soft)] flex items-center gap-2 text-[11px] font-bold text-[var(--ink-soft)] uppercase tracking-wider">
+                                <History size={12} strokeWidth={1.8} />
+                                最近搜尋
+                            </div>
+                            {searchHistory.map((item, idx) => (
+                                <div
+                                    key={`${item}-${idx}`}
+                                    onClick={() => selectHistory(item)}
+                                    className="px-4 py-2.5 text-[13px] font-medium text-[var(--ink)] hover:bg-[var(--honey-soft)] cursor-pointer flex items-center justify-between group transition-colors"
+                                >
+                                    <span className="truncate">{item}</span>
+                                    <button
+                                        onClick={(e) => removeHistoryItem(e, item)}
+                                        className="opacity-0 group-hover:opacity-100 text-[var(--ink-soft)] hover:text-[var(--coral)] transition-all shrink-0 ml-2"
+                                        aria-label="移除此筆歷史"
+                                        type="button"
+                                    >
+                                        <X size={13} strokeWidth={1.8} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
                     )}
                 </div>
 
-                {/* 搜尋歷史下拉選單 */}
-                {showHistory && searchHistory.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border-3 border-[#2D3436] rounded-lg shadow-[4px_4px_0_#2D3436] z-20 overflow-hidden">
-                        <div className="px-3 py-2 bg-[#F8F9FA] border-b-2 border-[#E8DCC8] flex items-center gap-2 text-xs font-bold text-[#636E72]">
-                            <History size={14} />
-                            最近搜尋
-                        </div>
-                        {searchHistory.map((item, idx) => (
-                            <div
-                                key={idx}
-                                onClick={() => selectHistory(item)}
-                                className="px-4 py-2.5 text-sm font-medium text-[#2D3436] hover:bg-[#FECA57]/30 cursor-pointer flex items-center justify-between group transition-colors"
-                            >
-                                <span>{item}</span>
-                                <button
-                                    onClick={(e) => removeHistoryItem(e, item)}
-                                    className="opacity-0 group-hover:opacity-100 text-[#636E72] hover:text-[#FF6B6B] transition-all"
-                                >
-                                    <X size={14} />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-
-            {/* 篩選器與統計 */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                {/* 篩選器按鈕 */}
+                {/* Filter chips */}
                 <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-[#636E72] flex items-center gap-1">
-                        <Filter size={14} />
-                        篩選：
-                    </span>
-
-                    {/* 評語篩選 */}
                     <button
                         onClick={() => toggleFilter('hasComment')}
-                        className={`px-3 py-1.5 text-xs font-bold border-2 border-[#2D3436] rounded-lg transition-all flex items-center gap-1 shadow-[2px_2px_0_#2D3436] active:shadow-none active:translate-x-0.5 active:translate-y-0.5 ${getFilterButtonStyle(filters.hasComment)}`}
+                        style={filterChipStyle(filters.hasComment)}
+                        className="b-ink sh-sm r-btn h-12 px-3 inline-flex items-center gap-1.5 font-bold text-[12.5px] btn-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft"
+                        aria-label={`評語篩選：${filterLabels.hasComment[String(filters.hasComment)] || '評語'}`}
+                        aria-pressed={filters.hasComment !== null}
                     >
-                        <MessageSquare size={12} />
-                        {getFilterLabel('hasComment', filters.hasComment)}
+                        <MessageSquare size={13} strokeWidth={1.8} />
+                        <span>{filterLabels.hasComment[String(filters.hasComment)] || '評語'}</span>
                     </button>
-
-                    {/* 標籤篩選 */}
                     <button
                         onClick={() => toggleFilter('hasTag')}
-                        className={`px-3 py-1.5 text-xs font-bold border-2 border-[#2D3436] rounded-lg transition-all flex items-center gap-1 shadow-[2px_2px_0_#2D3436] active:shadow-none active:translate-x-0.5 active:translate-y-0.5 ${getFilterButtonStyle(filters.hasTag)}`}
+                        style={filterChipStyle(filters.hasTag)}
+                        className="b-ink sh-sm r-btn h-12 px-3 inline-flex items-center gap-1.5 font-bold text-[12.5px] btn-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft"
+                        aria-label={`標籤篩選：${filterLabels.hasTag[String(filters.hasTag)] || '標籤'}`}
+                        aria-pressed={filters.hasTag !== null}
                     >
-                        <Tag size={12} />
-                        {getFilterLabel('hasTag', filters.hasTag)}
+                        <Tag size={13} strokeWidth={1.8} />
+                        <span>{filterLabels.hasTag[String(filters.hasTag)] || '標籤'}</span>
                     </button>
                 </div>
-
-                {/* 搜尋結果統計 */}
-                {(searchQuery || filters.hasComment !== null || filters.hasTag !== null) && (
-                    <div className="text-xs font-bold text-[#636E72] bg-[#F8F9FA] px-3 py-1.5 rounded-full border-2 border-[#E8DCC8]">
-                        顯示 <span className="text-[#54A0FF]">{filteredCount}</span> / {totalCount} 位學生
-                    </div>
-                )}
             </div>
+
+            {/* ── 結果統計徽章（僅在有篩選時顯示） ───────────────────── */}
+            {isFiltered && (
+                <div className="flex justify-end">
+                    <span className="font-mono text-[11px] font-bold text-[var(--ink-soft)] bg-[var(--paper-2)] px-3 py-1.5 r-btn border border-[var(--line-soft)]">
+                        顯示 <span className="text-[var(--ink)]">{filteredCount}</span> / {totalCount} 位
+                    </span>
+                </div>
+            )}
         </div>
     );
-};
+});
 
 export default SearchBar;

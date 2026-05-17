@@ -1,54 +1,78 @@
 import React from 'react';
-import { Palette, Edit3 } from 'lucide-react';
+import { Palette, Edit3, Check } from 'lucide-react';
 import { STYLE_DEFINITIONS } from '../data/styleDefinitions';
 
 /**
- * 風格設定顯示條 - 教育手寫普普風
+ * 風格設定顯示條
+ *
+ * 新設計：honey-soft 底色 strip + 已選風格 chip + 「更改風格」按鈕。
+ * 保留既有 props：globalStyles (string[]), onOpenStyleModal, isGenerating。
+ *
+ * 12 個風格 id 對映到 8 個 token 色（同 hue 共用），確保整體和諧不超出設計系統。
  */
+const styleColorMap = {
+    qualitative: 'mint',
+    emotional: 'coral',
+    friendly: 'honey',
+    humorous: 'peach',
+    internal: 'sky',
+    philosophical: 'lav',
+    practical: 'mint',
+    resonance: 'coral',
+    blessing: 'honey',
+    scenario: 'peach',
+    milestone: 'sky',
+    journey: 'lav',
+};
+
 const StyleBar = ({ globalStyles, onOpenStyleModal, isGenerating }) => {
-    // 風格對應的顏色
-    const styleColors = {
-        'qualitative': '#FF6B9D',
-        'emotional': '#FF9F43',
-        'friendly': '#FECA57',
-        'humorous': '#1DD1A1',
-        'internal': '#54A0FF',
-        'philosophical': '#A29BFE',
-        'practical': '#FF6B6B',
-        'resonance': '#FF6B9D',
-        'blessing': '#FF9F43',
-        'scenario': '#FECA57',
-        'milestone': '#1DD1A1',
-        'journey': '#54A0FF'
-    };
+    const hasStyles = globalStyles?.length > 0;
 
     return (
-        <div className="mb-4 sm:mb-6 bg-[#FFFDF5] border-3 border-[#2D3436] rounded-lg p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-[4px_4px_0_#2D3436]">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[#2D3436] text-sm sm:text-base font-black">
-                <span className="text-xl">🎨</span>
-                <span>目前風格：</span>
-                <div className="flex gap-2 flex-wrap">
-                    {globalStyles.length > 0
-                        ? globalStyles.map(id => (
-                            <span
-                                key={id}
-                                className="px-3 py-1 border-2 border-[#2D3436] rounded-full text-xs sm:text-sm font-bold text-white shadow-[2px_2px_0_#2D3436]"
-                                style={{ backgroundColor: styleColors[id] || '#A29BFE' }}
-                            >
-                                {STYLE_DEFINITIONS.find(d => d.id === id)?.name}
-                            </span>
-                        ))
-                        : <span className="text-[#636E72] font-medium text-xs sm:text-sm bg-[#E8DCC8] px-3 py-1 rounded-full">未設定 (預設: 質性描述)</span>
-                    }
+        <div
+            className="mb-4 sm:mb-6 b-ink r-btn sh-sm flex flex-col sm:flex-row items-start sm:items-center gap-3 px-3 sm:px-4 py-3 sm:py-2 sm:min-h-12"
+            style={{ background: 'var(--honey-soft)' }}
+        >
+            {/* 左：標題 + 已選風格 chips */}
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0">
+                <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[var(--ink-soft)] shrink-0">
+                    <Palette size={13} strokeWidth={1.8} />
+                    目前風格
+                </span>
+
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    {hasStyles ? (
+                        globalStyles.map(id => {
+                            const color = styleColorMap[id] || 'honey';
+                            const name = STYLE_DEFINITIONS.find(d => d.id === id)?.name || id;
+                            return (
+                                <span
+                                    key={id}
+                                    style={{ background: `var(--${color})`, color: 'var(--ink)' }}
+                                    className="px-2.5 h-7 b-ink r-btn text-[12px] font-bold inline-flex items-center gap-1"
+                                >
+                                    <Check size={11} strokeWidth={1.8} />
+                                    {name}
+                                </span>
+                            );
+                        })
+                    ) : (
+                        <span className="text-[var(--ink-soft)] text-[12px] italic">
+                            未設定（預設：質性描述）
+                        </span>
+                    )}
                 </div>
             </div>
+
+            {/* 右：更改風格按鈕 */}
             <button
                 onClick={onOpenStyleModal}
                 disabled={isGenerating}
-                className="btn-pop w-full sm:w-auto bg-[#A29BFE] text-white px-4 sm:px-6 py-2 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+                className="sm:ml-auto w-full sm:w-auto h-10 sm:h-9 px-3 b-ink sh-btn r-btn bg-white inline-flex items-center justify-center gap-1.5 font-bold text-[12.5px] btn-press disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft"
+                aria-label="開啟風格選擇 Modal"
             >
-                <Edit3 size={14} />
-                更改風格 ✏️
+                <Edit3 size={13} strokeWidth={1.8} />
+                更改風格
             </button>
         </div>
     );

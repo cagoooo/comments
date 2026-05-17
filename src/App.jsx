@@ -18,6 +18,7 @@ import { useStudents } from './hooks/useStudents';
 // Components (核心元件 - 同步載入)
 import Header from './components/Header';
 import Footer from './components/Footer';
+import MobileTabBar from './components/MobileTabBar';
 import Dialog from './components/Dialog';
 import LoadingOverlay from './components/LoadingOverlay';
 import InputPanel from './components/InputPanel';
@@ -768,6 +769,9 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
         }
     };
 
+    // 全域搜尋 ref（給 ⌘K 用）
+    const searchBarRef = React.useRef(null);
+
     // 鍵盤快捷鍵 (移至此處以確保依賴函數已定義)
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -783,14 +787,18 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                 if (isGenerating) return;
 
                 if (focusedStudentId) {
-                    // 如果有聚焦的學生，生成該學生
                     handleSingleGenerate(focusedStudentId);
                 } else {
-                    // 否則批次生成 (預設生成全部或已選)
-                    // 這裡邏輯：如果有選取就生成選取，否則生成全部
                     const hasSelection = selectedIds.size > 0;
                     handleBatchGenerate(hasSelection);
                 }
+            }
+
+            // Ctrl+K / Cmd+K: 聚焦搜尋框
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                searchBarRef.current?.focus();
+                searchBarRef.current?.select();
             }
         };
 
@@ -799,7 +807,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
     }, [isGenerating, focusedStudentId, selectedIds, handleSingleGenerate, handleBatchGenerate]);
 
     return (
-        <div className="min-h-screen max-w-full overflow-x-hidden text-[#2D3436] font-sans flex flex-col relative">
+        <div className="min-h-screen max-w-full overflow-x-hidden text-[var(--ink)] font-sans flex flex-col relative pb-20 md:pb-0">{/* pb-20 給 < md 的 MobileTabBar 留空間 */}
 
             {/* 資料載入中 */}
             {isLoading && <DataLoading />}
@@ -926,7 +934,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
             <div className="flex flex-col flex-1 w-full mx-auto relative">
 
                 {/* 操作面板 */}
-                <div className="p-3 sm:p-6 bg-[#FFFDF5] border-b-4 border-[#2D3436] flex flex-col lg:flex-row gap-4 sm:gap-6 items-stretch">
+                <div className="px-3 pb-3 sm:px-6 sm:pb-6 pt-2 sm:pt-4 border-b-2 border-[var(--ink)] flex flex-col lg:flex-row gap-4 sm:gap-6 items-stretch" style={{ background: 'var(--paper-2)' }}>
                     <InputPanel
                         rawInput={rawInput}
                         setRawInput={setRawInput}
@@ -958,26 +966,40 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
 
                     {/* 正在查看其他用戶學生的提示條 */}
                     {viewingUser && (
-                        <div className="mb-4 p-3 sm:p-4 bg-[#54A0FF]/20 border-2 border-[#54A0FF] rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div
+                            className="mb-4 p-3 sm:p-4 b-ink r-card sh-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+                            style={{ background: 'var(--sky-soft)' }}
+                            role="status"
+                        >
                             <div className="flex items-center gap-3 min-w-0">
                                 {viewingUser.photoURL ? (
-                                    <img src={viewingUser.photoURL} alt="" className="w-10 h-10 rounded-full border-2 border-[#54A0FF] shrink-0" />
+                                    <img
+                                        src={viewingUser.photoURL}
+                                        alt=""
+                                        className="w-10 h-10 rounded-full border-2 border-[var(--ink)] shrink-0"
+                                    />
                                 ) : (
-                                    <div className="w-10 h-10 bg-[#FECA57] rounded-full border-2 border-[#54A0FF] flex items-center justify-center text-lg shrink-0">👤</div>
+                                    <div
+                                        className="w-10 h-10 rounded-full border-2 border-[var(--ink)] flex items-center justify-center text-[14px] font-black shrink-0"
+                                        style={{ background: 'var(--honey)' }}
+                                    >
+                                        {(viewingUser.displayName || '?').charAt(0).toUpperCase()}
+                                    </div>
                                 )}
                                 <div className="min-w-0">
-                                    <p className="font-bold text-[#2D3436] text-sm sm:text-base truncate">
+                                    <p className="font-bold text-[13px] sm:text-[14px] truncate text-[var(--ink)]">
                                         ✏️ 管理員模式：正在編輯 {viewingUser.displayName} 的學生資料
                                     </p>
-                                    <p className="text-xs text-[#636E72] truncate">
+                                    <p className="text-[11.5px] text-[var(--ink-soft)] truncate font-mono">
                                         {viewingUser.email}
-                                        {viewingUser.customSchoolName && ` • ${viewingUser.customSchoolName}`}
+                                        {viewingUser.customSchoolName && ` · ${viewingUser.customSchoolName}`}
                                     </p>
                                 </div>
                             </div>
                             <button
                                 onClick={handleBackToMyStudents}
-                                className="btn-pop px-4 py-2 bg-[#54A0FF] text-white text-sm font-bold shrink-0"
+                                style={{ background: 'var(--sky)' }}
+                                className="b-ink sh-btn r-btn px-3.5 h-9 inline-flex items-center gap-1.5 text-[12.5px] font-bold btn-press shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft"
                             >
                                 ← 返回我的學生
                             </button>
@@ -987,6 +1009,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                     {/* 搜尋與篩選列 */}
                     {!viewingUser && (
                         <SearchBar
+                            ref={searchBarRef}
                             searchQuery={searchQuery}
                             setSearchQuery={setSearchQuery}
                             filters={searchFilters}
@@ -1044,6 +1067,23 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
 
             {/* 頁尾 */}
             <Footer />
+
+            {/* 行動裝置底部 Tab Bar（< md 才渲染） */}
+            <MobileTabBar
+                isSidebarOpen={isSidebarOpen}
+                setIsSidebarOpen={setIsSidebarOpen}
+                onOpenTemplates={() => setIsTemplateModalOpen(true)}
+                onOpenDashboard={() => setIsDashboardOpen(true)}
+                onOpenClasses={() => setIsClassModalOpen(true)}
+                onOpenImportExport={() => setIsImportExportOpen(true)}
+                onOpenPrint={() => setIsPrintModalOpen(true)}
+                onOpenSettings={() => setIsApiKeyModalOpen(true)}
+                onOpenAdmin={() => setIsAdminPanelOpen(true)}
+                isAdmin={isAdmin}
+                hasApiKey={apiKeyConfigured}
+                templateCount={templateCount}
+                pendingCount={pendingCount}
+            />
 
             {/* PWA 安裝提示 */}
             <InstallPrompt />
