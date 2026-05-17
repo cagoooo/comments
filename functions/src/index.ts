@@ -11,6 +11,8 @@ import { handleCreateBatch, handleGetBatchStatus } from './controllers/batch';
 
 // 定義 Secret
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
+const lineToken = defineSecret('COMMENTS_LINE_CHANNEL_ACCESS_TOKEN');
+const lineAdminId = defineSecret('COMMENTS_LINE_ADMIN_USER_ID');
 
 // 初始化 Firebase Admin
 admin.initializeApp();
@@ -40,10 +42,13 @@ export const api = onRequest(
         region: 'asia-east1',
         timeoutSeconds: 60,
         memory: '256MiB',
-        secrets: [geminiApiKey]
+        secrets: [geminiApiKey, lineToken, lineAdminId]
     },
     app
 );
 
 // 匯出定時任務
 export { weeklyUsageReport, dailyCleanup } from './scheduled/reports';
+
+// 匯出使用者生命週期 LINE 通知 (Firestore triggers)
+export { onUserCreated, onUserUpdated } from './triggers/userEvents';

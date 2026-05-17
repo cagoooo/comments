@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthenticatedRequest, GenerateRequest, ApiResponse } from '../types';
 import { generateComment } from '../services/gemini';
 import { checkQuota } from '../services/quota';
+import { notifyApiError } from '../services/notify-line';
 import * as admin from 'firebase-admin';
 
 /**
@@ -104,9 +105,22 @@ export const handleGenerate = async (
         // 記錄失敗使用量
         await recordUsage(userId, false);
 
+        const errMsg = error instanceof Error ? error.message : '生成失敗';
+
+        // LINE 告警 (best-effort)
+        void notifyApiError({
+            endpoint: 'POST /generate',
+            userUid: userId,
+            userEmail: req.user?.email,
+            errorMessage: errMsg,
+            extraFields: [
+                { icon: '🧑‍🎓', label: '學生', value: name || '—' }
+            ]
+        });
+
         res.status(500).json({
             success: false,
-            error: error instanceof Error ? error.message : '生成失敗'
+            error: errMsg
         } as ApiResponse);
     }
 };

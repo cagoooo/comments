@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthenticatedRequest, BatchRequest, ApiResponse } from '../types';
 import { generateComment } from '../services/gemini';
 import { checkQuota } from '../services/quota';
+import { notifyApiError } from '../services/notify-line';
 import * as admin from 'firebase-admin';
 
 /**
@@ -108,9 +109,21 @@ export const handleCreateBatch = async (
     } catch (error) {
         console.error('建立批次任務失敗:', error);
 
+        const errMsg = error instanceof Error ? error.message : '建立批次任務失敗';
+
+        void notifyApiError({
+            endpoint: 'POST /batch',
+            userUid: userId,
+            userEmail: req.user?.email,
+            errorMessage: errMsg,
+            extraFields: [
+                { icon: '📊', label: '學生數', value: String(students?.length || 0) }
+            ]
+        });
+
         res.status(500).json({
             success: false,
-            error: error instanceof Error ? error.message : '建立批次任務失敗'
+            error: errMsg
         } as ApiResponse);
     }
 };
@@ -211,10 +224,25 @@ const processBatchJob = async (
     }
 
     // 更新任務狀態為完成
+    const finalStatus: BatchStatus = failedCount === students.length ? 'failed' : 'completed';
     await jobRef.update({
-        status: failedCount === students.length ? 'failed' : 'completed',
+        status: finalStatus,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
+
+    // 整批全失敗時推一條 LINE 告警 (best-effort)
+    if (finalStatus === 'failed') {
+        void notifyApiError({
+            endpoint: 'POST /batch (background)',
+            userUid: userId,
+            errorMessage: `批次任務 ${jobId} 全部 ${students.length} 位學生皆失敗`,
+            errorKey: `batch-all-failed::${userId}`,
+            extraFields: [
+                { icon: '🆔', label: 'Job', value: jobId },
+                { icon: '❌', label: '失敗數', value: `${failedCount} / ${students.length}` }
+            ]
+        });
+    }
 };
 
 /**
