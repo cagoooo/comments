@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthenticatedRequest, AdjustRequest, ApiResponse } from '../types';
 import { adjustComment as adjustCommentService } from '../services/gemini';
+import { notifyApiError } from '../services/notify-line';
 
 /**
  * 評語調整控制器
@@ -54,9 +55,21 @@ export const handleAdjust = async (
     } catch (error) {
         console.error('調整評語失敗:', error);
 
+        const errMsg = error instanceof Error ? error.message : '調整失敗';
+
+        void notifyApiError({
+            endpoint: 'POST /adjust',
+            userUid: userId,
+            userEmail: req.user?.email,
+            errorMessage: errMsg,
+            extraFields: [
+                { icon: '🔧', label: '調整類型', value: adjustType || '—' }
+            ]
+        });
+
         res.status(500).json({
             success: false,
-            error: error instanceof Error ? error.message : '調整失敗'
+            error: errMsg
         } as ApiResponse);
     }
 };
