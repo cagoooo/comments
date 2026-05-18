@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     School, ChevronDown, Shield, Heart, FileSpreadsheet, Printer,
-    BarChart3, Settings, BookOpen, X, MoreVertical, LogOut,
+    BarChart3, Settings, BookOpen, X, MoreVertical, LogOut, Activity,
 } from 'lucide-react';
 import { Btn, BeeMascot } from './atoms';
 
@@ -48,6 +48,7 @@ const Header = ({
     onOpenImportExport,
     onOpenPrint,
     onOpenDashboard,
+    onOpenUsageDashboard,
     onLogout,
     hasApiKey,
     templateCount = 0,
@@ -59,11 +60,16 @@ const Header = ({
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
-    // MoreMenu 項目（< lg 時收納 Excel / 列印 / 統計 / API）
-    const moreMenuItems = [
+    // MoreMenu 項目分組：
+    //   - alwaysItems: 在 md+ 全部尺寸都顯示（lg+ 主列無對應按鈕的進階功能）
+    //   - tabletOnlyItems: 只在 md~lg 顯示（lg+ 已有對應的 top-level 按鈕，重複呈現會混亂）
+    const moreMenuAlwaysItems = [
+        { Icon: Activity, label: '使用量儀表板', onClick: onOpenUsageDashboard, dot: 'sky' },
+    ];
+    const moreMenuTabletOnlyItems = [
         { Icon: FileSpreadsheet, label: 'Excel 匯入/匯出', onClick: onOpenImportExport, dot: 'sky' },
         { Icon: Printer, label: '列印與 PDF', onClick: onOpenPrint, dot: 'peach' },
-        { Icon: BarChart3, label: '統計儀表板', onClick: onOpenDashboard, dot: 'mint' },
+        { Icon: BarChart3, label: '班級統計', onClick: onOpenDashboard, dot: 'mint' },
         {
             Icon: Settings,
             label: hasApiKey ? 'API 設定 ✓' : 'API 設定 ⚠️',
@@ -183,8 +189,11 @@ const Header = ({
                         />
                     </div>
 
-                    {/* 平板（md~lg）：更多選單 — 手機(< md)整個 nav 收進 MobileTabBar */}
-                    <div className="hidden md:inline-flex lg:hidden relative">
+                    {/* 更多選單：md+ 全尺寸顯示
+                          - md~lg：列出全部進階項（Excel / 列印 / 統計 / 使用量 / API）
+                          - lg+：只列出未在主列出現的項目（使用量）
+                        手機(< md) 整個 nav 收進 MobileTabBar，不渲染這個下拉 */}
+                    <div className="hidden md:inline-flex relative">
                         <Btn
                             color={hasApiKey ? 'paper' : 'coral'}
                             icon={<MoreVertical size={15} strokeWidth={1.8} />}
@@ -193,7 +202,7 @@ const Header = ({
                             ariaLabel="更多功能"
                             className={!hasApiKey ? 'animate-pulse' : ''}
                         >
-                            <span className="hidden sm:inline">更多</span>
+                            <span className="hidden xl:inline">更多</span>
                         </Btn>
 
                         {isMoreMenuOpen && (
@@ -203,7 +212,31 @@ const Header = ({
                                     onClick={() => setIsMoreMenuOpen(false)}
                                 />
                                 <div className="absolute right-0 top-full mt-2 bg-white b-ink sh-card r-card py-2 w-56 z-50">
-                                    {moreMenuItems.map((item) => (
+                                    {/* 只在 md~lg 渲染：lg+ 已有對應的主列按鈕 */}
+                                    <div className="lg:hidden">
+                                        {moreMenuTabletOnlyItems.map((item) => (
+                                            <button
+                                                key={item.label}
+                                                onClick={() => {
+                                                    item.onClick?.();
+                                                    setIsMoreMenuOpen(false);
+                                                }}
+                                                className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-[var(--paper-2)] transition-colors text-left btn-press"
+                                            >
+                                                <span
+                                                    className="w-7 h-7 r-btn b-ink flex items-center justify-center shrink-0"
+                                                    style={{ background: `var(--${item.dot}-soft)` }}
+                                                >
+                                                    <item.Icon size={14} strokeWidth={1.8} />
+                                                </span>
+                                                <span className="text-[13px] font-bold text-[var(--ink)]">{item.label}</span>
+                                            </button>
+                                        ))}
+                                        <div className="my-1.5 mx-3 border-t border-dashed border-[var(--line-soft)]" />
+                                    </div>
+
+                                    {/* 所有尺寸都渲染（lg+ 上方 tabletOnly 區整塊隱藏，這裡仍可見） */}
+                                    {moreMenuAlwaysItems.map((item) => (
                                         <button
                                             key={item.label}
                                             onClick={() => {

@@ -41,6 +41,7 @@ const AdminPanel = lazy(() => import('./components/AdminPanel'));
 const ImportExportModal = lazy(() => import('./components/ImportExportModal'));
 const PrintModal = lazy(() => import('./components/PrintModal'));
 const DashboardModal = lazy(() => import('./components/DashboardModal'));
+const UsageDashboardModal = lazy(() => import('./components/UsageDashboardModal'));
 
 // Firebase
 import { templateService, classService, historyService, settingsService, adminConfigService, userService, USER_ROLES, studentService } from './firebase';
@@ -128,6 +129,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
 
     // 班級統計儀表板
     const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+    const [isUsageDashboardOpen, setIsUsageDashboardOpen] = useState(false);
 
     // 待審核用戶數量（管理員用）
     const [pendingCount, setPendingCount] = useState(0);
@@ -909,6 +911,13 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                     students={viewingUser ? viewingStudents : students}
                     currentClassName={viewingUser ? `${viewingUser.displayName} 的學生` : currentClassName}
                 />
+
+                {/* 使用量儀表板（API 配額 / 30 天趨勢 / admin 全校排行）*/}
+                <UsageDashboardModal
+                    isOpen={isUsageDashboardOpen}
+                    onClose={() => setIsUsageDashboardOpen(false)}
+                    isAdmin={isAdmin}
+                />
             </Suspense>
 
             {/* 頁首 */}
@@ -922,6 +931,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                 onOpenImportExport={() => setIsImportExportOpen(true)}
                 onOpenPrint={() => setIsPrintModalOpen(true)}
                 onOpenDashboard={() => setIsDashboardOpen(true)}
+                onOpenUsageDashboard={() => setIsUsageDashboardOpen(true)}
                 onLogout={onLogout}
                 hasApiKey={apiKeyConfigured}
                 templateCount={templateCount}
@@ -1074,6 +1084,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                 setIsSidebarOpen={setIsSidebarOpen}
                 onOpenTemplates={() => setIsTemplateModalOpen(true)}
                 onOpenDashboard={() => setIsDashboardOpen(true)}
+                onOpenUsageDashboard={() => setIsUsageDashboardOpen(true)}
                 onOpenClasses={() => setIsClassModalOpen(true)}
                 onOpenImportExport={() => setIsImportExportOpen(true)}
                 onOpenPrint={() => setIsPrintModalOpen(true)}
