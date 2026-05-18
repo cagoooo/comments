@@ -876,6 +876,89 @@ Gemini API 直接生成不同語言，UI 加語言切換 button。
 
 ---
 
+### 🅛 v2.15.0 學期報告解鎖的「印刷三件套」連動（NEW）
+
+> v2.15.0 G2 學期報告 PDF 已建立完整印刷基建（`#semester-report` div + 蜜糖紙感 print CSS + window.print 觸發模式）。下列方向都**直接複用既有基建**，開發成本砍半。
+
+#### L1. 獎狀印製整合（F2 的具象版）⭐⭐⭐⭐ — 印刷基建首發應用
+**預估**：4-6 小時（**砍半** vs 原本 F2 估的 1 天）｜**價值**：超高（教學現場學期末常用）
+
+直接複用 v2.15.0 印刷基建：
+```
+新 modal: AwardCertificateModal.jsx
+├── 選學生（多選） + 獎項類別（學業/品德/服務/特殊表現/全勤）
+├── Gemini 自動生成獎狀詞句（短句 30-50 字，激勵向）
+├── 套印刷基建：每張獎狀獨佔一頁
+│   ├── 厚黑邊框 + 4 角紙膠帶
+│   ├── 校徽位置 + 校長簽名線
+│   ├── 蜜糖底色 + 大字獎項名
+│   └── Gemini 生成的獎狀詞句
+└── 一鍵列印（瀏覽器 PDF 對話框）
+```
+**為什麼 ROI 超高**：印刷基建已備，主要新工作就 prompt + 模板 layout。可直接搭 G2 modal 同列入口。
+
+#### L2. 家長聯絡簿模板（F1 的具象版）⭐⭐⭐
+**預估**：4-6 小時（**砍半** vs 原本 F1 估的 3-4h × 2）｜**價值**：高（高使用頻率）
+
+新增 modal `WeeklyReportModal.jsx`：
+```
+功能設計：
+├── 每週 / 每月一次的「短評語」模式
+│   ├── 字數 30-50（vs 學期評語 80-200）
+│   ├── 語氣更口語、聚焦本週事件
+│   └── 不需要學期維度的「整體表現」
+├── 套用相同蜜糖紙感印刷 layout
+│   ├── A4 一頁可塞 4 位學生（節省紙張）
+│   └── 撕下式設計（每生一張小卡）
+└── 家長可拿回家貼聯絡簿
+```
+
+#### L3. 歷年學期報告 archive ⭐⭐⭐
+**預估**：3-4 小時 ｜**價值**：中高（教師現場痛點：去年寫過的不見了）
+
+學期末產出的報告 → 自動存進 Firestore：
+```
+新 collection: users/{uid}/reports/{semesterId}
+├── semester: '114-上'  // 學年度-上下學期
+├── classId / className
+├── studentSnapshot: [...]  // 凍結當時學生 + 評語狀態
+├── pdfMetadata: { totalPages, generatedAt, ... }
+└── tags: { wordCounts, topTraits, ... }
+
+UI：
+├── 新 tab「歷年報告」
+├── 列出過去學期，每筆可一鍵「重印 PDF」
+└── 學生跨學期評語對比（學期初 vs 學期末）
+```
+**衍生價值**：跟 E2 學期累積評語（學期總評）可深度合作 — 拿過去 4 學期 snapshot 餵 Gemini 出國小六年總評。
+
+#### L4. 單一學生 PDF 抽印 ⭐⭐
+**預估**：1-2 小時 ｜**價值**：中
+
+家長個別來要 PDF 時不用印整本 30 頁。在 StudentRow 加「📄 列印此生」按鈕：
+- 重用 SemesterReportPrintable，傳 students=[singleStudent]
+- 自動省略名單頁 + 統計頁，只印封面 + 該生頁
+- 檔名建議 `{學生姓名}_{學期}_評語.pdf`
+
+#### L5. 蜜糖紙感獎狀 / 通知書「印刷主題庫」 ⭐⭐
+**預估**：1-2 天 ｜**價值**：中（看接案需求）
+
+把印刷基建抽象成「主題 template」：
+```
+src/components/printing/
+├── PrintShell.jsx              # 印刷外殼（page-break / @media print）
+├── themes/
+│   ├── semester-report/        # ← v2.15.0 既有
+│   ├── award-certificate/      # ← L1
+│   ├── weekly-contact/         # ← L2
+│   ├── parent-notice/          # 家長通知書（請假/獎懲）
+│   └── student-transfer/       # 轉學證明
+└── PrintThemePicker.jsx        # 選主題的下拉
+```
+未來新加印刷類型只要新增一個 theme 資料夾。
+
+---
+
 ### 🅖 整合與資料
 
 #### G1. Google Classroom 整合 ⭐⭐
@@ -972,6 +1055,37 @@ Vite plugin `vite-plugin-remove-console` 自動 prod build 刪除。
 
 GitHub Actions 每次 PR 跑 Lighthouse CI，分數低於 80 自動 fail。
 
+#### TD9. PrintModal 改用 window.print() — 砍 jspdf + html2canvas ⭐⭐⭐ — NEW
+**預估**：1-2 小時 ｜**價值**：中高
+
+既有 [PrintModal.jsx](src/components/PrintModal.jsx) **還在用 jspdf + html2canvas**（v2.15.0 G2 學期報告已示範了正確做法）：
+- 主因：`handleExportPDF` 用 html2canvas 截圖 + jspdf 組合
+- 雷區：依 [pdf-export-print-best-practice](https://github.com/cagoooo) skill 的 10 次踩雷案例，這條路會偏移、切字、留白
+- **dist/PrintModal-*.js 目前 598 KB / 178 KB gzip**（含 jspdf + html2canvas）
+- 雖然是 lazy chunk，但每次有人用「列印」都要下載 178 KB
+
+改造：
+```diff
+- import { jsPDF } from 'jspdf';
+- import html2canvas from 'html2canvas';
++ // 沿用 G2 的 window.print() + @media print pattern
+
+  const handleExportPDF = async () => {
+-   // 用 html2canvas + jsPDF（會偏移、切字）
++   // 跟 G2 一樣，window.print() 讓使用者選「另存為 PDF」
++   setTimeout(() => window.print(), 400);
+  };
+```
+
+**砍掉 dependency**：
+```bash
+npm uninstall jspdf html2canvas
+```
+
+**預期 bundle 收益**：PrintModal chunk 598 KB → ~10 KB（**−588 KB raw / ~−170 KB gzip lazy**）
+
+⚠️ **注意**：PrintModal 的 `.print-content` 結構保留，CSS `@media print` 規則保留，只是動作從「html2canvas 截圖」變成「直接列印」。
+
 ---
 
 ### 🅘 PWA / 行動體驗
@@ -1023,70 +1137,135 @@ iOS Safari 沒有 add-to-home-screen 自動 prompt，可加教學截圖（一次
 
 ---
 
-## 📊 v2.11.0 後優先級矩陣（Top 15）
+## 📊 已完成回顧（v2.11.0 → v2.15.0，7 大項全綠）
 
-| # | 方向 | 預估工時 | 價值 | 推薦序 |
+| # | 方向 | 預估 | 實際 | 版本 |
 |---|---|:---:|:---:|:---:|
-| ✅ | ~~🌙 H1 深色模式~~ | ~~3-4h~~ | ~~超高~~ | **已完成 v2.13.0** |
-| ✅ | ~~🔐 C1 App Check~~ | ~~3-4h~~ | ~~超高~~ | **Phase 1 已完成 v2.13.0**（等使用者註冊 reCAPTCHA 後切 enforce）|
-| ✅ | ~~📊 B2 使用儀表板~~ | ~~4-5h~~ | ~~高~~ | **已完成 v2.12.0** |
-| 4 | 💬 **D2 Streaming 評語生成** | 1-2 天 | 超高 | 第 4（UX 大躍進）|
-| 5 | 🎓 **G2 學期報告 PDF** | 1 天 | 超高 | 第 5（學期末必用）|
-| 6 | 📲 **A1 教師 LINE 綁定** | 3-4 天 | 超高 | 第 6（解鎖 5 種通知場景）|
-| 7 | 🤖 **E1 評語風格學習** | 1 週 | 超高 | 第 7（最大評語品質升級）|
-| 8 | 📅 **A2 每日彙整 LINE 報告** | 3h | 高 | 第 8（複用 weeklyReport）|
-| 9 | 🔥 **D1 Cloud Tasks 佇列** | 1 週 | 高 | 第 9（可靠性升級）|
-| 10 | 📝 **E2 學期累積評語** | 2-3h | 高 | 第 10（學期末殺手）|
-| 11 | 🛡️ **C2 Firestore Rules Audit** | 2-3h | 高 | 第 11（安全 audit）|
-| 12 | 🌐 **G1 Google Classroom 整合** | 1 週 | 高 | 第 12（看學校採用度）|
-| 13 | 🏆 **F2 獎狀印製整合** | 1 天 | 中高 | 第 13（展示設計系統）|
-| 14 | 📱 **J1 PWA Web Push** | 1 天 | 高 | 第 14（替代 LINE 綁定的 alt 路）|
-| 15 | 🚨 **B1 錯誤集中與分類** | 4h | 高 | 第 15（debug 利器）|
+| ✅ | 📊 B2 使用儀表板 | 4-5h | ~4h | v2.12.0 |
+| ✅ | 🌙 H1 深色模式 | 3-4h | ~3h | v2.13.0 |
+| ✅ | 🔐 C1 App Check Phase 1 | 3-4h | ~2h | v2.13.0 |
+| ✅ | 📲 A2 每日 LINE 彙整 | 3h | ~1.5h | v2.14.0 |
+| ✅ | 🛡️ C2 Firestore Rules audit | 2-3h | ~1.5h | v2.14.0 |
+| ✅ | 📦 TD7 主 bundle 瘦身 | 1-2h | ~30 min | v2.14.1 |
+| ✅ | 🎓 G2 學期報告 PDF | 1 天 | ~1.5h | v2.15.0 |
+
+**累積數字**：
+- 預估時數合計 **18-25 小時 + 1 天 = ~3 工作天**
+- 實際時數合計 **~14 小時 = 不到 2 個工作天**
+- **效率 ~1.4× 預估**（主要因為 v2.11 設計系統的紅利越收割越多，token / atoms 重複利用）
+
+**主 bundle 趨勢**：
+| 版本 | 主 bundle | gzip | 變化 |
+|---|---|---|---|
+| v2.11.0 | 1.20 MB | 350 KB | 起點 |
+| v2.13.0 | 1.21 MB | 354 KB | +3 KB（App Check SDK）|
+| v2.14.1 | 788 KB | 208 KB | **−146 KB（xlsx lazy）** |
+| v2.15.0 | 788 KB | 208 KB | +0 KB（G2 純 lazy）|
 
 ---
 
-## 📅 建議開發時程
+## 🚀 v2.15.0 後優先級矩陣（Top 15）
 
-### 🥇 立即可做（1-2 週，總計 ~25h）
-**主題：把 v2.11.0 設計系統的紅利吃滿 + 把 v2.10.0 通知基建延伸**
+> v2.15.0 已建好印刷基建，**L1-L5 學期末三件套** 因此 ROI 大幅提升
 
-- [x] **H1 深色模式**（實際 ~3h）— token 接管 dark theme ✅ v2.13.0
-- [x] **C1 App Check 啟用**（實際 ~2h）— Phase 1 code 整合 ✅ v2.13.0（等 reCAPTCHA 註冊後切 enforce）
-- [x] **A2 每日彙整 LINE 報告**（實際 ~1.5h）— 改 weeklyReport ✅ v2.14.0
-- [x] **C2 Firestore Rules Audit**（實際 ~1.5h）— 安全 audit ✅ v2.14.0
-- [x] **B2 使用儀表板**（實際 ~4h）— 套 KPI atom + recharts ✅ v2.12.0
-- [ ] **TD6 console.log 清理**（30 min）— 順便做
-- [x] **TD7 Bundle 分析 + xlsx/pdf dynamic import**（實際 ~30 min）— 主 bundle 瘦身 145 KB gzip ✅ v2.14.1
+| # | 方向 | 預估 | 價值 | 推薦序 | 為什麼 |
+|---|---|:---:|:---:|:---:|---|
+| 🥇 1 | 📝 **E2 學期累積評語** | 2-3h | 超高 | **下一個必做** | 跟剛做的 G2 直接合作（按一鍵 Gemini 看完歷史 → 出學期總評 → 進入 PDF）|
+| 🥈 2 | 🏆 **L1 獎狀印製** | 4-6h | 超高 | 第 2 | G2 印刷基建已備 → 套獎狀模板就行（**砍半工時**）|
+| 🥉 3 | 💬 **D2 Streaming 評語生成** | 1-2 天 | 超高 | 第 3 | 字一個一個浮現，UX 大躍進（搭 v2.11 動效是最佳組合）|
+| 4 | 📲 **A1 教師 LINE 綁定** | 3-4 天 | 超高 | 第 4 | 解鎖 5 種通知（配額預警 / 批次完成 / 未寫評語提醒等）|
+| 5 | 🔐 **C1.5 App Check Enforce** | 1-2h | 超高 | 第 5 | Phase 1 已備，等使用者註冊 reCAPTCHA + 觀察 1-2 天就切 enforce |
+| 6 | 📦 **TD9 PrintModal 砍 jspdf** | 1-2h | 中高 | 第 6 | 砍 lazy chunk ~170 KB gzip + 跟 G2 pattern 一致 |
+| 7 | 🤖 **E1 評語風格學習** | 1 週 | 超高 | 第 7 | Few-shot prompt，最大評語品質升級 |
+| 8 | 📅 **L3 歷年學期報告 archive** | 3-4h | 中高 | 第 8 | 教師現場痛點（去年寫的不見了）|
+| 9 | 📄 **L4 單一學生 PDF 抽印** | 1-2h | 中 | 第 9 | 家長個別來要不用印整本 |
+| 10 | 📝 **L2 家長聯絡簿模板** | 4-6h | 中高 | 第 10 | 每週使用，G2 基建直接複用 |
+| 11 | 🚨 **B1 錯誤集中與分類** | 4h | 高 | 第 11 | debug 利器 + Firestore errors collection |
+| 12 | 📱 **J1 PWA Web Push** | 1 天 | 高 | 第 12 | LINE 綁定的 alt 路（不用綁定就能收推播）|
+| 13 | 🔥 **D1 Cloud Tasks 佇列** | 1 週 | 高 | 第 13 | 可靠性升級（100+ 學生不 timeout）|
+| 14 | 🌐 **G1 Google Classroom 整合** | 1 週 | 高 | 第 14（看學校採用度）|
+| 15 | 🅗 **H1.5 深色模式 audit** | 2-3h | 中 | 第 15 | 找出實機看起來怪的 modal 修補 |
 
-### 🥈 短期目標（2-4 週，總計 ~5-7 天）
-**主題：UX 大躍進 + 評語品質**
+---
+
+## 📅 建議開發時程（v2.15.0 後重排）
+
+### 🥇 立即可做（1-2 天，總計 ~8-12h）
+**主題：學期末利器版 Part 2 — 評語品質 + 印刷三件套深化**
+
+- [ ] **E2 學期累積評語**（2-3h）⭐ — 跟 G2 完美合作
+- [ ] **L1 獎狀印製**（4-6h）⭐ — G2 印刷基建首發應用
+- [ ] **L4 單一學生 PDF 抽印**（1-2h）— 順手做
+- [ ] **TD9 PrintModal 改 window.print**（1-2h）— 砍 178 KB gzip lazy
+- [ ] **C1.5 App Check Enforce**（1-2h）— 等 reCAPTCHA 註冊後就切
+
+**做完可發 v2.16.0「學期末利器版 Part 2」**
+
+### 🥈 短期目標（1-2 週）
+**主題：UX 大躍進 + 教師端通知擴張**
 
 - [ ] **D2 Streaming 評語生成**（1-2 天）— 字一個一個浮現
-- [ ] **E2 學期累積評語**（2-3h）— 學期末準備好
-- [x] **G2 學期報告 PDF**（實際 ~1.5h）— 套 v2.11 紙感設計 ✅ v2.15.0
-- [ ] **B1 錯誤集中與分類**（4h）— errors collection + 儀表板
-- [ ] **A1 教師 LINE 綁定**（3-4 天）— Phase 2 流程
+- [ ] **A1 教師 LINE 綁定**（3-4 天）— 解鎖 5 種通知
+- [ ] **B1 錯誤集中與分類**（4h）— Firestore errors collection
+- [ ] **L3 歷年學期報告 archive**（3-4h）— 教師痛點
+- [ ] **L2 家長聯絡簿模板**（4-6h）— 高使用頻率
 
-### 🥉 中期目標（1-2 月，總計 ~3-4 週）
-**主題：可靠性 + 學習機制**
+### 🥉 中期目標（1-2 月）
+**主題：評語品質 AI 升級 + 可靠性**
 
-- [ ] **E1 評語風格學習**（1 週）— Few-shot prompt
-- [ ] **D1 Cloud Tasks 批次佇列**（1 週）— 可靠性升級
-- [ ] **F2 獎狀印製整合**（1 天）— 設計系統展示
+- [ ] **E1 評語風格學習**（1 週）— Few-shot prompt（**最大評語品質升級**）
+- [ ] **E3 評語品質分數**（3-4h）— Gemini 自評
+- [ ] **D1 Cloud Tasks 批次佇列**（1 週）— 可靠性
 - [ ] **J1 PWA Web Push**（1 天）— 推播門檻降低
 - [ ] **TD2 單元測試 Phase 1**（1 週）— atoms + utils
 - [ ] **TD1 TypeScript 遷移 Phase 1**（1 週）— utils / firebase
 
 ### 🏅 長期目標（3-6 月）
-**主題：生態整合 + 跨平台**
+**主題：生態整合 + 跨平台 + 工程健康**
 
 - [ ] **G1 Google Classroom 整合**（1 週）
+- [ ] **L5 印刷主題庫抽象化**（1-2 天）
 - [ ] **D4 多 LLM 後備**（1 天）
 - [ ] **D5 Cost Tracking 精確化**（4h）
 - [ ] **K1 即時協作**（8-12h）
 - [ ] **J2 Capacitor App 打包**（6-8h）
 - [ ] **TD1 TypeScript 完整遷移 Phase 2**（1-2 週）
 - [ ] **TD3 E2E 測試（Playwright）**（1 週）
+
+---
+
+## 🎯 最強組合推薦
+
+### Combo 1：學期末利器版 Part 2（v2.16.0，~10h，1-2 天）
+**E2 + L1 + L4 + TD9 + C1.5**
+- 把學期末 3 大產出（評語 / 報告 / 獎狀）一次補齊
+- 順手砍 178 KB gzip + 啟用 App Check enforce
+- ROI 極高，因為 v2.15.0 印刷基建已備好
+
+### Combo 2：通知與 UX 大躍進（v2.17.0，~1 週）
+**D2 + A1 + B1**
+- 字一個一個浮現（D2）讓老師再也不用看黑屏 3-8 秒
+- A1 教師個人 LINE 綁定後解鎖配額預警、批次完成提醒等
+- B1 錯誤集中收集 + Firestore archive
+
+### Combo 3：評語品質 AI 升級（v2.18.0，~1.5 週）
+**E1 + E3 + D1**
+- Few-shot prompt 老師自己過往評語當訓練樣本 → 學會老師口吻
+- Gemini 自評打分數
+- Cloud Tasks 把批次升級到無限可靠
+
+---
+
+## ⏸️ 已 deprecated / 不建議再優先做
+
+過去 roadmap 列過但現在看不該優先做的項目：
+
+| 項目 | 為什麼降級 |
+|---|---|
+| 🅗 H6. Design Tokens 對外輸出 | 還沒打算做 mobile app，先擱置 |
+| 🅓 D6. 切 region 到 asia-east1 | 已在 asia-east1 上線（v2.10 時就改了）|
+| 🅗 H3. 季節主題 | 趣味性高但商業價值低 |
+| 🅖 G4. Excel 進階匯出 | 既有 xlsx 已足夠老師需求 |
 
 ---
 
@@ -1121,40 +1300,62 @@ iOS Safari 沒有 add-to-home-screen 自動 prompt，可加教學截圖（一次
 
 ---
 
-## 💡 下一步建議（基於 v2.11.0 的最強組合）
+## 💡 下一步建議（基於 v2.15.0 的最強組合）
 
-> 🥇 **第 1 推薦：深色模式（H1）** — 3-4 小時
-> - 設計 token 已抽乾淨，**95% 已完成**
-> - 老師夜間備課常見場景
-> - 展示「設計系統正確抽象」最佳例子
+> 🥇 **第 1 推薦：E2 學期累積評語** — 2-3 小時 ｜**ROI 爆表**
+> - 跟剛做的 G2 學期報告 PDF **直接合作**：按一鍵 Gemini 看完該生所有歷史評語 → 出學期總評 → 進報告 PDF
+> - 後端：新 `/generateSemesterSummary` endpoint，input `{ studentId, semesterMonths }`
+> - 前端：學期報告 modal 加「自動產出總評」按鈕，把現有評語替換成 Gemini 結合歷史的總評
+> - 學期末教師最痛點，做完老師會大愛
 
-> 🥈 **第 2 推薦：App Check 啟用（C1）** — 3-4 小時
-> - 接續 v2.10.0 通知基建，從「事後告警」進化到「事前阻擋」
-> - 套用 `firebase-ci-troubleshooter` skill Fix #12 標準流程
+> 🥈 **第 2 推薦：L1 獎狀印製** — 4-6 小時 ｜**G2 印刷基建首發應用**
+> - 直接複用 v2.15.0 印刷基建（`#award-certificate` div + window.print + 蜜糖紙感）
+> - 主要新工作：獎狀詞句 Gemini prompt + 校徽/簽名 layout
+> - 跟 G2 modal 同列入口，老師學期末三件套（評語/報告/獎狀）一次搞定
 
-> 🥉 ~~第 3 推薦：使用儀表板（B2）~~ — **已完成 v2.12.0** ✅
-> - 替補位：**📲 A2 每日彙整 LINE 報告** — 3 小時，改既有 `weeklyUsageReport`
-> - 或：**💬 D2 Streaming 評語生成** — 1-2 天，UX 大躍進（搭 v2.11 動效）
+> 🥉 **第 3 推薦：TD9 PrintModal 改 window.print** — 1-2 小時 ｜**順手做**
+> - 砍掉 jspdf + html2canvas（~178 KB gzip lazy chunk）
+> - 跟 G2 pattern 統一，未來印刷都走同一條路
+> - 「重做不到 2 小時，少 178 KB」這 ROI 太划算
 
-> 🏅 **連續組合推薦（一週可完成）**：H1 + C1 + A2 + C2 + B2 + TD6 + TD7
-> - 總計約 17-22 小時
-> - 涵蓋「視覺 + 安全 + 監控 + 效能 + 整理」五大方向
-> - 完成後可發 v2.12.0「設計系統紅利收割版」
+> 🏅 **連續組合推薦（v2.16.0 學期末利器版 Part 2，~10 小時可完成）**：
+> **E2 + L1 + L4 + TD9 + C1.5**
+> - E2 學期累積評語（2-3h）
+> - L1 獎狀印製（4-6h）
+> - L4 單一學生 PDF 抽印（1-2h）
+> - TD9 PrintModal 改 window.print（1-2h）
+> - C1.5 App Check Enforce 切換（1-2h，等使用者註冊 reCAPTCHA）
+> - 涵蓋「評語品質 + 印刷三件套 + Bundle 瘦身 + 安全升級」四大方向
+> - 完成後可發 v2.16.0「學期末利器版 Part 2」
 
 ---
 
-## 📐 設計原則總結（從 v2.10.0 + v2.11.0 學到的）
+## 📐 設計原則總結（從 v2.10 → v2.15 學到的）
 
-1. **基建優先於功能**：先把通知 / 監控 / 錯誤告警基建立好，後續所有功能都能直接套用
-2. **best-effort 不影響主流程**：通知失敗絕不能讓使用者主流程掛掉
+### 工程紀律
+1. **基建優先於功能**：先把通知 / 監控 / 錯誤告警 / **印刷** 基建立好，後續所有功能都能直接套用（v2.15.0 之後新加印刷類功能成本砍半就是證明）
+2. **best-effort 不影響主流程**：通知失敗、App Check 失敗、Theme 寫入失敗，**永遠不能** 讓使用者主流程掛掉
 3. **節流是必須的**：60 秒 throttle 防洗版，未來所有外部通知都該套
-4. **UX 要實機驗證**：build 過 / curl 200 不代表卡片好看，每次 UI 改動都要請使用者實機看一眼
-5. **Skill 是長期資產**：踩雷經驗寫進 skill 庫，未來新專案自動避雷
-6. **Secret 永遠走 Manager**：絕不寫 `.env` / `git` / `chat`，永遠 pipe 到 Secret Manager
-7. **公開設計也是安全策略**：Firebase Web Key 公開是設計使然，真正的保護來自 referrer + API restrictions 不是保密
-8. **設計系統先抽 token，再做 atoms，最後重寫頁面** ← v2.11.0 12 batch 順序的關鍵
-9. **0 破壞性 props 改動是設計系統升級的底線**：商業邏輯絕不動，視覺重寫不影響資料層
-10. **`HANDOFF.md` 是設計師與工程師的合約**：所有 token / 變體 / RWD 斷點寫下來，避免口頭傳達失真
+4. **Secret 永遠走 Manager**：絕不寫 `.env` / `git` / `chat`，永遠 pipe 到 Firebase Secret Manager
+5. **公開設計也是安全策略**：Firebase Web Key 公開是設計使然，真正的保護來自 referrer + API restrictions 不是保密
+6. **CSS override 比 sweep 重構聰明**（v2.13.0 教訓）：與其 sweep 27 個檔案改 `bg-white` → `bg-card`，不如加一條 `[data-mode="dark"] .bg-white { ... }` CSS override，零 component 改動
+
+### UX / 視覺
+7. **設計系統先抽 token，再做 atoms，最後重寫頁面** ← v2.11.0 12 batch 順序的關鍵
+8. **0 破壞性 props 改動是設計系統升級的底線**：商業邏輯絕不動，視覺重寫不影響資料層
+9. **`HANDOFF.md` 是設計師與工程師的合約**：所有 token / 變體 / RWD 斷點寫下來，避免口頭傳達失真
+10. **UX 要實機驗證**：build 過 / curl 200 不代表卡片好看，每次 UI 改動都要請使用者實機看一眼
+
+### Bundle 健康
+11. **核心元件必須 fail-fast 在 audit**（v2.14.1 教訓）：lazy modal 內的重 dep 不會影響主 bundle，**但核心元件靜態 import 重 dep 是隱形殺手**（InputPanel 拖了 600 KB xlsx 進主 bundle）
+12. **PDF 永遠走 `window.print()`**（v2.15.0 教訓）：跳過 jspdf / html2canvas 所有偏移、切字、留白雷區，**業界 Notion/Google Docs/GitHub 都是這個做法**
+
+### Skill 學習
+13. **Skill 是長期資產**：踩雷經驗寫進 skill 庫（這個 repo 已用上 5+ 個 skill），未來新專案自動避雷
+
+### v2.15.0 後新原則
+14. **印刷基建抽象化**：v2.15.0 已建好 `#semester-report` + 蜜糖紙感 print CSS pattern，未來所有印刷類功能（獎狀 / 聯絡簿 / 通知書）都複用同一機制 → 成本可砍半
+15. **AI 功能跟印刷基建配對**：E2（學期累積評語）+ G2（PDF） 是天然合作，L1（獎狀詞句）+ L1（獎狀印刷）也是 — **新功能設計時先問「能不能跟既有基建組合」**
 
 ---
 
