@@ -1,0 +1,458 @@
+/* ============================================================
+ * 學期報告 PDF — 蜜糖紙感印刷樣式
+ *
+ * 螢幕上 #semester-report display:none
+ * 列印時 @media print 把它變成唯一顯示的內容
+ * ============================================================ */
+
+@media print {
+    /* 頁面設定 */
+    @page {
+        size: A4;
+        margin: 16mm 14mm 18mm 14mm;
+    }
+
+    /* 隱藏所有 body 直系子元素，只留 #semester-report */
+    body > *:not(#semester-report) {
+        display: none !important;
+    }
+
+    html, body {
+        background: #ffffff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* 強制顯示報告主體 */
+    #semester-report {
+        display: block !important;
+        position: static !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        background: #ffffff !important;
+        color: #1F1B16 !important;
+        font-family: 'Noto Sans TC', 'Microsoft JhengHei', 'PingFang TC', sans-serif !important;
+    }
+
+    /* ── 每一頁基本 ── */
+    .sr-page {
+        page-break-after: always;
+        break-after: page;
+        page-break-inside: avoid;
+        position: relative;
+        min-height: 250mm;
+    }
+    .sr-page:last-child {
+        page-break-after: auto;
+        break-after: auto;
+    }
+
+    /* 子區塊不被切 */
+    .sr-pdf-avoid {
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    /* ── 封面 ── */
+    .sr-cover-page {
+        text-align: center;
+        padding: 30mm 14mm 18mm;
+        border: 2.5px solid #1F1B16;
+        border-radius: 16px;
+        background: #FBF5E6 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .sr-cover-content {
+        max-width: 140mm;
+        margin: 0 auto;
+    }
+    .sr-cover-school {
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        color: #6B6258 !important;
+        text-transform: none;
+        margin-bottom: 16mm;
+    }
+    .sr-cover-bee {
+        font-size: 80px;
+        line-height: 1;
+        margin: 4mm 0 6mm;
+        transform: rotate(-4deg);
+        display: inline-block;
+    }
+    .sr-cover-title {
+        font-size: 36px;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        color: #1F1B16 !important;
+        margin: 4mm 0;
+    }
+    .sr-cover-divider {
+        width: 50mm;
+        height: 3px;
+        background: #F4B826 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        margin: 8mm auto;
+        border-radius: 3px;
+    }
+    .sr-cover-term {
+        font-size: 18px;
+        font-weight: 700;
+        color: #6B6258 !important;
+        margin-top: 12mm;
+    }
+    .sr-cover-class {
+        font-size: 28px;
+        font-weight: 900;
+        color: #1F1B16 !important;
+        margin: 4mm 0 16mm;
+    }
+    .sr-cover-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 4mm;
+        margin: 0 auto;
+        max-width: 100mm;
+        text-align: left;
+        font-size: 13px;
+        border-top: 1.5px dashed rgba(31, 27, 22, 0.3);
+        padding-top: 8mm;
+    }
+    .sr-cover-meta > div {
+        display: flex;
+        justify-content: space-between;
+        padding: 2mm 4mm;
+        border-bottom: 1px solid rgba(31, 27, 22, 0.1);
+    }
+    .sr-cover-label {
+        font-weight: 700;
+        color: #6B6258 !important;
+        letter-spacing: 0.1em;
+    }
+    .sr-cover-value {
+        font-weight: 700;
+        color: #1F1B16 !important;
+    }
+    .sr-cover-footer {
+        position: absolute;
+        bottom: 14mm;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 10px;
+        color: #A39C8F !important;
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+    .sr-cover-footer strong {
+        color: #F4B826 !important;
+    }
+
+    /* 紙膠帶（封面才有，列印保留 — 是封面的核心視覺） */
+    .sr-tape {
+        position: absolute;
+        width: 28mm;
+        height: 7mm;
+        background: rgba(244, 184, 38, 0.5) !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        border: 1px solid rgba(31, 27, 22, 0.15);
+    }
+    .sr-tape-tl {
+        top: 8mm;
+        left: 8mm;
+        transform: rotate(-6deg);
+    }
+    .sr-tape-tr {
+        top: 6mm;
+        right: 6mm;
+        transform: rotate(8deg);
+    }
+
+    /* ── 通用頁首 ── */
+    .sr-page-header {
+        border-bottom: 2px solid #1F1B16;
+        padding-bottom: 4mm;
+        margin-bottom: 8mm;
+    }
+    .sr-section-eyebrow {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.25em;
+        color: #6B6258 !important;
+        text-transform: uppercase;
+        font-family: 'JetBrains Mono', monospace !important;
+        display: block;
+        margin-bottom: 2mm;
+    }
+    .sr-page-title {
+        font-size: 24px;
+        font-weight: 900;
+        color: #1F1B16 !important;
+        margin: 0;
+        display: inline-block;
+    }
+    .sr-page-meta {
+        font-size: 11px;
+        color: #6B6258 !important;
+        margin-left: 4mm;
+    }
+    .sr-h3 {
+        font-size: 13px;
+        font-weight: 700;
+        color: #6B6258 !important;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin: 0 0 3mm;
+        page-break-after: avoid;
+    }
+
+    /* ── 學生名單頁 ── */
+    .sr-roster-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+    }
+    .sr-roster-table th,
+    .sr-roster-table td {
+        border: 1px solid #1F1B16;
+        padding: 3mm 3mm;
+        text-align: left;
+    }
+    .sr-roster-table th {
+        background: #FCE7A8 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        font-weight: 700;
+        font-size: 11px;
+        letter-spacing: 0.1em;
+    }
+    .sr-roster-table tr {
+        page-break-inside: avoid;
+    }
+    .sr-roster-table .sr-col-num {
+        width: 16mm;
+        text-align: center;
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+    .sr-roster-table .sr-col-name {
+        width: 30mm;
+        font-weight: 700;
+    }
+    .sr-roster-table .sr-col-status {
+        width: 30mm;
+        font-size: 11px;
+        color: #6B6258 !important;
+    }
+    .sr-roster-table .sr-col-tags {
+        font-size: 11px;
+        color: #6B6258 !important;
+    }
+
+    /* ── 學生分頁 ── */
+    .sr-student-page {
+        display: flex;
+        flex-direction: column;
+    }
+    .sr-student-name {
+        font-size: 26px;
+        font-weight: 900;
+        color: #1F1B16 !important;
+        margin: 0;
+    }
+    .sr-student-number {
+        display: inline-block;
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 14px;
+        font-weight: 700;
+        color: #6B6258 !important;
+        background: #FCE7A8 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        padding: 1mm 3mm;
+        margin-right: 4mm;
+        border-radius: 4px;
+        border: 1.5px solid #1F1B16;
+        vertical-align: middle;
+    }
+    .sr-student-traits {
+        margin-bottom: 8mm;
+    }
+    .sr-traits-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2mm;
+    }
+    .sr-chip {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 1.5mm 3.5mm;
+        background: #F8E3CF !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        border: 1.2px solid #1F1B16;
+        border-radius: 999px;
+        color: #1F1B16 !important;
+    }
+    .sr-chip-manual {
+        background: #E1D9F1 !important;
+    }
+    .sr-student-comment {
+        flex: 1;
+        background: #FFFCEF !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        border: 1.5px solid #1F1B16;
+        border-radius: 10px;
+        padding: 6mm;
+        margin-bottom: 8mm;
+        background-image: repeating-linear-gradient(
+            transparent 0 7mm,
+            rgba(31, 27, 22, 0.08) 7mm calc(7mm + 0.4px)
+        ) !important;
+        background-size: 100% 7mm;
+    }
+    .sr-comment-body {
+        font-size: 14px;
+        line-height: 7mm;
+        color: #1F1B16 !important;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    .sr-empty {
+        color: #A39C8F !important;
+        font-style: italic;
+    }
+    .sr-comment-stats {
+        margin-top: 4mm;
+        text-align: right;
+        font-size: 10px;
+        color: #6B6258 !important;
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+    .sr-student-footer {
+        margin-top: auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        padding-top: 8mm;
+        border-top: 1px dashed rgba(31, 27, 22, 0.3);
+    }
+    .sr-sig-block {
+        flex: 1;
+        max-width: 80mm;
+    }
+    .sr-sig-label {
+        font-size: 10px;
+        font-weight: 700;
+        color: #6B6258 !important;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        display: block;
+        margin-bottom: 2mm;
+    }
+    .sr-sig-line {
+        border-bottom: 1.5px solid #1F1B16;
+        padding-bottom: 2mm;
+        min-height: 9mm;
+        font-size: 14px;
+        font-weight: 700;
+        color: #1F1B16 !important;
+    }
+    .sr-stamp-box {
+        width: 22mm;
+        height: 22mm;
+        border: 2px dashed #6B6258;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #A39C8F !important;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+    }
+
+    /* ── 統計頁 ── */
+    .sr-stats-kpis {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 4mm;
+        margin-bottom: 10mm;
+    }
+    .sr-kpi {
+        border: 1.5px solid #1F1B16;
+        border-radius: 8px;
+        padding: 4mm;
+        background: #FBF5E6 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .sr-kpi-label {
+        display: block;
+        font-size: 10px;
+        font-weight: 700;
+        color: #6B6258 !important;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        margin-bottom: 1mm;
+    }
+    .sr-kpi-value {
+        font-size: 22px;
+        font-weight: 900;
+        color: #1F1B16 !important;
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+    .sr-tag-cloud {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2mm;
+        margin-bottom: 12mm;
+    }
+    .sr-tag-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 1.5mm;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 1.5mm 4mm;
+        background: #FCE7A8 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        border: 1.2px solid #1F1B16;
+        border-radius: 999px;
+    }
+    .sr-tag-medal {
+        font-size: 13px;
+    }
+    .sr-tag-count {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 10px;
+        color: #6B6258 !important;
+    }
+    .sr-stats-footer {
+        margin-top: auto;
+        text-align: center;
+        font-size: 11px;
+        color: #6B6258 !important;
+        line-height: 1.8;
+    }
+    .sr-footer-line {
+        width: 40mm;
+        height: 2px;
+        background: #F4B826 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        margin: 8mm auto 4mm;
+        border-radius: 2px;
+    }
+    .sr-footer-meta {
+        font-size: 10px;
+        color: #A39C8F !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        margin-top: 1mm;
+    }
+}

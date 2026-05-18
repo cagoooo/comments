@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
     School, ChevronDown, Shield, Heart, FileSpreadsheet, Printer,
     BarChart3, Settings, BookOpen, X, MoreVertical, LogOut, Activity,
-    Sun, Moon, Monitor,
+    Sun, Moon, Monitor, FileText,
 } from 'lucide-react';
 import { Btn, BeeMascot } from './atoms';
 
@@ -50,6 +50,7 @@ const Header = ({
     onOpenPrint,
     onOpenDashboard,
     onOpenUsageDashboard,
+    onOpenSemesterReport,
     themePref = 'system',
     effectiveMode = 'light',
     onSetTheme,
@@ -69,6 +70,7 @@ const Header = ({
     //   - alwaysItems: 在 md+ 全部尺寸都顯示（lg+ 主列無對應按鈕的進階功能）
     //   - tabletOnlyItems: 只在 md~lg 顯示（lg+ 已有對應的 top-level 按鈕，重複呈現會混亂）
     const moreMenuAlwaysItems = [
+        { Icon: FileText, label: '學期報告 PDF', onClick: onOpenSemesterReport, dot: 'honey' },
         { Icon: Activity, label: '使用量儀表板', onClick: onOpenUsageDashboard, dot: 'sky' },
     ];
     const moreMenuTabletOnlyItems = [

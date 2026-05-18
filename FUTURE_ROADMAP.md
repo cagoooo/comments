@@ -1,6 +1,6 @@
 # 點石成金蜂🐝 未來發展建議藍圖
 
-> 📅 更新時間：2026-05-18 ｜已完成 **69 項功能** ｜v2.14.1
+> 📅 更新時間：2026-05-18 ｜已完成 **72 項功能** ｜v2.15.0
 > 🎓 作者：[桃園市龍潭區石門國民小學 阿凱老師](https://www.smes.tyc.edu.tw/modules/tadnews/page.php?ncsn=11&nsn=16#a5)
 
 ---
@@ -78,10 +78,78 @@
 | 67 | 🔒 Firestore Rules audit + tightening（封鎖 server-only 子集合、role 升級防護、schools create 收緊）| ✅ 完成 | v2.14.0 |
 | 68 | 🔧 `reports/daily_*` Firestore collection（管理員可讀歷史日報）| ✅ 完成 | v2.14.0 |
 | 69 | 📦 主 bundle 瘦身 145 KB gzip：xlsx dynamic import（TD7）| ✅ 完成 | v2.14.1 |
+| 70 | 🎓 學期評語報告 PDF（G2）封面 + 名單 + 每生一頁 + 統計 | ✅ 完成 | v2.15.0 |
+| 71 | 🎨 蜜糖紙感 print CSS（紙膠帶 / 紙線稿評語 / 印章框 / KPI）| ✅ 完成 | v2.15.0 |
+| 72 | 📄 走 `window.print()`（per pdf-export-print-best-practice skill）| ✅ 完成 | v2.15.0 |
 
 ---
 
 ## 🆕 最新版本功能總結
+
+### v2.15.0 — 🎓 學期評語報告 PDF（G2）（2026-05-18）
+
+> **學期末利器版 Part 1**。把教師最痛的「期末要寫評語、印成漂亮 PDF 給家長」一次解決。套 v2.11 蜜糖紙感設計系統，封面紙膠帶 + 紙線稿評語區 + 印章框，自動分頁。
+
+#### 主要新增
+
+**🎓 學期評語報告 Modal**
+- 配置 UI：學校名 / 學期 / 導師姓名（自動從 currentUser 帶入）
+- 5 個內容選項（學生名單 / 特質 / 統計頁 / 簽名 / 僅有評語的學生）
+- 自動估算總頁數（封面 1 + 名單 1 + 每生 1 + 統計 1）
+- 預覽折疊區說明每頁會出什麼內容
+- 一鍵「列印 / 儲存為 PDF」按鈕 → 瀏覽器原生列印對話框
+
+**📄 PDF 結構（每頁獨佔）**
+```
+📄 封面     紙膠帶 + 🐝 + 學校 + 學期 + 班級 + 導師 + 學生數
+📄 名單     全班姓名 / 座號 / 評語狀態 / 主要特質 table
+📄 每生 1   座號徽章 + 姓名 + 特質 chips + 紙線稿評語區 + 簽名線 + 印章框
+📄 統計     6 KPI（人數/完成率/字數）+ 熱門特質 TOP 12 chips + 結尾署名
+```
+
+**🎨 蜜糖紙感 print CSS（170 行）**
+- `@page { size: A4; margin: 16mm 14mm 18mm 14mm }` 標準四邊距
+- 封面紙膠帶（保留鵝黃色，紙感標誌性視覺）
+- 紙線稿評語區（`repeating-linear-gradient` 模擬作業簿）
+- 座號徽章（`#FCE7A8` 蜜糖底 + 厚黑邊框 + JetBrains Mono）
+- 印章框（22mm × 22mm 虛線框）
+- KPI 卡（蜜糖色 + 厚黑邊）
+- 結尾蜜糖分隔線
+
+**📄 走 window.print() 純原生方案**
+依 [`pdf-export-print-best-practice`](https://github.com/cagoooo) skill 鐵則：
+- ❌ 不用 jspdf / html2canvas / html2pdf（會偏移、切字）
+- ✅ 用 `window.print()` + `@media print`
+- 機制：`body > *:not(#semester-report) { display: none !important; }` 隱藏 modal + 主 UI，`#semester-report` 變為唯一可見
+
+#### Bundle 影響
+
+| 項目 | 結果 |
+|---|---|
+| 主 bundle | 787 → **788 KB（+1 KB）** 幾乎不變 |
+| `SemesterReportModal-*.js` lazy chunk | 16 KB / 5 KB gzip |
+| `SemesterReportModal-*.css` lazy chunk | 7 KB / 1.8 KB gzip |
+| **合計新增（lazy）** | **~7 KB gzip**，只在使用者開啟 modal 時才下載 |
+
+#### 新增 / 修改的檔案
+
+```
+新增
+├── src/components/SemesterReportModal.jsx                          # 配置 UI 主元件
+├── src/components/semester-report/SemesterReportPrintable.jsx      # 列印用 DOM
+└── src/components/semester-report/semester-report-print.css        # 蜜糖紙感 print CSS
+
+修改
+├── src/App.jsx                                                     # lazy import + state + props
+├── src/components/Header.jsx                                       # MoreMenu alwaysItems 加入學期報告
+└── src/components/MobileTabBar.jsx                                 # 「更多」子選單加入學期報告
+```
+
+#### 入口
+- Desktop（md+）：Header 「更多」下拉 → 「學期報告 PDF」（FileText icon + honey 色）
+- Mobile（< md）：底部 Tab Bar 「更多」→ 子選單「學期報告 PDF」
+
+---
 
 ### v2.14.1 — 📦 主 bundle 瘦身（TD7）（2026-05-18）
 
@@ -821,7 +889,7 @@ Gemini API 直接生成不同語言，UI 加語言切換 button。
 └── 自動取得學生 email + 大頭照
 ```
 
-#### G2. 學期報告 PDF 生成 ⭐⭐⭐⭐
+#### G2. 學期報告 PDF 生成 ✅ **已完成 v2.15.0**
 **預估**：1 天 ｜**價值**：超高（學期末必用 + 展示設計系統）
 
 ```
@@ -995,7 +1063,7 @@ iOS Safari 沒有 add-to-home-screen 自動 prompt，可加教學截圖（一次
 
 - [ ] **D2 Streaming 評語生成**（1-2 天）— 字一個一個浮現
 - [ ] **E2 學期累積評語**（2-3h）— 學期末準備好
-- [ ] **G2 學期報告 PDF**（1 天）— 套 v2.11 紙感設計
+- [x] **G2 學期報告 PDF**（實際 ~1.5h）— 套 v2.11 紙感設計 ✅ v2.15.0
 - [ ] **B1 錯誤集中與分類**（4h）— errors collection + 儀表板
 - [ ] **A1 教師 LINE 綁定**（3-4 天）— Phase 2 流程
 
@@ -1026,7 +1094,8 @@ iOS Safari 沒有 add-to-home-screen 自動 prompt，可加教學截圖（一次
 
 | 版本 | 日期 | 主要更新 |
 |------|------|----------|
-| **v2.14.1** | **2026-05-18** | 📦 **主 bundle 瘦身 145 KB gzip（TD7）** — xlsx dynamic import |
+| **v2.15.0** | **2026-05-18** | 🎓 **學期評語報告 PDF（G2）** — 封面 + 名單 + 每生一頁 + 統計，蜜糖紙感 print CSS |
+| v2.14.1 | 2026-05-18 | 📦 主 bundle 瘦身 145 KB gzip（TD7）— xlsx dynamic import |
 | v2.14.0 | 2026-05-18 | 📲 **每日 LINE 彙整報告（A2）** + 🔒 **Firestore Rules 加固（C2）** — 教學現場深化版 Part 1 |
 | v2.13.0 | 2026-05-18 | 🌙 **深色模式（H1）** + 🔐 **App Check Phase 1（C1）** — 設計系統紅利收割 + 安全強化版 |
 | v2.12.0 | 2026-05-18 | 📊 **使用儀表板（B2）— 個人 30 天折線 + 成功率圓餅 + 配額 Gauge + 管理員全校教師長條圖** |
