@@ -324,6 +324,57 @@ export async function notifyApiError(params: {
     });
 }
 
+/**
+ * 每日使用量彙整報告
+ *
+ * 把當日 usage 統計用 Flex Message 推給管理員。
+ * 由 dailyUsageReport Cloud Scheduler 每日 21:00 (Asia/Taipei) 觸發。
+ */
+export async function notifyDailyReport(params: {
+    dateLabel: string;          // 例：'5/18'
+    activeTeacherCount: number;
+    totalApiCalls: number;
+    successCount: number;
+    failedCount: number;
+    topUser?: { displayName: string; calls: number } | null;
+    totalTeachers: number;
+}): Promise<void> {
+    const successRate = params.totalApiCalls > 0
+        ? Math.round((params.successCount / params.totalApiCalls) * 100)
+        : 0;
+
+    const fields: CardField[] = [
+        { icon: '👥', label: '活躍教師', value: `${params.activeTeacherCount} / ${params.totalTeachers} 位` },
+        { icon: '✍️', label: '評語生成', value: `${params.totalApiCalls} 次` },
+        { icon: '✅', label: '成功率', value: `${successRate}%（${params.successCount} 次）` },
+    ];
+
+    if (params.failedCount > 0) {
+        fields.push({ icon: '❌', label: '失敗', value: `${params.failedCount} 次` });
+    }
+
+    if (params.topUser && params.topUser.calls > 0) {
+        fields.push({
+            icon: '🏆',
+            label: '最高使用',
+            value: `${params.topUser.displayName} · ${params.topUser.calls} 次`
+        });
+    }
+
+    // 失敗率 ≥ 20% 升級為 warning 狀態（深橘色 header）讓管理員容易注意到
+    const status: CardStatus = (params.totalApiCalls > 0 && params.failedCount / params.totalApiCalls >= 0.2)
+        ? 'warning'
+        : 'success';
+
+    await notifyAdminCard({
+        status,
+        title: `${params.dateLabel} 使用日報`,
+        appName: APP_NAME,
+        fields,
+        footerNote: params.totalApiCalls === 0 ? '今日無人使用 API' : undefined
+    });
+}
+
 function roleToZh(role: string): string {
     switch (role) {
         case 'admin': return '管理員';

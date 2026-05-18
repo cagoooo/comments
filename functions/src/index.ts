@@ -49,8 +49,8 @@ export const api = onRequest(
     app
 );
 
-// 匯出定時任務
-export { weeklyUsageReport, dailyCleanup } from './scheduled/reports';
+// 匯出定時任務（dailyUsageReport 取代 v2.10 之前的 weeklyUsageReport）
+export { dailyUsageReport, dailyCleanup } from './scheduled/reports';
 
 // 匯出使用者生命週期 LINE 通知 (Firestore triggers)
 export { onUserCreated, onUserUpdated } from './triggers/userEvents';

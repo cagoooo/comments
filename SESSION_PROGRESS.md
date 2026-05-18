@@ -1,12 +1,34 @@
 # 點石成金蜂 開發進度記錄
 
 > **更新日期**：2026-05-18
-> **版本**：v2.13.0
+> **版本**：v2.14.0
 > **GitHub**：https://github.com/cagoooo/comments
 
 ---
 
-## 🎉 最近五次大版本里程碑
+## 🎉 最近六次大版本里程碑
+
+### 📲 v2.14.0（2026-05-18）— 每日 LINE 彙整報告（A2）+ Firestore Rules 加固（C2）
+
+教學現場深化版 Part 1。
+
+**📲 A2 每日彙整報告**：
+- `weeklyUsageReport`（每週一 08:00）→ `dailyUsageReport`（每天 21:00 台灣時間）
+- LINE Flex 卡片含：活躍教師 / 評語生成數 / 成功率 / 失敗次數 / Top 使用者
+- **失敗率 ≥ 20% 自動升級 warning**（深橘 header）讓管理員一眼看到
+- 同時寫入 `reports/daily_YYYY-MM-DD` Firestore collection 供歷史查詢
+
+**🔒 C2 Firestore Rules audit**：
+- 4 大方向加強：
+  1. 明確封鎖 server-only 子集合（`usage` / `reports` / `batchJobs` / `errors`）
+  2. **角色升級防護**：把 `role` 加進 self-update 禁止欄位（嚴禁 client 升 admin）
+  3. `schools` create 收緊（必須有 user doc）
+  4. `adminConfig` 加 array type 檢查防 rule panic
+- 抽出 `isAutoApprovalUpdate()` helper 讓邏輯清楚
+- 規則行數 119 → 162（多出來的是註解 + 顯式 deny block）
+- 完整相容性驗證：v2.9.0 auto-approval / admin approve / reject / schools create 4 條 role 寫入路徑全部相容
+
+---
 
 ### 🌙 v2.13.0（2026-05-18）— 深色模式（H1）+ App Check（C1）
 
@@ -158,14 +180,16 @@ firebase.json                # 配置
 | ✅ | ~~📊 使用儀表板 (B2)~~ | ~~4-5h~~ | **已完成 v2.12.0** |
 | ✅ | ~~🌙 深色模式 (H1)~~ | ~~3-4h~~ | **已完成 v2.13.0** |
 | ✅ | ~~🔐 App Check (C1) Phase 1~~ | ~~3-4h~~ | **已完成 v2.13.0**（等 reCAPTCHA 註冊後切 enforce）|
-| 🥇 | 📲 **每日彙整 LINE 報告 (A2)** | 3h | 改既有 weeklyUsageReport 套 Flex 卡 |
-| 🥈 | 🛡️ **Firestore Rules Audit (C2)** | 2-3h | 安全 audit |
-| 🥉 | 🎓 **學期報告 PDF (G2)** | 1 天 | 學期末必用 + 套蜜糖紙感設計超漂亮 |
-| 4 | 💬 **Streaming 評語生成 (D2)** | 1-2 天 | 字一個一個浮現，UX 大躍進 |
-| 5 | 🤖 **評語風格學習 (E1)** | 1 週 | Few-shot prompt，最大評語品質升級 |
+| ✅ | ~~📲 每日彙整 LINE 報告 (A2)~~ | ~~3h~~ | **已完成 v2.14.0** |
+| ✅ | ~~🛡️ Firestore Rules Audit (C2)~~ | ~~2-3h~~ | **已完成 v2.14.0** |
+| 🥇 | 🎓 **學期報告 PDF (G2)** | 1 天 | 學期末必用 + 套蜜糖紙感設計超漂亮 |
+| 🥈 | 💬 **Streaming 評語生成 (D2)** | 1-2 天 | 字一個一個浮現，UX 大躍進 |
+| 🥉 | 🤖 **評語風格學習 (E1)** | 1 週 | Few-shot prompt，最大評語品質升級 |
+| 4 | 📝 **學期累積評語 (E2)** | 2-3h | 學期末殺手功能 |
+| 5 | 📦 **TD7 Bundle 瘦身**（xlsx/pdf dynamic import）| 1-2h | 初次載入砍 1 MB |
 
-**接續組合推薦**（一週可完成）：A2 + C2 + G2 + D2 + TD6 + TD7
-總計 ~4 天，完成後可發 v2.14.0「教學現場深化版」。
+**接續組合推薦**（一週可完成）：G2 + E2 + D2 + TD7
+總計 ~3 天，完成後可發 v2.15.0「學期末利器版」。
 
 ---
 
@@ -253,4 +277,4 @@ git cherry-pick 0e55ddfb
 
 ---
 
-**下次開發建議**：跑 **A2 每日彙整 LINE 報告（3h）** + **C2 Firestore Rules Audit（2-3h）** + **G2 學期報告 PDF（1 天）** 三項 ⭐ — 加起來 ~2 天可發 v2.14.0「教學現場深化版」
+**下次開發建議**：跑 **G2 學期報告 PDF（1 天）** + **E2 學期累積評語（2-3h）** + **TD7 Bundle 瘦身（1-2h）** ⭐ — 加起來 ~1.5 天可發 v2.15.0「學期末利器版」
