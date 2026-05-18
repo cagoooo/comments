@@ -6,7 +6,7 @@ import cors from 'cors';
 import { validateFirebaseIdToken } from './middleware/auth';
 import { handleGenerate } from './controllers/generate';
 import { handleAdjust } from './controllers/adjust';
-import { handleGetUsage } from './controllers/usage';
+import { handleGetUsage, handleGetUsageHistory, handleGetAdminUsage } from './controllers/usage';
 import { handleCreateBatch, handleGetBatchStatus } from './controllers/batch';
 
 // 定義 Secret
@@ -28,6 +28,8 @@ app.use(express.json());
 app.post('/generate', validateFirebaseIdToken, handleGenerate);
 app.post('/adjust', validateFirebaseIdToken, handleAdjust);
 app.get('/usage', validateFirebaseIdToken, handleGetUsage);
+app.get('/usage/history', validateFirebaseIdToken, handleGetUsageHistory);
+app.get('/usage/admin', validateFirebaseIdToken, handleGetAdminUsage);
 app.post('/batch', validateFirebaseIdToken, handleCreateBatch);
 app.get('/batch/:jobId', validateFirebaseIdToken, handleGetBatchStatus);
 
