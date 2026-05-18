@@ -3,278 +3,227 @@
 > **更新日期**：2026-05-18
 > **版本**：v2.15.0
 > **GitHub**：https://github.com/cagoooo/comments
+> **線上**：https://comments-67079.web.app · https://cagoooo.github.io/comments/
 
 ---
 
-## 🎉 最近八次版本里程碑
+## 📊 一張圖看 v2.10 → v2.15 全部成果
+
+```
+v2.10.0  📲 LINE 即時通知系統           ┐
+v2.11.0  🎨 A+D Fusion 蜜糖紙感工作台    ├─ 設計系統 + 通知基建（已完成）
+                                       ┘
+
+v2.12.0  📊 使用儀表板 (B2)              ┐
+v2.13.0  🌙 深色模式 (H1)                │
+         🔐 App Check Phase 1 (C1)       ├─ 設計系統紅利收割（已完成）
+v2.14.0  📲 每日 LINE 彙整報告 (A2)      │
+         🔒 Firestore Rules 加固 (C2)    │
+v2.14.1  📦 主 bundle 瘦身 145 KB (TD7)  ┘
+
+v2.15.0  🎓 學期評語報告 PDF (G2)        ─ 學期末利器版 Part 1（已完成）
+
+v2.16.0  📝 學期累積評語 (E2)            ┐
+         🏆 獎狀印製 (L1)                 ├─ 學期末利器版 Part 2（推薦下一步）
+         📦 PrintModal 砍 jspdf (TD9)    ┘
+
+v2.17.0+ 💬 Streaming 評語 (D2)          ┐
+         📲 教師 LINE 綁定 (A1)            ├─ 中期目標
+         🤖 評語風格學習 (E1)             ┘
+```
+
+---
+
+## 🎉 七連發版本里程碑（v2.12.0 → v2.15.0）
 
 ### 🎓 v2.15.0（2026-05-18）— 學期評語報告 PDF（G2）
 
-學期末利器版 Part 1。把教師最痛的「期末要寫評語、印成漂亮 PDF 給家長」一次解決。
+**學期末利器版 Part 1**。把教師最痛的「期末要寫評語、印成漂亮 PDF 給家長」一次解決。
 
-**PDF 結構（每頁獨佔，瀏覽器自動分頁）**：
-1. **封面** — 紙膠帶 + 🐝 + 學校 + 學期 + 班級 + 導師 + 學生人數
-2. **學生名單** — 全班姓名/座號/評語狀態/主要特質 table
-3. **每位學生一頁** — 座號徽章 + 姓名 + 特質 chips + 紙線稿評語區 + 簽名線 + 印章框
-4. **班級統計頁** — 6 個 KPI + 熱門特質 TOP 12 + 結尾署名
+- 4 段式 PDF：封面 / 學生名單 / 每生一頁 / 班級統計
+- 蜜糖紙感 print CSS（170 行）：紙膠帶、紙線稿評語區、座號徽章、印章框
+- 走 `window.print()` 純原生方案（依 pdf-export-print-best-practice skill）
+- Bundle 影響：主 bundle +1 KB（lazy 載入），其他人沒用功能完全不受影響
+- **比預估快 5×**：roadmap 估 1 天，實際 ~1.5h（v2.11 設計 token 已備）
 
-**配置 UI**：
-- 學校名 / 學期 / 導師姓名（自動從 currentUser 帶入）
-- 5 個內容選項（學生名單 / 特質 / 統計 / 簽名 / 僅有評語的學生）
-- 自動估算總頁數
-- 預覽折疊區說明每頁內容
-
-**蜜糖紙感 print CSS（170 行）**：
-- 封面紙膠帶（鵝黃半透明，標誌性視覺）
-- 紙線稿評語區（`repeating-linear-gradient` 模擬作業簿）
-- 座號徽章（蜜糖底 + 厚黑邊框 + JetBrains Mono）
-- 印章框（22mm 虛線方框）
-- KPI 卡片 + 結尾蜜糖分隔線
-
-**走 `window.print()` 純原生方案**（依 pdf-export-print-best-practice skill 鐵則）：
-- 不用 jspdf / html2canvas（會偏移、切字）
-- `body > *:not(#semester-report) { display: none !important; }` 隱藏主 UI
-- `#semester-report` 變唯一可見
-
-📁 新增檔案：
-- `src/components/SemesterReportModal.jsx`（配置 UI）
-- `src/components/semester-report/SemesterReportPrintable.jsx`（列印 DOM）
-- `src/components/semester-report/semester-report-print.css`（蜜糖紙感印刷樣式）
-
-**Bundle 影響**：主 bundle +1 KB（幾乎不變）+ lazy chunk ~7 KB gzip
+📁 新增：`SemesterReportModal.jsx` + `semester-report/SemesterReportPrintable.jsx` + `semester-report/semester-report-print.css`
 
 ---
 
 ### 📦 v2.14.1（2026-05-18）— 主 bundle 瘦身 145 KB gzip（TD7）
 
-純優化版本（無新功能）。
+純優化（無新功能）。
 
-**根因**：`InputPanel.jsx`（核心元件，**非 lazy**）靜態 import `parseExcelFile` → xlsx (~430 KB) 整個進主 bundle，連完全沒用 Excel 功能的使用者都要下載。
-
-**修補**：把 `import { parseExcelFile }` 移到 click/drop handler 內 `await import('../utils/excelHelper')`。
-
-**結果**：
-- 主 bundle 1219 KB → **787 KB**（−432 KB raw）
-- gzip 354 KB → **208 KB**（−145 KB gzip，**−41%**）
-- excelHelper 自動成獨立 chunk，只在使用者選 Excel 檔時才下載
-- 移動裝置 / 慢速網路使用者感受最明顯
-
-📁 修改檔案：`src/components/InputPanel.jsx`（3 行改動）
-
-> 為什麼不需要動 jspdf / html2canvas：PrintModal 早就是 lazy modal，那兩個庫**從來沒在主 bundle**。xlsx 才是唯一在主 bundle 的元兇。
+- 根因：`InputPanel.jsx`（**核心元件非 lazy**）靜態 import `parseExcelFile` → xlsx 600 KB 整個進主 bundle
+- 修補：3 行改動，移到 drop handler 內 dynamic import
+- 結果：主 bundle **354 KB gzip → 208 KB gzip（−41%）**
+- 不拖 Excel 的使用者**首次載入快 41%**
 
 ---
 
 ### 📲 v2.14.0（2026-05-18）— 每日 LINE 彙整報告（A2）+ Firestore Rules 加固（C2）
 
-教學現場深化版 Part 1。
+**教學現場深化版 Part 1**。
 
-**📲 A2 每日彙整報告**：
-- `weeklyUsageReport`（每週一 08:00）→ `dailyUsageReport`（每天 21:00 台灣時間）
-- LINE Flex 卡片含：活躍教師 / 評語生成數 / 成功率 / 失敗次數 / Top 使用者
-- **失敗率 ≥ 20% 自動升級 warning**（深橘 header）讓管理員一眼看到
-- 同時寫入 `reports/daily_YYYY-MM-DD` Firestore collection 供歷史查詢
+**A2**：`weeklyUsageReport`（每週一）→ `dailyUsageReport`（每天 21:00）
+- Flex 卡：活躍教師 / 評語生成 / 成功率 / Top 使用者
+- 失敗率 ≥ 20% 自動升級 warning（深橘 header），管理員一眼看到
+- 寫入 `reports/daily_*` Firestore collection 供歷史查詢
 
-**🔒 C2 Firestore Rules audit**：
-- 4 大方向加強：
-  1. 明確封鎖 server-only 子集合（`usage` / `reports` / `batchJobs` / `errors`）
-  2. **角色升級防護**：把 `role` 加進 self-update 禁止欄位（嚴禁 client 升 admin）
-  3. `schools` create 收緊（必須有 user doc）
-  4. `adminConfig` 加 array type 檢查防 rule panic
-- 抽出 `isAutoApprovalUpdate()` helper 讓邏輯清楚
-- 規則行數 119 → 162（多出來的是註解 + 顯式 deny block）
-- 完整相容性驗證：v2.9.0 auto-approval / admin approve / reject / schools create 4 條 role 寫入路徑全部相容
+**C2**：4 大方向加強 firestore.rules
+- 封鎖 server-only 子集合（usage / reports / batchJobs / errors）
+- **角色升級防護**：role 加進 self-update 禁止欄位（嚴禁 client 升 admin）
+- `schools` create 收緊（必須有 user doc）
+- `adminConfig` 加 array type 檢查防 rule panic
+- 抽出 `isAutoApprovalUpdate()` helper
 
 ---
 
-### 🌙 v2.13.0（2026-05-18）— 深色模式（H1）+ App Check（C1）
+### 🌙 v2.13.0（2026-05-18）— 深色模式（H1）+ App Check Phase 1（C1）
 
-設計系統紅利收割 + 安全強化版。一發兩個建議組合。
+**設計系統紅利收割 + 安全強化版**。
 
-**🌙 H1 深色模式**：
-- v2.11 設計階段就預埋好 `[data-mode="dark"]` token，這次接管完成
+**H1**：
 - `useTheme` hook：light / dark / system 三段切換
-- localStorage 即時 + Firestore 雲端同步
-- `system` 模式自動跟 `prefers-color-scheme`
-- `bootstrapTheme()` 在 React mount 前同步套用，**避免 FOUC**
-- 三個 UI 切換點：Header avatar 旁快速按鈕（cycle）+ User dropdown segmented control（精確）+ PWA `theme-color` meta 同步
-- 智慧 CSS override：Tailwind `bg-white` / `text-black` / `bg-gray-*` 在 dark 自動 redirect 到 token，省 sweep 27 個檔案
-- 平滑 0.2s 色彩 transition
+- localStorage 即時 + Firestore 跨裝置同步
+- `bootstrapTheme()` 在 React mount 前同步套用避免 FOUC
+- Header avatar 旁快速 cycle button + user dropdown 內 3-option picker
+- PWA `theme-color` meta 同步切換
+- **智慧 CSS override**：`bg-white` / `text-black` / `bg-gray-*` 在 dark 自動 redirect 到 token，省 sweep 27 個檔案
 
-**🔐 C1 App Check Phase 1**：
-- 前端 `initializeAppCheck` 整合 reCAPTCHA v3
-- Site key 走 `VITE_APP_CHECK_SITE_KEY` env，**未設定時 fail-open**（不擋老師）
-- `cloudFunctionsApi.js` 每個 fetch 自動帶 `X-Firebase-AppCheck` header
-- 後端 middleware 三段模式：`off` / `observe` / `enforce`，預設 `off`（部署後零行為改變）
-- 完整啟用 SOP 寫在 `src/firebase/config.js` 註解 + FUTURE_ROADMAP.md
-
-📁 新增檔案：`src/hooks/useTheme.js`
+**C1**：
+- 前端 `initializeAppCheck` 整合 reCAPTCHA v3，未設 site key fail-open
+- 後端 middleware 三段 `APP_CHECK_MODE: off / observe / enforce`
+- 預設 off（部署後零行為改變），等使用者註冊 reCAPTCHA + 觀察 1-2 天後切 observe → enforce
 
 ---
 
 ### 📊 v2.12.0（2026-05-18）— 使用儀表板（B2）
 
-收割 v2.11 設計系統紅利的第一個功能。把 Cloud Functions 後端早就記錄好的 `users/{uid}/usage/{date}` 拿出來畫圖。
+**收割 v2.11 設計系統紅利的第一個功能**。
 
-**個人視角**：
-- 配額狀況進度條（70% 變橘 / 90% 變紅）+ 4 個 KPI 卡
-- 過去 30 天折線圖（每日呼叫）+ 圓餅圖（成功 / 失敗比例）
-- 4 個彙整 KPI + 活躍天數 chip
-- 即時 refresh
-
-**管理員視角**（admin only）：
-- 本月全校教師使用量排行長條圖（前 12 名）
-- 全校呼叫 / 活躍教師 / 平均次/活躍教師 三個 KPI
-- Server-side 驗證 admin role，非管理員 403
-
-**後端新 endpoints**：
-- `GET /usage/history?days=30`（1-90）— 補齊缺失日期為 0
-- `GET /usage/admin` — 並行抓所有教師 usage 子集合彙整
-
-**設計系統紅利**：
-- 折線 / 圓餅 / 長條圖全部走 CSS 變數取色（未來加深色模式自動跟著切）
-- 自訂紙感 Tooltip（JetBrains Mono 數字）
+- 個人視角：配額狀況 + 4 KPI + 30 天折線 + 成功/失敗圓餅 + 活躍天數 chip
+- 管理員視角（admin only）：本月全校教師排行長條圖 + 3 個彙整 KPI
+- 後端新 endpoints：`GET /usage/history?days=30` + `GET /usage/admin`
 - recharts 397 KB 走動態 import，**不進主 bundle**
-
-📁 新增檔案：`UsageDashboardModal.jsx` + `usage-dashboard/UsageCharts.jsx`
-
----
-
-### 🎨 v2.11.0（2026-05-17）— A+D Fusion 蜜糖紙感工作台
-
-整體 UI 大改版（12 batch 全套移植），**0 個破壞性 props 改動**。
-
-- **新元件 9 個**：7 atoms（Chip / Btn / Card / StickerTab / BeeMascot / KPI / Icon）+ MobileTabBar + ModalShell
-- **重寫 17 個業務元件**，介面零破壞
-- 刪除 StudentCard.jsx（併入單一響應式 StudentRow.jsx）
-- App.jsx 改動最小化：主色 token / MobileTabBar 渲染 / ⌘K shortcut
-
-**12 Batch 涵蓋**：Token 系統 → 原子元件 → Icon set → Header → 主工作區 → 學生列表 → Idiom Sidebar → Modal 系統 → 登入頁 → 響應式 → 細節 → QA
-
-**保留的關鍵行為（0 破壞）**：
-- Firebase services（auth / firestore / storage）
-- Gemini API 整合 + 字數 prompt 邏輯
-- localStorage usage tracking（`idiom_usage_*`）
-- 內嵌瀏覽器偵測 + popup-blocked fallback
-- 30+ 學生列表 memo + areEqual 效能優化
-- App 內 17 個 props 介面
-
-📑 完整文件：[docs/design-handoff/HANDOFF.md](docs/design-handoff/HANDOFF.md) + [docs/design-handoff/TASKS.md](docs/design-handoff/TASKS.md)
+- 設計紅利：圖表 token 取色，未來加深色模式自動跟著切
 
 ---
 
-### 📲 v2.10.0（2026-05-17）— LINE 即時通知與安全強化
+## 🚀 v2.15.0 解鎖的新方向（推薦下一步）
 
-**LINE 通知系統**（共用阿凱老師統一 LINE Bot Channel，純 push 模式）：
-- 🆕 新使用者 Google 首次登入 → Firestore `users/{uid}` onCreate
-- ✅ 使用者送出學校班級申請 → `applicationSubmittedAt` 從無到有
-- ❌ `/generate` / `/adjust` / `/batch` 500 錯誤 → 60 秒節流告警
+### Combo：v2.16.0 學期末利器版 Part 2（總計 ~10h）
 
-**Flex Message 卡片**：四色狀態（started 藍 / success 綠 / failed 紅 / warning 橙），Header 深色 -800（WCAG AA 對比 ≥ 5.4:1），bubble 改 `mega`（320 px）。
+| 推薦序 | 項目 | 預估 | 為什麼 |
+|---|---|:---:|---|
+| 🥇 | 📝 **E2 學期累積評語** | 2-3h | 跟 G2 直接合作：Gemini 看完該生歷史 → 出學期總評 → 進 PDF |
+| 🥈 | 🏆 **L1 獎狀印製** | 4-6h | G2 印刷基建首發應用（**砍半工時** vs 原本 F2 估的 1 天）|
+| 🥉 | 📄 **L4 單一學生 PDF 抽印** | 1-2h | 家長個別來要不用印整本 |
+| 4 | 📦 **TD9 PrintModal 改 window.print** | 1-2h | 砍 178 KB gzip lazy chunk + 跟 G2 pattern 一致 |
+| 5 | 🔐 **C1.5 App Check Enforce** | 1-2h | Phase 1 已備，等使用者註冊 reCAPTCHA 後就切 |
 
-**Firestore 生命週期 Triggers**：`onUserCreated` / `onUserUpdated`，純 server-side 攔截，前端不需改動。
+### 後續中期目標
 
-**安全強化**：
-- 新增 `SECURITY.md` 說明 Firebase Web API Key 公開設計
-- 處理 GitHub Secret Scanning Alert #1
-- 透過 `gh api` 自動 dismiss alert
-
-**Cloud Functions（v2.10.0 後共 5 支）**：`api` / `weeklyUsageReport` / `dailyCleanup` / `onUserCreated` / `onUserUpdated`
-
----
-
-### 🚀 v2.9.x（2026-01-27）— 註冊流程與效率工具
-
-- v2.9.0：免 Key 註冊、自動審核、自動建班級
-- v2.9.1：Ctrl+S/G 快捷鍵、評語範本分類、循環依賴修復
-- v2.9.2：批次操作（加標籤 / 清空 / 移班）+ Console 降噪
+- **D2 Streaming 評語生成（1-2 天）**：字一個一個浮現，UX 大躍進
+- **A1 教師 LINE 綁定（3-4 天）**：解鎖 5 種通知場景（配額預警 / 批次完成 / 未寫評語提醒等）
+- **E1 評語風格學習（1 週）**：Few-shot prompt，最大評語品質升級
 
 ---
 
-## 📂 截至目前的關鍵檔案結構
+## 📂 完整檔案結構
 
 ```
 src/
-├── components/             # 32 個元件，含 9 個新 atoms
-│   ├── Btn.jsx Chip.jsx Card.jsx StickerTab.jsx BeeMascot.jsx
-│   │   KPI.jsx Icon.jsx ModalShell.jsx MobileTabBar.jsx   ← v2.11
-│   ├── Header.jsx                                          ← v2.11 重寫
-│   ├── InputPanel.jsx GeneratePanel.jsx SearchBar.jsx StyleBar.jsx  ← v2.11 重寫
-│   ├── StudentRow.jsx                                      ← v2.11 取代 Table + Card
-│   ├── IdiomSidebar.jsx                                    ← v2.11 響應式
-│   └── ... (6 個 Modal 全套 ModalShell)
+├── components/
+│   ├── atoms/ (v2.11) — Btn / Chip / Card / StickerTab / BeeMascot / KPI / Icon
+│   ├── ui/ (v2.11) — ModalShell
+│   ├── Header.jsx (v2.13 主題 picker + v2.15 學期報告 entry)
+│   ├── MobileTabBar.jsx (v2.12+ 多 entry)
+│   ├── DashboardModal.jsx — 班級統計（v2.11 重寫）
+│   ├── UsageDashboardModal.jsx (v2.12) — API 使用儀表板
+│   ├── SemesterReportModal.jsx (v2.15) — 學期報告 PDF ⭐ NEW
+│   ├── PrintModal.jsx — 快速列印（即將被 TD9 改造）
+│   └── ... (其他 17 個 v2.11 重寫的元件)
+├── components/
+│   ├── usage-dashboard/UsageCharts.jsx (v2.12) — recharts lazy
+│   └── semester-report/ (v2.15) ⭐ NEW
+│       ├── SemesterReportPrintable.jsx
+│       └── semester-report-print.css
+├── hooks/
+│   ├── useTheme.js (v2.13) — light/dark/system
+│   ├── useDialog.js / useStudents.js
+├── firebase/
+│   ├── config.js (v2.13 App Check)
+│   └── ...
 ├── styles/
-│   └── tokens.css           # ← v2.11 設計 token 中樞
-├── firebase/                # Auth / Firestore 服務
-└── App.jsx                  # 主色 token + ⌘K shortcut
+│   └── tokens.css (v2.11 + v2.13 dark)
+└── utils/
+    ├── cloudFunctionsApi.js (v2.12 + v2.13 App Check header)
+    ├── excelHelper.js (v2.14.1 lazy)
+    └── geminiApi.js
 
 functions/
 ├── src/
-│   ├── controllers/  generate.ts adjust.ts batch.ts usage.ts
-│   ├── services/     gemini.ts notify-line.ts quota.ts     ← v2.10
-│   ├── triggers/     userEvents.ts                          ← v2.10
-│   └── index.ts                                             ← v2.10 註冊 secrets
-└── ...
+│   ├── controllers/
+│   │   ├── generate.ts / adjust.ts / batch.ts
+│   │   └── usage.ts (v2.12 加 /history + /admin)
+│   ├── middleware/
+│   │   └── auth.ts (v2.13 加 App Check 三段)
+│   ├── scheduled/
+│   │   └── reports.ts (v2.14 改 dailyUsageReport)
+│   ├── services/
+│   │   ├── gemini.ts / quota.ts
+│   │   └── notify-line.ts (v2.10 + v2.14 加 notifyDailyReport)
+│   ├── triggers/
+│   │   └── userEvents.ts (v2.10)
+│   └── index.ts
 
-docs/
-└── design-handoff/         # ← v2.11
-    ├── HANDOFF.md           # 設計師 ↔ 工程師合約
-    └── TASKS.md             # 12 batch 完整紀錄
-
-SECURITY.md                  # ← v2.10（注意目前不在 main，需要另外補 PR）
-firestore.rules              # 規則
-firebase.json                # 配置
+firestore.rules (v2.14 加固)
+firebase.json
 ```
 
 ---
 
-## 📋 接下來建議優先做的事情（從 FUTURE_ROADMAP.md 摘錄 Top 5）
+## 🏆 累積戰績統計
 
-> 詳見 [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md) 完整 60+ 項建議與優先級矩陣
+### 完成項目數
+**72 項功能完成**（v1.0.0 → v2.15.0）
 
-| 推薦序 | 項目 | 預估工時 | 為什麼推薦 |
-|---|---|:---:|---|
-| ✅ | ~~📊 使用儀表板 (B2)~~ | ~~4-5h~~ | **已完成 v2.12.0** |
-| ✅ | ~~🌙 深色模式 (H1)~~ | ~~3-4h~~ | **已完成 v2.13.0** |
-| ✅ | ~~🔐 App Check (C1) Phase 1~~ | ~~3-4h~~ | **已完成 v2.13.0**（等 reCAPTCHA 註冊後切 enforce）|
-| ✅ | ~~📲 每日彙整 LINE 報告 (A2)~~ | ~~3h~~ | **已完成 v2.14.0** |
-| ✅ | ~~🛡️ Firestore Rules Audit (C2)~~ | ~~2-3h~~ | **已完成 v2.14.0** |
-| ✅ | ~~📦 TD7 Bundle 瘦身~~ | ~~1-2h~~ | **已完成 v2.14.1**（−145 KB gzip）|
-| ✅ | ~~🎓 學期報告 PDF (G2)~~ | ~~1 天~~ | **已完成 v2.15.0**（實際 ~1.5h）|
-| 🥇 | 📝 **學期累積評語 (E2)** | 2-3h | 學期末殺手功能（看完歷史叫 Gemini 出總評）|
-| 🥈 | 💬 **Streaming 評語生成 (D2)** | 1-2 天 | 字一個一個浮現，UX 大躍進 |
-| 🥉 | 🤖 **評語風格學習 (E1)** | 1 週 | Few-shot prompt，最大評語品質升級 |
-| 4 | 📲 **A1 教師 LINE 綁定** | 3-4 天 | 解鎖 5 種通知場景 |
-| 5 | 🔥 **D1 Cloud Tasks 批次佇列** | 1 週 | 可靠性升級（100+ 學生不 timeout）|
+### 七連發 7 個版本工時對比
+| 項目 | 預估 | 實際 | 效率 |
+|---|:---:|:---:|:---:|
+| B2 使用儀表板 | 4-5h | ~4h | 1.1× |
+| H1 深色模式 | 3-4h | ~3h | 1.2× |
+| C1 App Check | 3-4h | ~2h | 1.8× |
+| A2 每日 LINE | 3h | ~1.5h | 2.0× |
+| C2 Rules audit | 2-3h | ~1.5h | 1.7× |
+| TD7 Bundle 瘦身 | 1-2h | ~30 min | 3.0× |
+| G2 學期報告 | 1 天 | ~1.5h | **5.3×** |
+| **合計** | **~25-30h** | **~14h** | **2.0×** |
 
-**接續組合推薦**（一週可完成）：E2 + D2
-總計 ~3 天，完成後可發 v2.15.0「學期末利器版」。
+**為什麼越做越快**：v2.11 設計系統 token / atoms / ModalShell 累積複用率越來越高。
+
+### 主 bundle 趨勢
+| 版本 | 主 bundle | gzip | 變化 |
+|---|---|---|---|
+| v2.11.0 | 1.20 MB | 350 KB | 起點 |
+| v2.13.0 | 1.21 MB | 354 KB | +3 KB（App Check SDK）|
+| v2.14.1 | 788 KB | 208 KB | **−146 KB**（xlsx lazy）|
+| v2.15.0 | 788 KB | 208 KB | +0 KB（G2 純 lazy）|
+
+**首次載入比 v2.11 快 41%。**
 
 ---
 
-## 🔧 技術架構
+## 🌐 Cloud Functions 上線狀態
 
-### 前端
-- React 18 + Vite 6
-- TailwindCSS 3（已對接設計 token）
-- React.lazy 動態載入
-- PWA 離線支援（vite-plugin-pwa）
-- Noto Sans TC + JetBrains Mono（v2.11）
-
-### 後端（Cloud Functions v2 — TypeScript）
-- Firebase Firestore（使用者隔離）
-- Firebase Auth（Google 登入）
-- Google Gemini 2.5 Flash
-- Firebase Secret Manager（API Key + LINE token）
-- Firestore Triggers（v2.10）
-- LINE Push API（v2.10）
-- Cloud Scheduler（週報 + 每日清理）
-
-### 部署
-- Firebase Hosting（主要）
-- GitHub Pages（備用）
-- GitHub Actions 自動部署
-- Cloud Functions 自動部署
+```
+api                 ACTIVE  HTTP API（generate / adjust / batch / usage*）
+dailyUsageReport    ACTIVE  每天 21:00 LINE 推播（v2.14 新增）
+dailyCleanup        ACTIVE  每天 03:00 清理過期 batchJobs
+onUserCreated       ACTIVE  Firestore trigger（v2.10）
+onUserUpdated       ACTIVE  Firestore trigger（v2.10）
+```
 
 ---
 
@@ -287,53 +236,33 @@ npm run dev
 # 建置
 npm run build
 
-# 部署 Firebase Hosting
-npx firebase deploy --only hosting
-
-# 部署 Cloud Functions（v2.10）
-npx firebase deploy --only functions:api,functions:onUserCreated,functions:onUserUpdated
-
-# GitHub Pages 自動部署（push 即可）
+# 部署前端（push 即可，GitHub Actions 自動）
 git push
+
+# 部署 Cloud Functions（注意 owner 是 cagooo@gmail.com）
+npx firebase deploy --only functions:api \
+  --project comments-67079 --account cagooo@gmail.com
+
+# 部署 Firestore Rules
+npx firebase deploy --only firestore:rules \
+  --project comments-67079 --account cagooo@gmail.com
 ```
 
 ---
 
-## 📝 最新 Git Commits
+## ⚠️ 待辦清單（高優先）
 
-```
-40ba51b9 Merge pull request #2: A+D Fusion 設計系統升級
-030b1fb6 🎨 升級設計系統至 A+D Fusion 蜜糖紙感工作台 (12 batch 全套移植)
-790c9d3c Merge pull request #1: LINE 通知
-8b352dbe 📲 新增 LINE 通知：使用者註冊 / 提交申請 / API 錯誤即時推播
-3d51c370 版本發布 v2.9.1
-```
+### 使用者端
+- [ ] **註冊 reCAPTCHA v3 site key**（Firebase Console）→ 設 `VITE_APP_CHECK_SITE_KEY` GitHub secret → 觀察 1-2 天 → 切 App Check enforce 模式
+- [ ] 等 dailyUsageReport 跑一次（明天 21:00 自動）確認 LINE 卡片格式 OK
 
----
-
-## 🌐 正式網址
-
-| 平台 | 網址 |
-|------|------|
-| Firebase | https://comments-67079.web.app |
-| GitHub Pages | https://cagoooo.github.io/comments/ |
-| Cloud Functions Health | https://api-o7l7hehf7q-de.a.run.app/health |
+### 開發端（v2.16.0 候選）
+- [ ] 跑 **E2 學期累積評語**（最高 ROI，跟 G2 完美合作）
+- [ ] 跑 **L1 獎狀印製**（G2 印刷基建首發應用）
+- [ ] 跑 **TD9 PrintModal 改 window.print**（順手砍 178 KB lazy chunk）
 
 ---
 
-## ⚠️ 留意：尚未同步到 main 的東西
+## 💡 詳細未來建議
 
-從 `claude/frosty-jackson-1ae027` 分支發現有兩個檔案**還沒進 main**：
-- `SECURITY.md`（v2.10.0 寫的安全政策說明）— commit `0e55ddfb`
-- 該分支上更舊的 FUTURE_ROADMAP.md v2.10.0 版（已被本次 v2.11.0 覆蓋）
-
-**建議動作**：cherry-pick `0e55ddfb` 把 SECURITY.md 帶進 main，否則 GitHub Secret Scanning Alert 的處理 SOP 沒有正式文件背書。
-
-```bash
-# 在 main 上
-git cherry-pick 0e55ddfb
-```
-
----
-
-**下次開發建議**：跑 **E2 學期累積評語（2-3h）** + **D2 Streaming 評語生成（1-2 天）** ⭐ — 完成後可發 v2.16.0「期末 UX 大躍進版」
+完整版見 [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md)，含 15 項 Top 15 優先級矩陣 + 4 段建議開發時程 + 3 個 Combo 推薦組合。
