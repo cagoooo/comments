@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     List, Heart, BarChart3, BookOpen, MoreHorizontal,
-    Shield, FileSpreadsheet, Printer, Settings, School, X, Activity,
+    Shield, FileSpreadsheet, Printer, Settings, School, X, Activity, FileText,
 } from 'lucide-react';
 
 /**
@@ -18,6 +18,7 @@ const MobileTabBar = ({
     onOpenTemplates,
     onOpenDashboard,
     onOpenUsageDashboard,
+    onOpenSemesterReport,
     onOpenClasses,
     onOpenImportExport,
     onOpenPrint,
@@ -64,6 +65,7 @@ const MobileTabBar = ({
         { key: 'class', Icon: School, label: '班級管理', onClick: onOpenClasses, color: 'lav' },
         { key: 'excel', Icon: FileSpreadsheet, label: 'Excel 匯入/匯出', onClick: onOpenImportExport, color: 'sky' },
         { key: 'print', Icon: Printer, label: '列印與 PDF', onClick: onOpenPrint, color: 'peach' },
+        { key: 'semester', Icon: FileText, label: '學期報告 PDF', onClick: onOpenSemesterReport, color: 'honey' },
         { key: 'usage', Icon: Activity, label: '使用量儀表板', onClick: onOpenUsageDashboard, color: 'sky' },
         { key: 'api', Icon: Settings, label: hasApiKey ? 'API 設定 ✓' : 'API 設定 ⚠️', onClick: onOpenSettings, color: hasApiKey ? 'honey' : 'coral' },
         ...(isAdmin ? [{ key: 'admin', Icon: Shield, label: '管理員面板', onClick: onOpenAdmin, color: 'coral', badge: pendingCount }] : []),

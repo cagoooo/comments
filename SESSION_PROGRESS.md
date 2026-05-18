@@ -1,12 +1,49 @@
 # 點石成金蜂 開發進度記錄
 
 > **更新日期**：2026-05-18
-> **版本**：v2.14.1
+> **版本**：v2.15.0
 > **GitHub**：https://github.com/cagoooo/comments
 
 ---
 
-## 🎉 最近七次版本里程碑
+## 🎉 最近八次版本里程碑
+
+### 🎓 v2.15.0（2026-05-18）— 學期評語報告 PDF（G2）
+
+學期末利器版 Part 1。把教師最痛的「期末要寫評語、印成漂亮 PDF 給家長」一次解決。
+
+**PDF 結構（每頁獨佔，瀏覽器自動分頁）**：
+1. **封面** — 紙膠帶 + 🐝 + 學校 + 學期 + 班級 + 導師 + 學生人數
+2. **學生名單** — 全班姓名/座號/評語狀態/主要特質 table
+3. **每位學生一頁** — 座號徽章 + 姓名 + 特質 chips + 紙線稿評語區 + 簽名線 + 印章框
+4. **班級統計頁** — 6 個 KPI + 熱門特質 TOP 12 + 結尾署名
+
+**配置 UI**：
+- 學校名 / 學期 / 導師姓名（自動從 currentUser 帶入）
+- 5 個內容選項（學生名單 / 特質 / 統計 / 簽名 / 僅有評語的學生）
+- 自動估算總頁數
+- 預覽折疊區說明每頁內容
+
+**蜜糖紙感 print CSS（170 行）**：
+- 封面紙膠帶（鵝黃半透明，標誌性視覺）
+- 紙線稿評語區（`repeating-linear-gradient` 模擬作業簿）
+- 座號徽章（蜜糖底 + 厚黑邊框 + JetBrains Mono）
+- 印章框（22mm 虛線方框）
+- KPI 卡片 + 結尾蜜糖分隔線
+
+**走 `window.print()` 純原生方案**（依 pdf-export-print-best-practice skill 鐵則）：
+- 不用 jspdf / html2canvas（會偏移、切字）
+- `body > *:not(#semester-report) { display: none !important; }` 隱藏主 UI
+- `#semester-report` 變唯一可見
+
+📁 新增檔案：
+- `src/components/SemesterReportModal.jsx`（配置 UI）
+- `src/components/semester-report/SemesterReportPrintable.jsx`（列印 DOM）
+- `src/components/semester-report/semester-report-print.css`（蜜糖紙感印刷樣式）
+
+**Bundle 影響**：主 bundle +1 KB（幾乎不變）+ lazy chunk ~7 KB gzip
+
+---
 
 ### 📦 v2.14.1（2026-05-18）— 主 bundle 瘦身 145 KB gzip（TD7）
 
@@ -203,13 +240,14 @@ firebase.json                # 配置
 | ✅ | ~~📲 每日彙整 LINE 報告 (A2)~~ | ~~3h~~ | **已完成 v2.14.0** |
 | ✅ | ~~🛡️ Firestore Rules Audit (C2)~~ | ~~2-3h~~ | **已完成 v2.14.0** |
 | ✅ | ~~📦 TD7 Bundle 瘦身~~ | ~~1-2h~~ | **已完成 v2.14.1**（−145 KB gzip）|
-| 🥇 | 🎓 **學期報告 PDF (G2)** | 1 天 | 學期末必用 + 套蜜糖紙感設計超漂亮 |
-| 🥈 | 📝 **學期累積評語 (E2)** | 2-3h | 學期末殺手功能 |
-| 🥉 | 💬 **Streaming 評語生成 (D2)** | 1-2 天 | 字一個一個浮現，UX 大躍進 |
-| 4 | 🤖 **評語風格學習 (E1)** | 1 週 | Few-shot prompt，最大評語品質升級 |
-| 5 | 📲 **A1 教師 LINE 綁定** | 3-4 天 | 解鎖 5 種通知場景 |
+| ✅ | ~~🎓 學期報告 PDF (G2)~~ | ~~1 天~~ | **已完成 v2.15.0**（實際 ~1.5h）|
+| 🥇 | 📝 **學期累積評語 (E2)** | 2-3h | 學期末殺手功能（看完歷史叫 Gemini 出總評）|
+| 🥈 | 💬 **Streaming 評語生成 (D2)** | 1-2 天 | 字一個一個浮現，UX 大躍進 |
+| 🥉 | 🤖 **評語風格學習 (E1)** | 1 週 | Few-shot prompt，最大評語品質升級 |
+| 4 | 📲 **A1 教師 LINE 綁定** | 3-4 天 | 解鎖 5 種通知場景 |
+| 5 | 🔥 **D1 Cloud Tasks 批次佇列** | 1 週 | 可靠性升級（100+ 學生不 timeout）|
 
-**接續組合推薦**（一週可完成）：G2 + E2 + D2
+**接續組合推薦**（一週可完成）：E2 + D2
 總計 ~3 天，完成後可發 v2.15.0「學期末利器版」。
 
 ---
@@ -298,4 +336,4 @@ git cherry-pick 0e55ddfb
 
 ---
 
-**下次開發建議**：跑 **G2 學期報告 PDF（1 天）** + **E2 學期累積評語（2-3h）** + **TD7 Bundle 瘦身（1-2h）** ⭐ — 加起來 ~1.5 天可發 v2.15.0「學期末利器版」
+**下次開發建議**：跑 **E2 學期累積評語（2-3h）** + **D2 Streaming 評語生成（1-2 天）** ⭐ — 完成後可發 v2.16.0「期末 UX 大躍進版」

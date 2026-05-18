@@ -43,6 +43,7 @@ const ImportExportModal = lazy(() => import('./components/ImportExportModal'));
 const PrintModal = lazy(() => import('./components/PrintModal'));
 const DashboardModal = lazy(() => import('./components/DashboardModal'));
 const UsageDashboardModal = lazy(() => import('./components/UsageDashboardModal'));
+const SemesterReportModal = lazy(() => import('./components/SemesterReportModal'));
 
 // Firebase
 import { templateService, classService, historyService, settingsService, adminConfigService, userService, USER_ROLES, studentService } from './firebase';
@@ -134,6 +135,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
     // 班級統計儀表板
     const [isDashboardOpen, setIsDashboardOpen] = useState(false);
     const [isUsageDashboardOpen, setIsUsageDashboardOpen] = useState(false);
+    const [isSemesterReportOpen, setIsSemesterReportOpen] = useState(false);
 
     // 待審核用戶數量（管理員用）
     const [pendingCount, setPendingCount] = useState(0);
@@ -922,6 +924,15 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                     onClose={() => setIsUsageDashboardOpen(false)}
                     isAdmin={isAdmin}
                 />
+
+                {/* 學期評語報告 PDF（封面 + 學生名單 + 每生一頁 + 統計）*/}
+                <SemesterReportModal
+                    isOpen={isSemesterReportOpen}
+                    onClose={() => setIsSemesterReportOpen(false)}
+                    students={viewingUser ? viewingStudents : students}
+                    currentClassName={viewingUser ? `${viewingUser.displayName} 的學生` : currentClassName}
+                    currentUser={currentUser}
+                />
             </Suspense>
 
             {/* 頁首 */}
@@ -936,6 +947,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                 onOpenPrint={() => setIsPrintModalOpen(true)}
                 onOpenDashboard={() => setIsDashboardOpen(true)}
                 onOpenUsageDashboard={() => setIsUsageDashboardOpen(true)}
+                onOpenSemesterReport={() => setIsSemesterReportOpen(true)}
                 themePref={themePref}
                 effectiveMode={effectiveMode}
                 onSetTheme={setThemePref}
@@ -1093,6 +1105,7 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                 onOpenTemplates={() => setIsTemplateModalOpen(true)}
                 onOpenDashboard={() => setIsDashboardOpen(true)}
                 onOpenUsageDashboard={() => setIsUsageDashboardOpen(true)}
+                onOpenSemesterReport={() => setIsSemesterReportOpen(true)}
                 onOpenClasses={() => setIsClassModalOpen(true)}
                 onOpenImportExport={() => setIsImportExportOpen(true)}
                 onOpenPrint={() => setIsPrintModalOpen(true)}
