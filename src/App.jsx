@@ -14,6 +14,7 @@ import { downloadComments } from './utils/downloadHelper';
 // Hooks
 import { useDialog } from './hooks/useDialog';
 import { useStudents } from './hooks/useStudents';
+import { useTheme } from './hooks/useTheme';
 
 // Components (核心元件 - 同步載入)
 import Header from './components/Header';
@@ -59,6 +60,9 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
 
     // --- 管理員面板 ---
     const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+
+    // --- 主題（light / dark / system，跨裝置 Firestore 同步） ---
+    const { pref: themePref, effectiveMode, setPref: setThemePref, cycle: cycleTheme } = useTheme(currentUser?.uid);
 
     // --- 學生資料 Hook (Firebase 同步，使用者資料隔離) ---
     const {
@@ -932,6 +936,10 @@ const App = ({ currentUser, onLogout, isAdmin }) => {
                 onOpenPrint={() => setIsPrintModalOpen(true)}
                 onOpenDashboard={() => setIsDashboardOpen(true)}
                 onOpenUsageDashboard={() => setIsUsageDashboardOpen(true)}
+                themePref={themePref}
+                effectiveMode={effectiveMode}
+                onSetTheme={setThemePref}
+                onCycleTheme={cycleTheme}
                 onLogout={onLogout}
                 hasApiKey={apiKeyConfigured}
                 templateCount={templateCount}

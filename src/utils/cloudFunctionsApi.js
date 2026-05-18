@@ -4,6 +4,8 @@
  */
 
 import { auth } from '../firebase';
+import { appCheck } from '../firebase/config';
+import { getToken as getAppCheckToken } from 'firebase/app-check';
 
 // Cloud Functions API 基礎 URL
 const getApiBaseUrl = () => {
@@ -27,18 +29,50 @@ const getIdToken = async () => {
 };
 
 /**
+ * 取得 App Check token（若未啟用 App Check 則回 null，best-effort）
+ *
+ * - getAppCheck() 未初始化會 throw，吞錯回 null
+ * - 之後 fetch 在 token 為 null 時就不加 X-Firebase-AppCheck header
+ * - 後端依 APP_CHECK_MODE 決定要不要 block
+ */
+const safeGetAppCheckToken = async () => {
+    if (!appCheck) return null;
+    try {
+        const result = await getAppCheckToken(appCheck, /* forceRefresh */ false);
+        return result?.token || null;
+    } catch {
+        return null;
+    }
+};
+
+/**
+ * 組合 fetch headers（含 ID token + App Check token，若有）
+ */
+const buildHeaders = async (extra = {}) => {
+    const [idToken, appCheckToken] = await Promise.all([
+        getIdToken(),
+        safeGetAppCheckToken(),
+    ]);
+    const headers = {
+        'Authorization': `Bearer ${idToken}`,
+        ...extra,
+    };
+    if (appCheckToken) {
+        headers['X-Firebase-AppCheck'] = appCheckToken;
+    }
+    return headers;
+};
+
+/**
  * 呼叫 Cloud Functions API（POST，含 body）
  */
 const callApi = async (endpoint, data) => {
     const baseUrl = getApiBaseUrl();
-    const idToken = await getIdToken();
+    const headers = await buildHeaders({ 'Content-Type': 'application/json' });
 
     const response = await fetch(`${baseUrl}${endpoint}`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}`
-        },
+        headers,
         body: JSON.stringify(data)
     });
 
@@ -56,16 +90,14 @@ const callApi = async (endpoint, data) => {
  */
 const getApi = async (endpoint, params = {}) => {
     const baseUrl = getApiBaseUrl();
-    const idToken = await getIdToken();
+    const headers = await buildHeaders();
 
     const qs = new URLSearchParams(params).toString();
     const url = `${baseUrl}${endpoint}${qs ? `?${qs}` : ''}`;
 
     const response = await fetch(url, {
         method: 'GET',
-        headers: {
-            'Authorization': `Bearer ${idToken}`
-        }
+        headers
     });
 
     const result = await response.json();

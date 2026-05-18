@@ -1,6 +1,6 @@
 # 點石成金蜂🐝 未來發展建議藍圖
 
-> 📅 更新時間：2026-05-18 ｜已完成 **60 項功能** ｜v2.12.0
+> 📅 更新時間：2026-05-18 ｜已完成 **65 項功能** ｜v2.13.0
 > 🎓 作者：[桃園市龍潭區石門國民小學 阿凱老師](https://www.smes.tyc.edu.tw/modules/tadnews/page.php?ncsn=11&nsn=16#a5)
 
 ---
@@ -69,10 +69,93 @@
 | 58 | 📊 使用儀表板（個人 30 天折線 + 成功率圓餅 + 配額 Gauge）| ✅ 完成 | v2.12.0 |
 | 59 | 📊 管理員視角：本月全校教師使用量排行長條圖 | ✅ 完成 | v2.12.0 |
 | 60 | 🔧 Cloud Functions 新增 `/usage/history` + `/usage/admin` | ✅ 完成 | v2.12.0 |
+| 61 | 🌙 深色模式（`data-mode="dark"` token 全套接管 + Sun/Moon/Monitor 三段切換）| ✅ 完成 | v2.13.0 |
+| 62 | 💾 `useTheme` hook（light/dark/system，localStorage + Firestore 雙寫，跨裝置同步）| ✅ 完成 | v2.13.0 |
+| 63 | ⚡ `bootstrapTheme()` 避免 FOUC（在 React mount 前同步套用主題）| ✅ 完成 | v2.13.0 |
+| 64 | 🔐 App Check 整合（reCAPTCHA v3，fail-open，env-driven site key）| ✅ 完成 | v2.13.0 |
+| 65 | 🛡️ Cloud Functions 加 App Check enforce 中介層（off/observe/enforce 三段切換）| ✅ 完成 | v2.13.0 |
 
 ---
 
 ## 🆕 最新版本功能總結
+
+### v2.13.0 — 🌙 深色模式（H1）+ 🔐 App Check（C1）（2026-05-18）
+
+> **設計系統紅利收割 + 安全強化版**。一發兩個建議組合：H1 把 v2.11 預留好的 `[data-mode="dark"]` token 接管完成；C1 接續 v2.10 通知基建從「告警」進化到「事前阻擋」。
+
+#### 主要新增
+
+**🌙 深色模式（H1）**
+- 完整接管 `[data-mode="dark"]` CSS variables（v2.11 設計階段已預埋）
+- `useTheme` hook：`light` / `dark` / `system` 三段切換
+  - localStorage 即時 + Firestore `settings/user.theme` 跨裝置同步
+  - `system` 模式自動跟 `prefers-color-scheme` 切換
+  - 雲端值 win（讓多裝置使用者體驗一致）
+- `bootstrapTheme()` 在 React 渲染前同步套用，**避免亮 / 暗閃爍（FOUC）**
+- 三個 UI 切換點：
+  - Header avatar 旁的 Sun/Moon/Monitor 快速按鈕（一鍵 cycle）
+  - User dropdown 的 3-option segmented control（精確選擇 light/dark/system）
+  - PWA `theme-color` meta 同步切換（手機狀態列也跟著變）
+- 智慧 CSS override：`bg-white` / `text-black` / `bg-gray-*` 等 Tailwind 灰階在 dark mode 自動 redirect 到 token，省得 sweep 27 個檔案
+- 0.2s 平滑色彩 transition，切換不刺眼
+- 全套涵蓋：`.bg-paper` noise pattern、`.bg-grid`、scrollbar、`.b-dash`、`.tape`、`.bg-lined` 全部都有 dark 變體
+
+**🔐 App Check（C1）— Phase 1 fail-open**
+- 前端 `initializeAppCheck` 整合 reCAPTCHA v3 provider
+- Site key 走 `VITE_APP_CHECK_SITE_KEY` env，**未設定時跳過**（不擋老師使用）
+- Dev 環境自動啟用 `FIREBASE_APPCHECK_DEBUG_TOKEN`，本地測試不被 reCAPTCHA 卡
+- `cloudFunctionsApi.js` 每個 fetch 自動帶 `X-Firebase-AppCheck` header（best-effort）
+- 後端 middleware 三段模式 `APP_CHECK_MODE: 'off' | 'observe' | 'enforce'`：
+  - `off`（預設）：完全跳過，不影響任何流量
+  - `observe`：驗證但 invalid 只 log warning 不擋（觀察期看誤殺率）
+  - `enforce`：嚴格 enforce，invalid 直接 403
+- 設計確保「Phase 1 部署後零行為改變」，等使用者設好 site key + 觀察 1-2 天後再切 enforce
+
+#### 啟用 SOP（App Check）
+
+**步驟 1 — Firebase Console 註冊**：
+1. https://console.firebase.google.com/project/comments-67079/appcheck
+2. Build → App Check → Register Web App
+3. 選 reCAPTCHA v3（免費，門檻最低）
+4. 拿到 Site Key（`6L...` 開頭的字串）
+
+**步驟 2 — 把 Site Key 設成環境變數**：
+- 本地：`.env.local` 加 `VITE_APP_CHECK_SITE_KEY=6L...`
+- GitHub Actions：repo Settings → Secrets → 加 `VITE_APP_CHECK_SITE_KEY`，並在 build workflow 把它寫進 env
+
+**步驟 3 — 觀察期切換**（1-2 天後）：
+1. 改 `functions/src/middleware/auth.ts` 內 `APP_CHECK_MODE` 從 `'off'` → `'observe'`
+2. 部署：`firebase deploy --only functions:api --account cagooo@gmail.com --project comments-67079`
+3. 觀察 Firebase Console → App Check → Metrics 1-2 天
+4. 確認所有合法流量都有 token 後，切到 `'enforce'`
+
+#### 新增 / 修改的檔案
+
+```
+新增
+├── src/hooks/useTheme.js                # light/dark/system 切換 + 持久化
+└── (不需要新增 component，theme 切換 UI 內嵌在 Header)
+
+修改
+├── src/styles/tokens.css                # 加 bg-grid/bg-paper/scrollbar/transition + Tailwind 灰階 dark override
+├── src/main.jsx                         # bootstrapTheme() 避免 FOUC
+├── src/App.jsx                          # useTheme + 傳 props 給 Header
+├── src/components/Header.jsx            # Sun/Moon/Monitor 快速按鈕 + 3-option picker
+├── src/firebase/config.js               # initializeAppCheck（fail-open）+ export appCheck
+├── src/utils/cloudFunctionsApi.js       # 每個 fetch 加 X-Firebase-AppCheck header
+└── functions/src/middleware/auth.ts     # validateAppCheckToken + 三段模式
+```
+
+#### Bundle 影響
+
+| 項目 | 結果 |
+|---|---|
+| 主 bundle | +9 KB（App Check SDK，影響可接受）|
+| 主 bundle gzip | 350 → 353 KB |
+| useTheme hook | <1 KB |
+| 深色模式 CSS overrides | +1.2 KB CSS（壓縮後 +0.4 KB gzip）|
+
+---
 
 ### v2.12.0 — 📊 使用儀表板（B2）（2026-05-18）
 
@@ -241,8 +324,8 @@
 
 ### 🅗 設計系統延伸（從新建的 token / atoms 出發）
 
-#### H1. 深色模式（Dark Mode）⭐⭐⭐⭐ — **最高 ROI**
-**預估**：3-4 小時 ｜**價值**：超高
+#### H1. 深色模式（Dark Mode）✅ **已完成 v2.13.0**
+**實際工時**：~3 小時 ｜**價值**：超高
 
 設計檔的 `HANDOFF.md` 已經把所有顏色的 dark 變體都列出來了（`--ink` 在 dark 是 `#FCEEC9`，`--paper` 是 `#1E1A14` 等），但 `tokens.css` 還沒接上。**這代表 50% 已經完成，剩下的只是「接管 data-theme 屬性」**。
 
@@ -413,8 +496,8 @@ Cloud Functions 加 timing 紀錄，寫進 `metrics/{date}/endpoints/{name}`：c
 
 ### 🅒 安全強化（基於 v2.10.0 SECURITY.md 經驗）
 
-#### C1. App Check 啟用 ⭐⭐⭐⭐ — **最該優先做**
-**預估**：3-4 小時 ｜**價值**：超高
+#### C1. App Check 啟用 ✅ **Phase 1 已完成 v2.13.0（code 整合，等使用者註冊 reCAPTCHA + 觀察期切 enforce）**
+**實際工時**：~2 小時 ｜**價值**：超高
 
 依 `firebase-ci-troubleshooter` skill 的 **Fix #12** 標準流程：
 
@@ -779,8 +862,8 @@ iOS Safari 沒有 add-to-home-screen 自動 prompt，可加教學截圖（一次
 
 | # | 方向 | 預估工時 | 價值 | 推薦序 |
 |---|---|:---:|:---:|:---:|
-| 1 | 🌙 **H1 深色模式** | 3-4h | 超高 | **🥇 第 1**（token 已抽好，純加值）|
-| 2 | 🔐 **C1 App Check 啟用** | 3-4h | 超高 | **🥈 第 2**（安全基礎）|
+| ✅ | ~~🌙 H1 深色模式~~ | ~~3-4h~~ | ~~超高~~ | **已完成 v2.13.0** |
+| ✅ | ~~🔐 C1 App Check~~ | ~~3-4h~~ | ~~超高~~ | **Phase 1 已完成 v2.13.0**（等使用者註冊 reCAPTCHA 後切 enforce）|
 | ✅ | ~~📊 B2 使用儀表板~~ | ~~4-5h~~ | ~~高~~ | **已完成 v2.12.0** |
 | 4 | 💬 **D2 Streaming 評語生成** | 1-2 天 | 超高 | 第 4（UX 大躍進）|
 | 5 | 🎓 **G2 學期報告 PDF** | 1 天 | 超高 | 第 5（學期末必用）|
@@ -802,8 +885,8 @@ iOS Safari 沒有 add-to-home-screen 自動 prompt，可加教學截圖（一次
 ### 🥇 立即可做（1-2 週，總計 ~25h）
 **主題：把 v2.11.0 設計系統的紅利吃滿 + 把 v2.10.0 通知基建延伸**
 
-- [ ] **H1 深色模式**（3-4h）— token 接管 dark theme
-- [ ] **C1 App Check 啟用**（3-4h）— 安全基礎
+- [x] **H1 深色模式**（實際 ~3h）— token 接管 dark theme ✅ v2.13.0
+- [x] **C1 App Check 啟用**（實際 ~2h）— Phase 1 code 整合 ✅ v2.13.0（等 reCAPTCHA 註冊後切 enforce）
 - [ ] **A2 每日彙整 LINE 報告**（3h）— 改 weeklyReport
 - [ ] **C2 Firestore Rules Audit**（2-3h）— 安全 audit
 - [x] **B2 使用儀表板**（實際 ~4h）— 套 KPI atom + recharts ✅ v2.12.0
@@ -846,7 +929,8 @@ iOS Safari 沒有 add-to-home-screen 自動 prompt，可加教學截圖（一次
 
 | 版本 | 日期 | 主要更新 |
 |------|------|----------|
-| **v2.12.0** | **2026-05-18** | 📊 **使用儀表板（B2）— 個人 30 天折線 + 成功率圓餅 + 配額 Gauge + 管理員全校教師長條圖** |
+| **v2.13.0** | **2026-05-18** | 🌙 **深色模式（H1）** + 🔐 **App Check Phase 1（C1）** — 設計系統紅利收割 + 安全強化版 |
+| v2.12.0 | 2026-05-18 | 📊 **使用儀表板（B2）— 個人 30 天折線 + 成功率圓餅 + 配額 Gauge + 管理員全校教師長條圖** |
 | v2.11.0 | 2026-05-17 | 🎨 **A+D Fusion 蜜糖紙感工作台 — 12 batch 全套移植（token + 7 atoms + 17 元件重寫 + 0 破壞性改動）** |
 | v2.10.0 | 2026-05-17 | 📲 LINE 即時通知系統 + Firestore Triggers + Flex 卡片 UX + SECURITY.md |
 | v2.9.2 | 2026-01-27 | 批次操作（加標籤 / 清空 / 移班）+ Console 降噪 |
