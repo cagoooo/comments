@@ -140,9 +140,58 @@ input[type="checkbox"] { accent-color: var(--honey); width: 16px; height: 16px; 
   background-color: #2A2519;
   background-image: repeating-linear-gradient(transparent 0 27px, rgba(252,238,201,0.08) 27px 28px);
 }
+[data-mode="dark"] .bg-grid {
+  background-color: #2A2519;
+  background-image:
+    linear-gradient(rgba(252,238,201,0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(252,238,201,0.07) 1px, transparent 1px);
+}
+[data-mode="dark"] .bg-paper {
+  background-image:
+    radial-gradient(rgba(252,238,201, var(--paper-noise-a)) 1px, transparent 1px),
+    radial-gradient(rgba(252,238,201, var(--paper-noise-b)) 1px, transparent 1px);
+}
 [data-mode="dark"] .tape {
   background: linear-gradient(180deg, rgba(244,184,38,0.35) 0%, rgba(244,184,38,0.25) 100%);
   border: 1px solid rgba(252,238,201,0.12);
+}
+[data-mode="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(252,238,201,0.18);
+  border-color: var(--paper);
+}
+[data-mode="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(252,238,201,0.32);
+}
+[data-mode="dark"] .b-dash {
+  border-color: rgba(252,238,201,0.30);
+}
+
+/* 把元件層 hardcoded bg-white / text-black 在 dark mode 全部 redirect 到 token，
+   省得 sweep 27 個檔案。Specificity 0,2,0 > Tailwind 的 0,1,0 自動勝出 */
+[data-mode="dark"] .bg-white { background-color: var(--paper-2) !important; }
+[data-mode="dark"] .text-black { color: var(--ink) !important; }
+[data-mode="dark"] .bg-black { background-color: #000 !important; }
+
+/* Tailwind gray scale —— dark mode 自動倒置 */
+[data-mode="dark"] .bg-gray-50  { background-color: #2A2519 !important; }
+[data-mode="dark"] .bg-gray-100 { background-color: #322B20 !important; }
+[data-mode="dark"] .bg-gray-200 { background-color: #3D3527 !important; }
+[data-mode="dark"] .text-gray-400 { color: var(--ink-mute) !important; }
+[data-mode="dark"] .text-gray-500 { color: var(--ink-mute) !important; }
+[data-mode="dark"] .text-gray-600 { color: var(--ink-soft) !important; }
+[data-mode="dark"] .text-gray-700 { color: var(--ink-soft) !important; }
+[data-mode="dark"] .text-gray-800 { color: var(--ink) !important; }
+[data-mode="dark"] .text-gray-900 { color: var(--ink) !important; }
+[data-mode="dark"] .border-gray-200 { border-color: var(--line-soft) !important; }
+[data-mode="dark"] .border-gray-300 { border-color: var(--line-soft) !important; }
+
+/* 平滑切換 — 切換主題時所有顏色都漸變 0.2s 避免硬切 */
+html, body, * {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+/* 但 transform / box-shadow 動畫不該被波及（避免影響 btn-press 等微動畫） */
+.btn-press, .bee-bob, .tape {
+  transition: transform 0.08s, box-shadow 0.08s;
 }
 
 /* gentle bee bob */

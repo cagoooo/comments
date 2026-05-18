@@ -1,12 +1,37 @@
 # 點石成金蜂 開發進度記錄
 
 > **更新日期**：2026-05-18
-> **版本**：v2.12.0
+> **版本**：v2.13.0
 > **GitHub**：https://github.com/cagoooo/comments
 
 ---
 
-## 🎉 最近四次大版本里程碑
+## 🎉 最近五次大版本里程碑
+
+### 🌙 v2.13.0（2026-05-18）— 深色模式（H1）+ App Check（C1）
+
+設計系統紅利收割 + 安全強化版。一發兩個建議組合。
+
+**🌙 H1 深色模式**：
+- v2.11 設計階段就預埋好 `[data-mode="dark"]` token，這次接管完成
+- `useTheme` hook：light / dark / system 三段切換
+- localStorage 即時 + Firestore 雲端同步
+- `system` 模式自動跟 `prefers-color-scheme`
+- `bootstrapTheme()` 在 React mount 前同步套用，**避免 FOUC**
+- 三個 UI 切換點：Header avatar 旁快速按鈕（cycle）+ User dropdown segmented control（精確）+ PWA `theme-color` meta 同步
+- 智慧 CSS override：Tailwind `bg-white` / `text-black` / `bg-gray-*` 在 dark 自動 redirect 到 token，省 sweep 27 個檔案
+- 平滑 0.2s 色彩 transition
+
+**🔐 C1 App Check Phase 1**：
+- 前端 `initializeAppCheck` 整合 reCAPTCHA v3
+- Site key 走 `VITE_APP_CHECK_SITE_KEY` env，**未設定時 fail-open**（不擋老師）
+- `cloudFunctionsApi.js` 每個 fetch 自動帶 `X-Firebase-AppCheck` header
+- 後端 middleware 三段模式：`off` / `observe` / `enforce`，預設 `off`（部署後零行為改變）
+- 完整啟用 SOP 寫在 `src/firebase/config.js` 註解 + FUTURE_ROADMAP.md
+
+📁 新增檔案：`src/hooks/useTheme.js`
+
+---
 
 ### 📊 v2.12.0（2026-05-18）— 使用儀表板（B2）
 
@@ -131,14 +156,16 @@ firebase.json                # 配置
 | 推薦序 | 項目 | 預估工時 | 為什麼推薦 |
 |---|---|:---:|---|
 | ✅ | ~~📊 使用儀表板 (B2)~~ | ~~4-5h~~ | **已完成 v2.12.0** |
-| 🥇 | 🌙 **深色模式 (H1)** | 3-4h | token 已抽乾淨，**95% 已完成**；老師夜間備課必需 |
-| 🥈 | 🔐 **App Check 啟用 (C1)** | 3-4h | 接續 v2.10.0 通知基建，從「告警」進化到「阻擋」 |
-| 🥉 | 📲 **每日彙整 LINE 報告 (A2)** | 3h | 改既有 weeklyUsageReport 套 Flex 卡 |
+| ✅ | ~~🌙 深色模式 (H1)~~ | ~~3-4h~~ | **已完成 v2.13.0** |
+| ✅ | ~~🔐 App Check (C1) Phase 1~~ | ~~3-4h~~ | **已完成 v2.13.0**（等 reCAPTCHA 註冊後切 enforce）|
+| 🥇 | 📲 **每日彙整 LINE 報告 (A2)** | 3h | 改既有 weeklyUsageReport 套 Flex 卡 |
+| 🥈 | 🛡️ **Firestore Rules Audit (C2)** | 2-3h | 安全 audit |
+| 🥉 | 🎓 **學期報告 PDF (G2)** | 1 天 | 學期末必用 + 套蜜糖紙感設計超漂亮 |
 | 4 | 💬 **Streaming 評語生成 (D2)** | 1-2 天 | 字一個一個浮現，UX 大躍進 |
-| 5 | 🎓 **學期報告 PDF (G2)** | 1 天 | 學期末必用 + 套蜜糖紙感設計超漂亮 |
+| 5 | 🤖 **評語風格學習 (E1)** | 1 週 | Few-shot prompt，最大評語品質升級 |
 
-**連續組合推薦**（一週可完成）：H1 + C1 + A2 + C2 + TD6 + TD7
-總計 13-18 小時，完成後可發 v2.13.0「視覺收割 + 安全強化版」。
+**接續組合推薦**（一週可完成）：A2 + C2 + G2 + D2 + TD6 + TD7
+總計 ~4 天，完成後可發 v2.14.0「教學現場深化版」。
 
 ---
 
@@ -226,4 +253,4 @@ git cherry-pick 0e55ddfb
 
 ---
 
-**下次開發建議**：跑 **H1 深色模式（3-4h）** + **C1 App Check（3-4h）** 兩個小項，接著 **A2 每日彙整 LINE 報告（3h）** ⭐ — 三項加起來 ~10 小時可發 v2.13.0「視覺收割 + 安全強化版」
+**下次開發建議**：跑 **A2 每日彙整 LINE 報告（3h）** + **C2 Firestore Rules Audit（2-3h）** + **G2 學期報告 PDF（1 天）** 三項 ⭐ — 加起來 ~2 天可發 v2.14.0「教學現場深化版」

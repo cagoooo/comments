@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
     School, ChevronDown, Shield, Heart, FileSpreadsheet, Printer,
     BarChart3, Settings, BookOpen, X, MoreVertical, LogOut, Activity,
+    Sun, Moon, Monitor,
 } from 'lucide-react';
 import { Btn, BeeMascot } from './atoms';
 
@@ -49,6 +50,10 @@ const Header = ({
     onOpenPrint,
     onOpenDashboard,
     onOpenUsageDashboard,
+    themePref = 'system',
+    effectiveMode = 'light',
+    onSetTheme,
+    onCycleTheme,
     onLogout,
     hasApiKey,
     templateCount = 0,
@@ -278,6 +283,28 @@ const Header = ({
                         <span className="hidden lg:inline">{isSidebarOpen ? '收起' : '成語庫'}</span>
                     </button>
 
+                    {/* 主題快速切換（md+ 顯示，按一下 cycle light → dark → system） */}
+                    {onCycleTheme && (
+                        <button
+                            onClick={onCycleTheme}
+                            className="hidden md:inline-flex w-10 h-10 b-ink sh-btn r-btn items-center justify-center btn-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft"
+                            style={{
+                                background: effectiveMode === 'dark' ? 'var(--lav-soft)' : 'var(--honey-soft)',
+                                color: 'var(--ink)',
+                            }}
+                            title={`目前：${themePref === 'system' ? '跟隨系統' : themePref === 'dark' ? '深色模式' : '淺色模式'}（按一下切換）`}
+                            aria-label="切換主題"
+                        >
+                            {themePref === 'system' ? (
+                                <Monitor size={15} strokeWidth={1.8} />
+                            ) : effectiveMode === 'dark' ? (
+                                <Moon size={15} strokeWidth={1.8} />
+                            ) : (
+                                <Sun size={15} strokeWidth={1.8} />
+                            )}
+                        </button>
+                    )}
+
                     {/* 使用者頭像 + dropdown */}
                     <div className="relative">
                         <button
@@ -346,6 +373,45 @@ const Header = ({
                                             <span className="font-bold text-[var(--ink)]">
                                                 {currentUser.assignedClassNames.join('、')}
                                             </span>
+                                        </div>
+                                    )}
+
+                                    {/* 主題切換（3-option segmented control） */}
+                                    {onSetTheme && (
+                                        <div className="mt-3 pt-3 border-t border-dashed border-[var(--line-soft)]">
+                                            <div className="text-[11px] font-mono uppercase tracking-wider text-[var(--ink-soft)] mb-1.5">
+                                                外觀主題
+                                            </div>
+                                            <div
+                                                role="radiogroup"
+                                                aria-label="外觀主題"
+                                                className="flex b-ink r-btn overflow-hidden text-[11.5px] font-bold"
+                                            >
+                                                {[
+                                                    { val: 'light', Icon: Sun, label: '淺色' },
+                                                    { val: 'dark', Icon: Moon, label: '深色' },
+                                                    { val: 'system', Icon: Monitor, label: '系統' },
+                                                ].map(({ val, Icon, label }) => {
+                                                    const isActive = themePref === val;
+                                                    return (
+                                                        <button
+                                                            key={val}
+                                                            type="button"
+                                                            role="radio"
+                                                            aria-checked={isActive}
+                                                            onClick={() => onSetTheme(val)}
+                                                            className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 transition-colors btn-press"
+                                                            style={{
+                                                                background: isActive ? 'var(--honey)' : 'transparent',
+                                                                color: 'var(--ink)',
+                                                            }}
+                                                        >
+                                                            <Icon size={12} strokeWidth={2} />
+                                                            <span>{label}</span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
                                     )}
 
