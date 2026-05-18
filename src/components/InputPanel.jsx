@@ -1,6 +1,7 @@
 import React, { useRef, useState, useCallback, useMemo } from 'react';
 import { Plus, RefreshCw, Hash, FileSpreadsheet, Upload, ArrowRight } from 'lucide-react';
-import { parseExcelFile } from '../utils/excelHelper';
+// excelHelper 走動態 import (TD7 主 bundle 瘦身)：xlsx ~600 KB 改成只在使用者
+// 拖拽 / 選擇檔案時才下載，主 bundle 砍掉 600 KB
 import { useToast } from '../contexts/ToastContext';
 import { Card, StickerTab } from './atoms';
 
@@ -38,6 +39,8 @@ const InputPanel = ({
             return;
         }
         try {
+            // 動態載入 excelHelper (含 xlsx ~600 KB)
+            const { parseExcelFile } = await import('../utils/excelHelper');
             const { headers, rows } = await parseExcelFile(file);
             let nameColIndex = 0;
             let numberColIndex = 1;

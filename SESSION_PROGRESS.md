@@ -1,12 +1,32 @@
 # 點石成金蜂 開發進度記錄
 
 > **更新日期**：2026-05-18
-> **版本**：v2.14.0
+> **版本**：v2.14.1
 > **GitHub**：https://github.com/cagoooo/comments
 
 ---
 
-## 🎉 最近六次大版本里程碑
+## 🎉 最近七次版本里程碑
+
+### 📦 v2.14.1（2026-05-18）— 主 bundle 瘦身 145 KB gzip（TD7）
+
+純優化版本（無新功能）。
+
+**根因**：`InputPanel.jsx`（核心元件，**非 lazy**）靜態 import `parseExcelFile` → xlsx (~430 KB) 整個進主 bundle，連完全沒用 Excel 功能的使用者都要下載。
+
+**修補**：把 `import { parseExcelFile }` 移到 click/drop handler 內 `await import('../utils/excelHelper')`。
+
+**結果**：
+- 主 bundle 1219 KB → **787 KB**（−432 KB raw）
+- gzip 354 KB → **208 KB**（−145 KB gzip，**−41%**）
+- excelHelper 自動成獨立 chunk，只在使用者選 Excel 檔時才下載
+- 移動裝置 / 慢速網路使用者感受最明顯
+
+📁 修改檔案：`src/components/InputPanel.jsx`（3 行改動）
+
+> 為什麼不需要動 jspdf / html2canvas：PrintModal 早就是 lazy modal，那兩個庫**從來沒在主 bundle**。xlsx 才是唯一在主 bundle 的元兇。
+
+---
 
 ### 📲 v2.14.0（2026-05-18）— 每日 LINE 彙整報告（A2）+ Firestore Rules 加固（C2）
 
@@ -182,13 +202,14 @@ firebase.json                # 配置
 | ✅ | ~~🔐 App Check (C1) Phase 1~~ | ~~3-4h~~ | **已完成 v2.13.0**（等 reCAPTCHA 註冊後切 enforce）|
 | ✅ | ~~📲 每日彙整 LINE 報告 (A2)~~ | ~~3h~~ | **已完成 v2.14.0** |
 | ✅ | ~~🛡️ Firestore Rules Audit (C2)~~ | ~~2-3h~~ | **已完成 v2.14.0** |
+| ✅ | ~~📦 TD7 Bundle 瘦身~~ | ~~1-2h~~ | **已完成 v2.14.1**（−145 KB gzip）|
 | 🥇 | 🎓 **學期報告 PDF (G2)** | 1 天 | 學期末必用 + 套蜜糖紙感設計超漂亮 |
-| 🥈 | 💬 **Streaming 評語生成 (D2)** | 1-2 天 | 字一個一個浮現，UX 大躍進 |
-| 🥉 | 🤖 **評語風格學習 (E1)** | 1 週 | Few-shot prompt，最大評語品質升級 |
-| 4 | 📝 **學期累積評語 (E2)** | 2-3h | 學期末殺手功能 |
-| 5 | 📦 **TD7 Bundle 瘦身**（xlsx/pdf dynamic import）| 1-2h | 初次載入砍 1 MB |
+| 🥈 | 📝 **學期累積評語 (E2)** | 2-3h | 學期末殺手功能 |
+| 🥉 | 💬 **Streaming 評語生成 (D2)** | 1-2 天 | 字一個一個浮現，UX 大躍進 |
+| 4 | 🤖 **評語風格學習 (E1)** | 1 週 | Few-shot prompt，最大評語品質升級 |
+| 5 | 📲 **A1 教師 LINE 綁定** | 3-4 天 | 解鎖 5 種通知場景 |
 
-**接續組合推薦**（一週可完成）：G2 + E2 + D2 + TD7
+**接續組合推薦**（一週可完成）：G2 + E2 + D2
 總計 ~3 天，完成後可發 v2.15.0「學期末利器版」。
 
 ---

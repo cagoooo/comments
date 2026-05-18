@@ -1,6 +1,6 @@
 # 點石成金蜂🐝 未來發展建議藍圖
 
-> 📅 更新時間：2026-05-18 ｜已完成 **68 項功能** ｜v2.14.0
+> 📅 更新時間：2026-05-18 ｜已完成 **69 項功能** ｜v2.14.1
 > 🎓 作者：[桃園市龍潭區石門國民小學 阿凱老師](https://www.smes.tyc.edu.tw/modules/tadnews/page.php?ncsn=11&nsn=16#a5)
 
 ---
@@ -77,10 +77,36 @@
 | 66 | 📲 每日彙整 LINE 報告（取代週報，每日 21:00 Flex 卡 + 失敗率告警升級）| ✅ 完成 | v2.14.0 |
 | 67 | 🔒 Firestore Rules audit + tightening（封鎖 server-only 子集合、role 升級防護、schools create 收緊）| ✅ 完成 | v2.14.0 |
 | 68 | 🔧 `reports/daily_*` Firestore collection（管理員可讀歷史日報）| ✅ 完成 | v2.14.0 |
+| 69 | 📦 主 bundle 瘦身 145 KB gzip：xlsx dynamic import（TD7）| ✅ 完成 | v2.14.1 |
 
 ---
 
 ## 🆕 最新版本功能總結
+
+### v2.14.1 — 📦 主 bundle 瘦身（TD7）（2026-05-18）
+
+> 純優化版本（無新功能）。把 xlsx 從主 bundle 抽出來改成動態載入，初次載入時間大幅縮短。
+
+#### 變更
+- `src/components/InputPanel.jsx` 把 `parseExcelFile` 從靜態 import 改成 click/drop handler 內動態 import
+- xlsx (~430 KB / 144 KB gzip) 自動拆成獨立 chunk
+- 只有使用者拖拽 / 選 Excel 檔時才下載
+
+#### Bundle 對比
+
+| Bundle | Before | After | 差 |
+|---|---|---|---|
+| 主 bundle | 1219 KB / 354 KB gzip | **787 KB / 208 KB gzip** | **−432 KB raw / −145 KB gzip** |
+| `excelHelper-*.js`（新 lazy chunk） | — | 429 KB / 144 KB gzip | — |
+
+**初次載入瘦身 41%（gzip 354 → 208）**，移動裝置 / 慢速網路使用者感受最明顯。
+
+#### 為什麼不需要動 jspdf / html2canvas
+原本 roadmap 預估「砍 1 MB」是把 jspdf + html2canvas 也算進來，但其實 **PrintModal 早就是 lazy modal**（`lazy(() => import('./components/PrintModal'))`），所以 jspdf+html2canvas 一直都在獨立的 `PrintModal-*.js` chunk（598 KB），**從來沒在主 bundle**。
+
+xlsx 才是真正在主 bundle 的元兇，因為 `InputPanel`（**非 lazy**，核心元件）靜態 import 了它。
+
+---
 
 ### v2.14.0 — 📲 每日 LINE 彙整報告（A2）+ 🔒 Firestore Rules 加固（C2）（2026-05-18）
 
@@ -863,7 +889,7 @@ Vitest + React Testing Library。先測：
 
 Vite plugin `vite-plugin-remove-console` 自動 prod build 刪除。
 
-#### TD7. Bundle 分析 / 拆 chunk ⭐
+#### TD7. Bundle 分析 / 拆 chunk ✅ **已完成 v2.14.1**
 **預估**：1 小時
 
 `vite-plugin-visualizer` 分析，找出大頭：
@@ -962,7 +988,7 @@ iOS Safari 沒有 add-to-home-screen 自動 prompt，可加教學截圖（一次
 - [x] **C2 Firestore Rules Audit**（實際 ~1.5h）— 安全 audit ✅ v2.14.0
 - [x] **B2 使用儀表板**（實際 ~4h）— 套 KPI atom + recharts ✅ v2.12.0
 - [ ] **TD6 console.log 清理**（30 min）— 順便做
-- [ ] **TD7 Bundle 分析 + xlsx/pdf dynamic import**（1-2h）— 初次載入瘦身 1 MB
+- [x] **TD7 Bundle 分析 + xlsx/pdf dynamic import**（實際 ~30 min）— 主 bundle 瘦身 145 KB gzip ✅ v2.14.1
 
 ### 🥈 短期目標（2-4 週，總計 ~5-7 天）
 **主題：UX 大躍進 + 評語品質**
@@ -1000,7 +1026,8 @@ iOS Safari 沒有 add-to-home-screen 自動 prompt，可加教學截圖（一次
 
 | 版本 | 日期 | 主要更新 |
 |------|------|----------|
-| **v2.14.0** | **2026-05-18** | 📲 **每日 LINE 彙整報告（A2）** + 🔒 **Firestore Rules 加固（C2）** — 教學現場深化版 Part 1 |
+| **v2.14.1** | **2026-05-18** | 📦 **主 bundle 瘦身 145 KB gzip（TD7）** — xlsx dynamic import |
+| v2.14.0 | 2026-05-18 | 📲 **每日 LINE 彙整報告（A2）** + 🔒 **Firestore Rules 加固（C2）** — 教學現場深化版 Part 1 |
 | v2.13.0 | 2026-05-18 | 🌙 **深色模式（H1）** + 🔐 **App Check Phase 1（C1）** — 設計系統紅利收割 + 安全強化版 |
 | v2.12.0 | 2026-05-18 | 📊 **使用儀表板（B2）— 個人 30 天折線 + 成功率圓餅 + 配額 Gauge + 管理員全校教師長條圖** |
 | v2.11.0 | 2026-05-17 | 🎨 **A+D Fusion 蜜糖紙感工作台 — 12 batch 全套移植（token + 7 atoms + 17 元件重寫 + 0 破壞性改動）** |
