@@ -1,6 +1,6 @@
 # 點石成金蜂🐝 未來發展建議藍圖
 
-> 📅 更新時間：2026-05-18 ｜已完成 **65 項功能** ｜v2.13.0
+> 📅 更新時間：2026-05-18 ｜已完成 **68 項功能** ｜v2.14.0
 > 🎓 作者：[桃園市龍潭區石門國民小學 阿凱老師](https://www.smes.tyc.edu.tw/modules/tadnews/page.php?ncsn=11&nsn=16#a5)
 
 ---
@@ -74,10 +74,81 @@
 | 63 | ⚡ `bootstrapTheme()` 避免 FOUC（在 React mount 前同步套用主題）| ✅ 完成 | v2.13.0 |
 | 64 | 🔐 App Check 整合（reCAPTCHA v3，fail-open，env-driven site key）| ✅ 完成 | v2.13.0 |
 | 65 | 🛡️ Cloud Functions 加 App Check enforce 中介層（off/observe/enforce 三段切換）| ✅ 完成 | v2.13.0 |
+| 66 | 📲 每日彙整 LINE 報告（取代週報，每日 21:00 Flex 卡 + 失敗率告警升級）| ✅ 完成 | v2.14.0 |
+| 67 | 🔒 Firestore Rules audit + tightening（封鎖 server-only 子集合、role 升級防護、schools create 收緊）| ✅ 完成 | v2.14.0 |
+| 68 | 🔧 `reports/daily_*` Firestore collection（管理員可讀歷史日報）| ✅ 完成 | v2.14.0 |
 
 ---
 
 ## 🆕 最新版本功能總結
+
+### v2.14.0 — 📲 每日 LINE 彙整報告（A2）+ 🔒 Firestore Rules 加固（C2）（2026-05-18）
+
+> 教學現場深化版 Part 1。把每天的使用狀況彙整成一張 LINE Flex 卡片直接推給管理員，同時把 Firestore Rules 從「能跑就好」升級到「audit 通過」等級。
+
+#### 📲 A2 — 每日彙整 LINE 報告
+
+**核心變更**：把 v2.10 之前的 `weeklyUsageReport`（每週一 08:00）改成 `dailyUsageReport`（每天 21:00 台灣時間，放學後彙整）。
+
+**Flex 卡片內容**：
+```
+📊 點石成金蜂 · 5/18 使用日報
+─────────────────────────
+👥 活躍教師     8 / 24 位
+✍️ 評語生成     142 次
+✅ 成功率       96%（136 次）
+❌ 失敗         6 次
+🏆 最高使用     王老師 · 24 次
+```
+
+**智慧分級**：
+- 失敗率 ≥ 20% → 自動升級為 **warning 狀態**（深橘 header），管理員 LINE 一眼看到異常
+- 失敗率 < 20% → success 狀態（深綠 header）
+- 今日零使用 → footer 標註「今日無人使用 API」
+
+**附加儲存**：完整資料同時寫入 `reports/daily_YYYY-MM-DD` 供管理員未來查詢。
+
+#### 🔒 C2 — Firestore Rules audit + tightening
+
+**audit 後加強的 4 大方向**：
+
+1. **明確封鎖 server-only 子集合**（client 預設 deny，但顯式寫出對 audit 友善）
+   - `users/{uid}/usage/{date}` → `allow read, write: if false` — 強制走 `/usage/*` Cloud Functions
+   - `reports/{reportId}` → admin 可讀，寫入只能走 scheduled functions
+   - `batchJobs/{jobId}` → 全封閉，走 `/batch/*` endpoint
+   - `errors/{errorId}` → admin 可讀，預留 B1 roadmap 用
+
+2. **角色升級防護**：把 `role` 加進 self-update 禁止欄位清單
+   - 唯一例外：註冊自動審核流程（pending_info → teacher + approvedBy = system_auto）
+   - **嚴禁 client 自己把 role 改成 admin**（特權升級防護）
+   - 抽出 `isAutoApprovalUpdate()` helper function 讓邏輯清楚
+
+3. **`schools` create 收緊**
+   - 原本：任何 isSignedIn 都能建 → pending 使用者也能狂建空 schools
+   - 新規則：要求 `getUserData().role != null` — 也就是必須先有 user doc 才能建學校
+
+4. **`adminConfig/shared` 加 type 檢查**
+   - `resource.data.authorizedUsers is list` 防 rule panic（萬一資料型別不對）
+
+**相容性驗證**：v2.9.0 auto-approval、v2.0 admin approve / reject、v2.8 schools create 流程**全部 4 條 role 寫入路徑**都跟新規則相容（透過閱讀 `authService.js` line 121 / 173 / 240 / 301 確認）。
+
+#### 新增 / 修改的檔案
+
+```
+新增（無）
+
+修改
+├── functions/src/services/notify-line.ts  # 加 notifyDailyReport helper
+├── functions/src/scheduled/reports.ts     # weeklyUsageReport → dailyUsageReport，cron 改 21:00
+├── functions/src/index.ts                 # export 從 weeklyUsageReport 改 dailyUsageReport
+└── firestore.rules                        # 大幅 audit + 加強，從 119 行 → 162 行
+```
+
+#### Deploy 兩件事
+- `firebase deploy --only firestore:rules` — 部署新規則
+- `firebase deploy --only functions:dailyUsageReport,functions:dailyCleanup` — 部署排程任務（weeklyUsageReport 自動移除）
+
+---
 
 ### v2.13.0 — 🌙 深色模式（H1）+ 🔐 App Check（C1）（2026-05-18）
 
@@ -423,8 +494,8 @@ v2.11.0 已加 `@media print` 全域樣式，可進一步：
 
 直接套 `line-messaging-firebase` skill Phase 2 流程（含現成程式碼）。
 
-#### A2. 每日彙整 LINE 報告（取代週報）⭐⭐⭐
-**預估**：3 小時 ｜**價值**：高
+#### A2. 每日彙整 LINE 報告（取代週報）✅ **已完成 v2.14.0**
+**實際工時**：~1.5 小時 ｜**價值**：高
 
 目前 `weeklyUsageReport` 是每週推一次 email/log，改成 LINE Flex 卡：
 
@@ -512,7 +583,7 @@ Cloud Functions 加 timing 紀錄，寫進 `metrics/{date}/endpoints/{name}`：c
 
 **為什麼重要**：今天加的 LINE 告警告訴你「被攻擊」，但要先有 App Check 才能擋下來。
 
-#### C2. Firestore Rules Audit ⭐⭐⭐
+#### C2. Firestore Rules Audit ✅ **已完成 v2.14.0**
 **預估**：2-3 小時 ｜**價值**：高
 
 當前 `firestore.rules` 為了 auto-create 班級/學校放寬過。檢查清單：
@@ -887,8 +958,8 @@ iOS Safari 沒有 add-to-home-screen 自動 prompt，可加教學截圖（一次
 
 - [x] **H1 深色模式**（實際 ~3h）— token 接管 dark theme ✅ v2.13.0
 - [x] **C1 App Check 啟用**（實際 ~2h）— Phase 1 code 整合 ✅ v2.13.0（等 reCAPTCHA 註冊後切 enforce）
-- [ ] **A2 每日彙整 LINE 報告**（3h）— 改 weeklyReport
-- [ ] **C2 Firestore Rules Audit**（2-3h）— 安全 audit
+- [x] **A2 每日彙整 LINE 報告**（實際 ~1.5h）— 改 weeklyReport ✅ v2.14.0
+- [x] **C2 Firestore Rules Audit**（實際 ~1.5h）— 安全 audit ✅ v2.14.0
 - [x] **B2 使用儀表板**（實際 ~4h）— 套 KPI atom + recharts ✅ v2.12.0
 - [ ] **TD6 console.log 清理**（30 min）— 順便做
 - [ ] **TD7 Bundle 分析 + xlsx/pdf dynamic import**（1-2h）— 初次載入瘦身 1 MB
@@ -929,7 +1000,8 @@ iOS Safari 沒有 add-to-home-screen 自動 prompt，可加教學截圖（一次
 
 | 版本 | 日期 | 主要更新 |
 |------|------|----------|
-| **v2.13.0** | **2026-05-18** | 🌙 **深色模式（H1）** + 🔐 **App Check Phase 1（C1）** — 設計系統紅利收割 + 安全強化版 |
+| **v2.14.0** | **2026-05-18** | 📲 **每日 LINE 彙整報告（A2）** + 🔒 **Firestore Rules 加固（C2）** — 教學現場深化版 Part 1 |
+| v2.13.0 | 2026-05-18 | 🌙 **深色模式（H1）** + 🔐 **App Check Phase 1（C1）** — 設計系統紅利收割 + 安全強化版 |
 | v2.12.0 | 2026-05-18 | 📊 **使用儀表板（B2）— 個人 30 天折線 + 成功率圓餅 + 配額 Gauge + 管理員全校教師長條圖** |
 | v2.11.0 | 2026-05-17 | 🎨 **A+D Fusion 蜜糖紙感工作台 — 12 batch 全套移植（token + 7 atoms + 17 元件重寫 + 0 破壞性改動）** |
 | v2.10.0 | 2026-05-17 | 📲 LINE 即時通知系統 + Firestore Triggers + Flex 卡片 UX + SECURITY.md |

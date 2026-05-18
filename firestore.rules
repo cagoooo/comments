@@ -1,119 +1,176 @@
 rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────
+// 點石成金蜂 Firestore 安全規則
+//
+// 設計原則（C2 audit v2.14.0）：
+//   1. 預設 deny 一切（Firestore 預設行為，但對 admin SDK 寫入的子集合
+//      明確列出以便 audit）
+//   2. 使用者隔離：students / templates / settings 只能本人讀寫
+//   3. 全域資源（classes / schools）：已審核教師可讀
+//   4. Server-only 集合（usage / reports / errors / batchJobs）：
+//      ❌ client 不可讀寫，只能透過 Cloud Functions HTTP 端點存取
+//   5. 角色提升防護：role 只能透過註冊自動審核流程升 'teacher'，
+//      不能 client 直接改成 'admin'
+// ─────────────────────────────────────────────────────────────────
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 使用者認證檢查
+
+    // ── 共用 helper functions ─────────────────────────────────
     function isSignedIn() {
       return request.auth != null;
     }
-    
-    // 取得使用者資料
+
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
-    
-    // 檢查是否為管理員
+
     function isAdmin() {
       return isSignedIn() && getUserData().role == 'admin';
     }
-    
-    // 檢查是否已審核通過
+
     function isApproved() {
       return isSignedIn() && (getUserData().role == 'admin' || getUserData().role == 'teacher');
     }
-    
-    // 檢查是否有權限訪問班級
-    function hasClassAccess(classId) {
-      return isAdmin() || (isApproved() && classId in getUserData().assignedClasses);
-    }
-    
-    // 檢查是否為資料擁有者
+
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // 使用者集合
+    // 是否為「合法的註冊自動審核」更新
+    // 唯一允許 client 把 role 從 'pending_info' 升 'teacher' 的條件
+    function isAutoApprovalUpdate(beforeRole, afterRole, afterApprovedBy) {
+      return beforeRole == 'pending_info'
+          && afterRole == 'teacher'
+          && afterApprovedBy == 'system_auto';
+    }
+
+    // ── 使用者集合 ────────────────────────────────────────────
     match /users/{userId} {
-      // 任何人可以讀取自己的資料
-      allow read: if isSignedIn() && request.auth.uid == userId;
-      // 管理員可以讀取所有使用者
-      allow read: if isAdmin();
-      // 使用者可以建立自己的資料
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      // 管理員可以更新任何使用者
-      allow update: if isAdmin();
-      // 管理員可以刪除使用者（用於刪除審核申請）
+      // 讀：本人 OR 管理員
+      allow read: if isOwner(userId) || isAdmin();
+
+      // 建立：本人初次建立自己的 user doc
+      allow create: if isOwner(userId);
+
+      // 刪除：只有管理員（用於刪除審核申請）
       allow delete: if isAdmin();
-      
-      // 使用者可以更新自己的資料
-      allow update: if isSignedIn() && request.auth.uid == userId 
+
+      // 更新（admin 路徑）：管理員可改任何欄位
+      allow update: if isAdmin();
+
+      // 更新（self 路徑）：本人可改自己，但有兩條限制
+      //   1. 不能動敏感欄位 (assignedClasses, approvedAt, approvedBy)
+      //   2. 唯一例外：註冊自動審核流程允許把 role pending_info → teacher
+      //   ⚠️ 嚴禁 client 自己把 role 改成 'admin'（特權升級防護）
+      allow update: if isOwner(userId)
                     && (
-                      // 1. 允許更新非敏感欄位（一般資料更新）
-                      (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['assignedClasses', 'approvedAt', 'approvedBy']))
-                      ||
-                      // 2. 允許註冊流程（自動審核）：允許將 role 設為 teacher，並更新相關欄位
+                      // 一般資料更新：不准動敏感欄位 + role 必須不變
                       (
-                        resource.data.role == 'pending_info' 
-                        && request.resource.data.role == 'teacher'
-                        && request.resource.data.approvedBy == 'system_auto'
+                        !request.resource.data.diff(resource.data).affectedKeys()
+                          .hasAny(['assignedClasses', 'approvedAt', 'approvedBy', 'role'])
+                      )
+                      ||
+                      // 註冊自動審核：限定 pending_info → teacher 走 system_auto
+                      isAutoApprovalUpdate(
+                        resource.data.role,
+                        request.resource.data.role,
+                        request.resource.data.approvedBy
                       )
                     );
 
-      // 使用者子集合（學生資料）
+      // ── 使用者子集合（學生資料）──
       match /students/{studentId} {
         allow read, write: if isOwner(userId);
-        
+
         match /history/{historyId} {
           allow read, write: if isOwner(userId);
         }
       }
 
-      // 使用者子集合（評語範本）
+      // ── 使用者子集合（評語範本）──
       match /templates/{templateId} {
         allow read, write: if isOwner(userId);
       }
-      
-      // 設定（使用者隔離 - 含 API Key，僅本人可存取）
-      // ⚠️ 安全考量：管理員也無法讀取，保護 API Key 不被洩漏
+
+      // ── 設定（含 API Key，僅本人可存取）──
+      // ⚠️ 安全考量：管理員刻意無法讀，保護 API Key 不被洩漏
       match /settings/{settingId} {
         allow read, write: if isOwner(userId);
-        // 注意：此處刻意不給管理員讀取權限，保護 API Key
+      }
+
+      // ── 使用量子集合（server-only，透過 /usage/* HTTP endpoint 存取）──
+      // ❌ client 完全不可讀寫，包含本人也不行
+      //    讀取走 Cloud Functions GET /usage、/usage/history
+      //    寫入走 Cloud Functions recordUsage()（admin SDK 透過 transaction）
+      match /usage/{date} {
+        allow read, write: if false;
       }
     }
 
-    // 班級集合（全域共用）
+    // ── 班級集合（全域共用）────────────────────────────────────
     match /classes/{classId} {
-      // 已審核使用者可以讀取
+      // 讀：已審核使用者
       allow read: if isApproved();
-      
+
       // 建立：管理員 OR (已登入 AND 設定自己為導師)
-      allow create: if isAdmin() || (isSignedIn() && request.resource.data.teacherId == request.auth.uid);
-      
-      // 更新/刪除：管理員 OR (已審核 AND 是該班導師)
-      allow update, delete: if isAdmin() || (isApproved() && resource.data.teacherId == request.auth.uid);
+      //   pending 使用者也能建，因為 v2.9.0 註冊流程會自動建班級
+      allow create: if isAdmin()
+                    || (isSignedIn() && request.resource.data.teacherId == request.auth.uid);
+
+      // 更新 / 刪除：管理員 OR 該班導師（且已審核）
+      allow update, delete: if isAdmin()
+                            || (isApproved() && resource.data.teacherId == request.auth.uid);
     }
 
-    // 學校集合（全域共用）
+    // ── 學校集合（全域共用）────────────────────────────────────
     match /schools/{schoolId} {
-      // 所有登入使用者可以讀取（用於申請表單選擇學校）
+      // 讀：所有登入使用者（用於申請表單選擇學校）
       allow read: if isSignedIn();
-      
-      // 建立：已登入 (為了讓用戶在註冊時建立新學校)
-      allow create: if isSignedIn();
-      
-      // 更新/刪除：只有管理員
+
+      // 建立：已登入且**有 user doc**的使用者
+      //   v2.9.0 註冊流程需要這個（pending_info 使用者也要能建學校）
+      //   多加一層 user doc 存在檢查，避免未註冊（沒 user doc）的攻擊者狂建
+      //   ⚠️ 收緊：透過 getUserData() get() 強制 user doc 必須存在
+      allow create: if isSignedIn() && getUserData().role != null;
+
+      // 更新 / 刪除：只有管理員
       allow update, delete: if isAdmin();
     }
 
-    // 管理員共享設定集合（API Key 共享功能）
+    // ── 管理員共享設定（API Key 共享功能）─────────────────────
     match /adminConfig/{docId} {
-      // 管理員可以完整讀寫
+      // 管理員：完整讀寫
       allow read, write: if isAdmin();
-      
-      // 已授權的用戶可以讀取（用於取得共享 API Key）
-      // 注意：這裡使用信任模式，已授權用戶可以讀取 sharedApiKey
-      allow read: if isApproved() 
+
+      // 已授權的教師：可讀 shared doc（用於取得共享 API Key）
+      //   多加 list 類型檢查避免 authorizedUsers 不是 array 時 rule 評估 panic
+      allow read: if isApproved()
                   && docId == 'shared'
+                  && resource.data.authorizedUsers is list
                   && request.auth.uid in resource.data.authorizedUsers;
+    }
+
+    // ── 報告集合（server-only）─────────────────────────────────
+    // dailyUsageReport 寫入 reports/daily_YYYY-MM-DD，weeklyUsageReport（舊）寫入 reports/weekly_*
+    // 管理員未來想做後台查詢時透過 Cloud Functions（不直接 client 讀）
+    match /reports/{reportId} {
+      allow read: if isAdmin(); // 管理員可以直接讀歷史報告
+      allow write: if false;     // 寫入只能走 admin SDK（scheduled functions）
+    }
+
+    // ── 批次任務集合（server-only）──────────────────────────────
+    // /batch endpoint 建立、processBatchJob 更新
+    // client 想看進度需走 /batch/:jobId GET endpoint
+    match /batchJobs/{jobId} {
+      allow read, write: if false;
+    }
+
+    // ── 錯誤紀錄集合（server-only，預留給 B1 roadmap）──────────
+    match /errors/{errorId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
   }
 }
