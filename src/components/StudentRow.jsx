@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-    Sparkles, Trash2, Heart, Clock, Loader2, X, Plus, Check, AlertCircle, BookOpen,
+    Sparkles, Trash2, Heart, Clock, Loader2, X, Check, AlertCircle, BookOpen,
 } from 'lucide-react';
 import { Chip } from './atoms';
 import HighlightText from './HighlightText';
@@ -162,70 +162,56 @@ const StudentRow = ({
 
                 {/* 標籤區 */}
                 <div>
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <div className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-[var(--ink-soft)]">
-                            特質標籤
-                        </div>
-                        {/* 每位學生專屬的成語庫入口 — 點了鎖定該生並打開右側成語庫，不必再捲到頁首 */}
-                        <button
-                            type="button"
+                    <div className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-[var(--ink-soft)] mb-1.5">
+                        特質標籤
+                    </div>
+
+                    {/* 已選標籤 chips（點 chip 區也可開成語庫） */}
+                    {student.selectedTags?.length > 0 && (
+                        <div
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onFocus(student.id);
                                 onOpenSidebar?.();
                             }}
-                            className="shrink-0 inline-flex items-center gap-1 b-ink sh-sm r-btn h-7 px-2.5 text-[11.5px] font-bold btn-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft"
-                            style={{ background: 'var(--sky-soft)' }}
-                            title={`為 ${student.name} 開啟成語庫`}
-                            aria-label={`為 ${student.name} 開啟成語庫`}
+                            className="flex flex-wrap gap-1.5 cursor-pointer mb-2"
+                            role="button"
+                            tabIndex={0}
+                            aria-label="點擊以開啟成語庫選擇標籤"
                         >
-                            <BookOpen size={13} strokeWidth={1.8} />
-                            成語庫
-                        </button>
-                    </div>
-                    <div
+                            {student.selectedTags.map((tag, idx) => (
+                                <Chip
+                                    key={`${tag}-${idx}`}
+                                    color={TAG_COLORS[idx % TAG_COLORS.length]}
+                                    soft
+                                    size="sm"
+                                    onClose={() => onRemoveTag(student.id, tag)}
+                                >
+                                    <HighlightText text={tag} highlight={searchQuery} />
+                                </Chip>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* 成語庫入口 — 大且明顯：RWD 全寬、44px 觸控目標、honey 主色，
+                        點了鎖定該生並打開右側成語庫，不必再捲到頁首 */}
+                    <button
+                        type="button"
                         onClick={(e) => {
                             e.stopPropagation();
                             onFocus(student.id);
                             onOpenSidebar?.();
                         }}
-                        className="flex flex-wrap gap-1.5 cursor-pointer min-h-[28px]"
-                        role="button"
-                        tabIndex={0}
-                        aria-label="點擊以開啟成語庫選擇標籤"
+                        className="w-full inline-flex items-center justify-center gap-2 b-ink sh-btn r-btn h-11 px-3 text-[13px] sm:text-[14px] font-black btn-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft"
+                        style={{ background: 'var(--honey)' }}
+                        title={`為 ${student.name} 開啟成語庫`}
+                        aria-label={`為 ${student.name} 開啟成語庫挑選特質標籤`}
                     >
-                        {student.selectedTags?.length > 0 ? (
-                            <>
-                                {student.selectedTags.map((tag, idx) => (
-                                    <Chip
-                                        key={`${tag}-${idx}`}
-                                        color={TAG_COLORS[idx % TAG_COLORS.length]}
-                                        soft
-                                        size="sm"
-                                        onClose={() => onRemoveTag(student.id, tag)}
-                                    >
-                                        <HighlightText text={tag} highlight={searchQuery} />
-                                    </Chip>
-                                ))}
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onFocus(student.id);
-                                        onOpenSidebar?.();
-                                    }}
-                                    className="rounded-full px-2 h-6 b-dash text-[11px] text-[var(--ink-soft)] font-bold inline-flex items-center gap-0.5 hover:text-[var(--ink)] hover:border-[var(--ink)]"
-                                    aria-label="加入更多標籤"
-                                >
-                                    <Plus size={10} strokeWidth={2.4} />
-                                </button>
-                            </>
-                        ) : (
-                            <span className="text-[12px] text-[var(--ink-mute)]">
-                                👆 點這裡或右上「成語庫」加入標籤
-                            </span>
-                        )}
-                    </div>
+                        <BookOpen size={18} strokeWidth={2.2} />
+                        <span className="truncate">
+                            {student.selectedTags?.length > 0 ? '開啟成語庫 · 加更多標籤' : '開啟成語庫挑選標籤'}
+                        </span>
+                    </button>
                 </div>
 
                 {/* 手動補充 */}
