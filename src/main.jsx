@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import AuthWrapper from './components/AuthWrapper.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
+import PWAUpdatePrompt from './components/PWAUpdatePrompt.jsx'
 import { ToastProvider } from './contexts/ToastContext.jsx'
 import { bootstrapTheme } from './hooks/useTheme.js'
 import './index.css'
@@ -17,6 +18,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <AuthWrapper>
                     <App />
                 </AuthWrapper>
+                {/* PWA 版本更新通知條（登入頁與 App 都會顯示） */}
+                <PWAUpdatePrompt />
             </ToastProvider>
         </ErrorBoundary>
     </React.StrictMode>,

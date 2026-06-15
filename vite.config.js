@@ -6,7 +6,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // prompt 模式：新版 SW 進 waiting 後不自動接管，改由 PWAUpdatePrompt 元件
+      // 跳通知讓使用者自己點「更新」，不打斷正在打字的老師。
+      registerType: 'prompt',
       includeAssets: ['bee.svg', 'favicon.ico'],
       manifest: {
         name: '點石成金蜂',
