@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-    Sparkles, Trash2, Heart, Clock, Loader2, X, Plus, Check, AlertCircle,
+    Sparkles, Trash2, Heart, Clock, Loader2, X, Plus, Check, AlertCircle, BookOpen,
 } from 'lucide-react';
 import { Chip } from './atoms';
 import HighlightText from './HighlightText';
@@ -162,8 +162,26 @@ const StudentRow = ({
 
                 {/* 標籤區 */}
                 <div>
-                    <div className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-[var(--ink-soft)] mb-1.5">
-                        特質標籤
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <div className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-[var(--ink-soft)]">
+                            特質標籤
+                        </div>
+                        {/* 每位學生專屬的成語庫入口 — 點了鎖定該生並打開右側成語庫，不必再捲到頁首 */}
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onFocus(student.id);
+                                onOpenSidebar?.();
+                            }}
+                            className="shrink-0 inline-flex items-center gap-1 b-ink sh-sm r-btn h-7 px-2.5 text-[11.5px] font-bold btn-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft"
+                            style={{ background: 'var(--sky-soft)' }}
+                            title={`為 ${student.name} 開啟成語庫`}
+                            aria-label={`為 ${student.name} 開啟成語庫`}
+                        >
+                            <BookOpen size={13} strokeWidth={1.8} />
+                            成語庫
+                        </button>
                     </div>
                     <div
                         onClick={(e) => {
@@ -204,7 +222,7 @@ const StudentRow = ({
                             </>
                         ) : (
                             <span className="text-[12px] text-[var(--ink-mute)]">
-                                👆 點擊以開啟成語庫
+                                👆 點這裡或右上「成語庫」加入標籤
                             </span>
                         )}
                     </div>
