@@ -4,16 +4,20 @@ import { settingsService } from '../firebase';
 const STORAGE_KEY = 'goldenbee_theme'; // 'light' | 'dark' | 'system'
 const VALID = new Set(['light', 'dark', 'system']);
 
+// 新使用者（沒存過偏好）一律預設「淺色」— 看得更清楚，絕不預設深色。
+// 使用者仍可在主題切換選 深色 / 跟隨系統，選了就存起來不受此預設影響。
+const DEFAULT_PREF = 'light';
+
 /**
  * 讀 localStorage 偏好（同步取得，避免 first paint 時主題閃爍）
  */
 export const readThemePref = () => {
-    if (typeof window === 'undefined') return 'system';
+    if (typeof window === 'undefined') return DEFAULT_PREF;
     try {
         const v = window.localStorage.getItem(STORAGE_KEY);
-        return VALID.has(v) ? v : 'system';
+        return VALID.has(v) ? v : DEFAULT_PREF;
     } catch {
-        return 'system';
+        return DEFAULT_PREF;
     }
 };
 
