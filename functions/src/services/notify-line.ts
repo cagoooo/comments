@@ -52,7 +52,7 @@ function getLineCredentials(): { token: string; adminId: string } | null {
  * 推一張 Flex 卡片給管理員;若 Flex 失敗自動 fallback 純文字。
  * 失敗不會 throw,主流程不會被影響。
  */
-export async function notifyAdminCard(card: CardSpec): Promise<void> {
+async function notifyLineCard(card: CardSpec): Promise<void> {
     const creds = getLineCredentials();
     if (!creds) return;
 
@@ -96,6 +96,129 @@ export async function notifyAdminCard(card: CardSpec): Promise<void> {
         logger.warn('[notify-line] push 失敗', { msg });
     }
 }
+
+/**
+ * 取得 Google Chat Webhook URL (best-effort)
+ */
+function getGoogleChatWebhook(): string | null {
+    const url = process.env.COMMENTS_GOOGLE_CHAT_WEBHOOK?.trim();
+    if (!url || url === 'DISABLED') {
+        return null;
+    }
+    return url;
+}
+
+/**
+ * 推送卡片到 Google Chat
+ */
+async function notifyGoogleChatCard(card: CardSpec): Promise<void> {
+    const webhookUrl = getGoogleChatWebhook();
+    if (!webhookUrl) {
+        logger.info('[notify-google-chat] 未設定 COMMENTS_GOOGLE_CHAT_WEBHOOK，跳過 Google Chat 通知');
+        return;
+    }
+
+    const theme = CARD_THEMES[card.status];
+    const now = new Intl.DateTimeFormat('zh-TW', {
+        timeZone: 'Asia/Taipei',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    }).format(new Date());
+
+    const widgets = card.fields.map((f) => ({
+        decoratedText: {
+            topLabel: f.label,
+            text: (f.icon ? `${f.icon} ` : '') + (f.value || '—'),
+            wrapText: true
+        }
+    }));
+
+    if (card.footerNote) {
+        widgets.push({
+            decoratedText: {
+                topLabel: '時間與備註',
+                text: `🕒 ${now} · ${card.footerNote}`,
+                wrapText: true
+            }
+        });
+    } else {
+        widgets.push({
+            decoratedText: {
+                topLabel: '時間',
+                text: `🕒 ${now}`,
+                wrapText: true
+            }
+        });
+    }
+
+    const summaryFields = card.fields.slice(0, 2).map((f) => `${f.label}: ${f.value}`).join(' | ');
+    const textSummary = `${theme.icon} [${card.appName || APP_NAME}] ${card.title}${summaryFields ? ` (${summaryFields})` : ''}`;
+
+    const payload = {
+        text: textSummary,
+        cardsV2: [
+            {
+                cardId: `c-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                card: {
+                    header: {
+                        title: `${theme.icon} ${card.title}`,
+                        subtitle: card.appName || APP_NAME
+                    },
+                    sections: [
+                        {
+                            widgets: widgets
+                        }
+                    ]
+                }
+            }
+        ]
+    };
+
+    try {
+        const res = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const errBody = await res.text().catch(() => '');
+            logger.warn('[notify-google-chat] 卡片發送失敗，改試純文字', {
+                status: res.status,
+                body: errBody.substring(0, 300)
+            });
+
+            await fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json; charset=utf-8'
+                },
+                body: JSON.stringify({
+                    text: cardToPlainText(card)
+                })
+            });
+        }
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.warn('[notify-google-chat] 推送失敗', { msg });
+    }
+}
+
+/**
+ * 推送通知給管理員 (同時支援 LINE 與 Google Chat Webhook)
+ */
+export async function notifyAdminCard(card: CardSpec): Promise<void> {
+    await Promise.allSettled([
+        notifyLineCard(card),
+        notifyGoogleChatCard(card)
+    ]);
+}
+
 
 function buildFlexBubble(card: CardSpec) {
     const theme = CARD_THEMES[card.status];
