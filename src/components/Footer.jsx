@@ -33,7 +33,7 @@ const Footer = () => {
                         <Heart size={11} strokeWidth={2} style={{ color: 'var(--coral)' }} fill="var(--coral)" aria-label="愛心" />
                         <span>by</span>
                         <a
-                            href="https://www.smes.tyc.edu.tw/modules/tadnews/page.php?ncsn=11&nsn=16#a5"
+                            href="https://www.smes.tyc.edu.tw/modules/school/index.php?department_id=2&zone_id=0&page_id=2&content_id=11&type=news&from_op=all_news#a5"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="font-bold text-[var(--ink)] hover:text-[var(--honey)] underline-offset-2 hover:underline"
