@@ -53,7 +53,7 @@
 ## 🚀 快速開始
 
 ### 環境需求
-- Node.js 18+
+- Node.js 20+（前端開發）；Cloud Functions 執行環境為 Node.js 22（`functions/package.json`，2026-09-29 由 Node 20 升級）
 - npm 或 yarn
 
 ### 安裝與執行
