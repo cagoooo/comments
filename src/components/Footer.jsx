@@ -33,11 +33,11 @@ const Footer = () => {
                         <Heart size={11} strokeWidth={2} style={{ color: 'var(--coral)' }} fill="var(--coral)" aria-label="愛心" />
                         <span>by</span>
                         <a
-                            href="https://www.smes.tyc.edu.tw/modules/school/index.php?department_id=2&zone_id=0&page_id=2&content_id=11&type=news&from_op=all_news#a5"
+                            href="https://cagoooo.github.io/Akai/"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="font-bold text-[var(--ink)] hover:text-[var(--honey)] underline-offset-2 hover:underline"
-                            title="桃園市龍潭區石門國民小學 教師頁"
+                            title="阿凱老師教育科技創新專區"
                         >
                             阿凱老師
                         </a>

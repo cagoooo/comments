@@ -1,7 +1,7 @@
 # 點石成金蜂🐝 未來發展建議藍圖
 
 > 📅 更新時間：2026-05-18 ｜已完成 **72 項功能** ｜v2.15.0
-> 🎓 作者：[桃園市龍潭區石門國民小學 阿凱老師](https://www.smes.tyc.edu.tw/modules/tadnews/page.php?ncsn=11&nsn=16#a5)
+> 🎓 作者：[桃園市龍潭區石門國民小學 阿凱老師](https://cagoooo.github.io/Akai/)
 
 ---
 
@@ -1376,4 +1376,4 @@ iOS Safari 沒有 add-to-home-screen 自動 prompt，可加教學截圖（一次
 > 📝 **文件維護者**：阿凱老師 + Claude
 > 📅 **最後更新**：2026-05-18
 > 🔖 **對應版本**：v2.11.0
-> 🎓 **作者**：[桃園市龍潭區石門國民小學 阿凱老師](https://www.smes.tyc.edu.tw/modules/tadnews/page.php?ncsn=11&nsn=16#a5)
+> 🎓 **作者**：[桃園市龍潭區石門國民小學 阿凱老師](https://cagoooo.github.io/Akai/)

@@ -237,14 +237,14 @@
 - [x] `PendingPage.jsx` 套用 login.html 風格（不同文案）
   > 紙感 Card + `STEP 2 · 完成註冊` sticker tab + 紙膠帶 + 兩個光暈背景；保留全部欄位（schoolMode 切換 / customCity+name / classList 增刪 / 驗證 / submit callback）；班級 chip 改用 Chip atom (mint)
 - [x] `Footer.jsx` 小蜜蜂 + mono 字版本資訊
-  > 三段式布局：左 🐝 + 產品名 + `v2.9.1` mono / 中「Made with ❤️ by **阿凱老師** · 桃園市石門國小」（依 `akai-author-footer` skill，連到 [石門國小教師頁](https://www.smes.tyc.edu.tw/modules/tadnews/page.php?ncsn=11&nsn=16#a5)） / 右 © 動態年份
+  > 三段式布局：左 🐝 + 產品名 + `v2.9.1` mono / 中「Made with ❤️ by **阿凱老師** · 桃園市石門國小」（依 `akai-author-footer` skill，連到 [石門國小教師頁](https://cagoooo.github.io/Akai/)） / 右 © 動態年份
 - [x] `LoadingOverlay.jsx` 蜜蜂 bee-bob + 蜜糖進度條
   > Card + 紙膠帶 + 88×88 honey 方塊（bee-bob 動畫）+ 蜜糖純色橫進度條（不再用 3 色漸層）+ 百分比 mono + 「辛苦了各位老師 ❤️」
 - [x] 全部保留既有 props 與行為，App.jsx 不需動
 
 ### Footer 重要：阿凱老師署名
 依 `akai-author-footer` skill **必須主動加**，連結至：
-`https://www.smes.tyc.edu.tw/modules/tadnews/page.php?ncsn=11&nsn=16#a5`
+`https://cagoooo.github.io/Akai/`
 （注意：**smes = 石門 Shih Men，不是新明！** 已自查兩次）
 
 ## Batch 10 · 響應式（3 小時）✅ 已完成
