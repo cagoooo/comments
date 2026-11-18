@@ -155,7 +155,9 @@ async function notifyGoogleChatCard(card: CardSpec): Promise<void> {
     }
 
     const summaryFields = card.fields.slice(0, 2).map((f) => `${f.label}: ${f.value}`).join(' | ');
-    const textSummary = `${theme.icon} [${card.appName || APP_NAME}] ${card.title}${summaryFields ? ` (${summaryFields})` : ''}`;
+    const platformName = card.appName || APP_NAME;
+    // 手機推播只看得到 text 這行，表情符號後先放【平台名】，同一個 Chat 空間收多個系統時才分得出來
+    const textSummary = `${theme.icon} 【${platformName}】${card.title}${summaryFields ? ` (${summaryFields})` : ''}`;
 
     const payload = {
         text: textSummary,
@@ -164,8 +166,8 @@ async function notifyGoogleChatCard(card: CardSpec): Promise<void> {
                 cardId: `c-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
                 card: {
                     header: {
-                        title: `${theme.icon} ${card.title}`,
-                        subtitle: card.appName || APP_NAME
+                        title: `${theme.icon} ${card.title}｜${platformName}`,
+                        subtitle: platformName
                     },
                     sections: [
                         {
