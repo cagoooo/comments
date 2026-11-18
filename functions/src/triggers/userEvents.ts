@@ -14,9 +14,10 @@ import { notifyUserCreated, notifyApplicationSubmitted } from '../services/notif
 
 const lineToken = defineSecret('COMMENTS_LINE_CHANNEL_ACCESS_TOKEN');
 const lineAdminId = defineSecret('COMMENTS_LINE_ADMIN_USER_ID');
+const commentsGoogleChatWebhook = defineSecret('COMMENTS_GOOGLE_CHAT_WEBHOOK');
 
 const REGION = 'asia-east1';
-const TRIGGER_SECRETS = [lineToken, lineAdminId];
+const TRIGGER_SECRETS = [lineToken, lineAdminId, commentsGoogleChatWebhook];
 
 /**
  * 撈學校名稱 (best-effort, 失敗回 fallback)

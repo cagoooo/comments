@@ -9,6 +9,7 @@ const getDb = () => admin.firestore();
 // LINE secrets — daily report 需要拿到才能推卡
 const lineToken = defineSecret('COMMENTS_LINE_CHANNEL_ACCESS_TOKEN');
 const lineAdminId = defineSecret('COMMENTS_LINE_ADMIN_USER_ID');
+const commentsGoogleChatWebhook = defineSecret('COMMENTS_GOOGLE_CHAT_WEBHOOK');
 
 /**
  * 每日使用量彙整報告（取代 v2.10 之前的 weeklyUsageReport）
@@ -28,7 +29,7 @@ export const dailyUsageReport = onSchedule(
         schedule: '0 21 * * *',           // 每天 21:00 台灣時間（放學後彙整）
         timeZone: 'Asia/Taipei',
         region: 'asia-east1',
-        secrets: [lineToken, lineAdminId]
+        secrets: [lineToken, lineAdminId, commentsGoogleChatWebhook]
     },
     async () => {
         logger.info('開始生成每日使用量報告');

@@ -13,6 +13,7 @@ import { handleCreateBatch, handleGetBatchStatus } from './controllers/batch';
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const lineToken = defineSecret('COMMENTS_LINE_CHANNEL_ACCESS_TOKEN');
 const lineAdminId = defineSecret('COMMENTS_LINE_ADMIN_USER_ID');
+const commentsGoogleChatWebhook = defineSecret('COMMENTS_GOOGLE_CHAT_WEBHOOK');
 
 // 初始化 Firebase Admin
 admin.initializeApp();
@@ -44,7 +45,7 @@ export const api = onRequest(
         region: 'asia-east1',
         timeoutSeconds: 60,
         memory: '256MiB',
-        secrets: [geminiApiKey, lineToken, lineAdminId]
+        secrets: [geminiApiKey, lineToken, lineAdminId, commentsGoogleChatWebhook]
     },
     app
 );
