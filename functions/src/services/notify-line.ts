@@ -9,6 +9,10 @@
  *   - COMMENTS_LINE_ADMIN_USER_ID         管理員 LINE userId (U + 32 hex)
  *
  * 失敗策略: best-effort, 任何錯誤皆吞掉, 不影響使用者主流程。
+ *
+ * 2026-11-18 起: 多個網站共用同一個 LINE 官方帳號 (免費方案每月 200 則),
+ * LINE 只推「失敗」卡片 (API 錯誤) 或明確標 alwaysLine 的卡片;
+ * 註冊、申請、每日日報等一般事件只發 Google Chat。
  */
 import * as logger from 'firebase-functions/logger';
 
@@ -34,6 +38,8 @@ export type CardSpec = {
     appName?: string;
     fields: CardField[];
     footerNote?: string;
+    /** 非失敗卡也要推 LINE。預設只有 status === 'failed' 會推 LINE。 */
+    alwaysLine?: boolean;
 };
 
 /**
@@ -74,6 +80,11 @@ async function notifyLineCard(card: CardSpec): Promise<void> {
 
         if (!res.ok) {
             const errBody = await res.text().catch(() => '');
+            // 429 = 本月推播額度已用完,改純文字重送也一樣會被拒,直接略過
+            if (res.status === 429) {
+                logger.warn('[notify-line] LINE 本月推播額度已用完,略過', { body: errBody.substring(0, 120) });
+                return;
+            }
             logger.warn('[notify-line] Flex 失敗,改試純文字', {
                 status: res.status,
                 body: errBody.substring(0, 300)
@@ -212,11 +223,14 @@ async function notifyGoogleChatCard(card: CardSpec): Promise<void> {
 }
 
 /**
- * 推送通知給管理員 (同時支援 LINE 與 Google Chat Webhook)
+ * 推送通知給管理員
+ * - Google Chat: 每張卡片都發
+ * - LINE: 只有失敗卡片 (或 alwaysLine) 才推,節省共用官方帳號的每月額度
  */
 export async function notifyAdminCard(card: CardSpec): Promise<void> {
+    const sendLine = card.status === 'failed' || card.alwaysLine === true;
     await Promise.allSettled([
-        notifyLineCard(card),
+        sendLine ? notifyLineCard(card) : Promise.resolve(),
         notifyGoogleChatCard(card)
     ]);
 }
