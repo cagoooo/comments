@@ -19,7 +19,7 @@ const detectInAppBrowser = () => {
  * Google 多色 G logo
  */
 const GoogleG = () => (
-    <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
+    <svg className="w-6 h-6" viewBox="0 0 24 24" aria-hidden="true">
         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
         <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
         <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
@@ -29,18 +29,18 @@ const GoogleG = () => (
 
 const FeatureChip = ({ icon, label, sub, color }) => (
     <div
-        className="flex items-center gap-2.5 bg-white b-ink sh-sm r-btn px-3 h-12"
+        className="flex items-center gap-3 lg:gap-4 bg-white b-ink sh-sm r-btn px-4 lg:px-5 py-3 lg:py-4"
     >
         <div
-            className="w-7 h-7 rounded-full b-ink flex items-center justify-center text-[13px] shrink-0"
+            className="w-10 h-10 lg:w-12 lg:h-12 rounded-full b-ink flex items-center justify-center text-[18px] lg:text-[22px] shrink-0"
             style={{ background: `var(--${color})` }}
             aria-hidden="true"
         >
             {icon}
         </div>
-        <div className="leading-tight min-w-0">
-            <div className="font-bold text-[12.5px] truncate">{label}</div>
-            <div className="text-[10.5px] text-[var(--ink-soft)] truncate">{sub}</div>
+        <div className="leading-snug min-w-0">
+            <div className="font-bold text-[16px] lg:text-[18px]">{label}</div>
+            <div className="text-[14px] lg:text-[15px] text-[var(--ink-soft)] mt-0.5">{sub}</div>
         </div>
     </div>
 );
@@ -152,26 +152,27 @@ const LoginPage = ({ onLogin }) => {
                 aria-hidden="true"
             />
 
-            <div className="relative z-10 min-h-screen grid grid-cols-1 lg:grid-cols-2">
+            {/* 桌機：置中寬容器（min(1400px, 94vw)），兩欄靠攏，不再各佔半個螢幕造成中間大片空白 */}
+            <div className="relative z-10 min-h-screen mx-auto w-full max-w-[min(1400px,94vw)] px-4 sm:px-8 lg:px-[clamp(24px,3vw,48px)] py-10 lg:py-[clamp(16px,4vh,64px)] grid grid-cols-1 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-center gap-8 lg:gap-[clamp(40px,5vw,96px)]">
 
                 {/* ── LEFT: 品牌介紹 ────────────────────────── */}
-                <div className="flex flex-col justify-center px-6 sm:px-10 lg:px-20 py-10 lg:py-0 order-2 lg:order-1">
-                    <div className="max-w-[520px] mx-auto lg:mx-0 w-full">
+                <div className="flex flex-col justify-center order-2 lg:order-1">
+                    <div className="max-w-[640px] mx-auto lg:mx-0 w-full">
 
                         {/* 版本小 chip */}
-                        <div className="inline-flex items-center gap-2 b-ink r-btn sh-sm bg-white px-3 h-8 text-[12px] font-bold mb-5">
-                            <span className="w-2 h-2 rounded-full" style={{ background: 'var(--mint)' }} />
-                            v2.9 · AI 智慧期末評語產生器
+                        <div className="inline-flex items-center gap-2 b-ink r-btn sh-sm bg-white px-4 h-10 text-[14px] lg:text-[15px] font-bold mb-6">
+                            <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--mint)' }} />
+                            v2.15 · AI 智慧期末評語產生器
                         </div>
 
                         {/* 大標 */}
-                        <h1 className="text-[36px] sm:text-[44px] lg:text-[56px] font-black tracking-tight leading-[1.05]">
+                        <h1 className="text-[clamp(40px,7vw,52px)] lg:text-[clamp(56px,4.6vw,84px)] font-black tracking-tight leading-[1.08]">
                             寫評語<br />
                             不再讓老師<br />
                             <span className="relative inline-block">
                                 <span className="relative z-10">熬到天亮</span>
                                 <span
-                                    className="absolute bottom-1 left-0 right-0 h-3 lg:h-4 -z-0"
+                                    className="absolute bottom-1 left-0 right-0 h-3 lg:h-5 -z-0"
                                     style={{ background: 'var(--honey)' }}
                                     aria-hidden="true"
                                 />
@@ -179,12 +180,12 @@ const LoginPage = ({ onLogin }) => {
                             <span style={{ color: 'var(--honey)' }}>。</span>
                         </h1>
 
-                        <p className="text-[14px] sm:text-[16px] leading-[1.7] text-[var(--ink-soft)] mt-5 max-w-[460px]">
+                        <p className="text-[16px] sm:text-[18px] lg:text-[20px] leading-[1.75] text-[var(--ink-soft)] mt-6 max-w-[600px]">
                             點石成金蜂🐝 是專為老師設計的 AI 評語工作台。輸入特質、按下生成，
                             <span className="uw inline-block font-bold text-[var(--ink)]">不到三秒就能寫好一篇</span>有溫度的學生評語。
                         </p>
 
-                        <div className="mt-6 flex flex-col gap-2.5 max-w-[460px]">
+                        <div className="mt-8 lg:mt-7 grid grid-cols-1 gap-3 max-w-[600px]">
                             <FeatureChip icon="⚡" color="honey-soft" label="批次生成全班評語" sub="一鍵 30 位學生" />
                             <FeatureChip icon="✏️" color="peach-soft" label="一鍵改寫風格" sub="精簡 / 詳細 / 換句話說" />
                             <FeatureChip icon="🐝" color="mint-soft" label="完全免費的工具" sub="Google 帳號即可開通" />
@@ -193,8 +194,8 @@ const LoginPage = ({ onLogin }) => {
                 </div>
 
                 {/* ── RIGHT: 登入卡 ────────────────────────── */}
-                <div className="flex items-center justify-center px-4 sm:px-8 lg:px-20 py-10 lg:py-0 order-1 lg:order-2">
-                    <div className="relative w-full max-w-[440px]">
+                <div className="flex items-center justify-center lg:justify-end order-1 lg:order-2">
+                    <div className="relative w-full max-w-[480px] lg:max-w-[540px]">
                         {/* 紙膠帶 */}
                         <div
                             className="tape"
@@ -212,7 +213,7 @@ const LoginPage = ({ onLogin }) => {
                             aria-hidden="true"
                         />
 
-                        <Card className="p-6 sm:p-8">
+                        <Card className="p-6 sm:p-9 lg:p-11">
                             {/* sticker tab */}
                             <div
                                 className="sticker-tab"
@@ -222,20 +223,17 @@ const LoginPage = ({ onLogin }) => {
                             </div>
 
                             {/* bee mascot bob */}
-                            <div className="flex justify-center mt-3 mb-4">
+                            <div className="flex justify-center mt-4 mb-5">
                                 <div
-                                    className="bee-bob"
+                                    className="bee-bob w-[92px] h-[92px] text-[52px] lg:w-[112px] lg:h-[112px] lg:text-[64px]"
                                     style={{
-                                        width: 88,
-                                        height: 88,
                                         background: 'var(--honey)',
                                         border: 'var(--b-w) solid var(--ink)',
                                         boxShadow: 'var(--shadow-card)',
-                                        borderRadius: 18,
+                                        borderRadius: 20,
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        fontSize: 50,
                                         lineHeight: 1,
                                     }}
                                     aria-hidden="true"
@@ -246,10 +244,10 @@ const LoginPage = ({ onLogin }) => {
 
                             {/* 標題 */}
                             <div className="text-center">
-                                <div className="text-[10px] font-mono uppercase tracking-[0.25em] text-[var(--ink-soft)]">
+                                <div className="text-[13px] lg:text-[14px] font-bold tracking-[0.3em] text-[var(--ink-soft)]">
                                     點石成金蜂
                                 </div>
-                                <h2 className="text-[24px] sm:text-[26px] font-black tracking-tight mt-1">
+                                <h2 className="text-[28px] sm:text-[32px] lg:text-[38px] font-black tracking-tight mt-1">
                                     <span className="relative inline-block">
                                         <span className="relative z-10">歡迎回來</span>
                                         <span
@@ -259,7 +257,7 @@ const LoginPage = ({ onLogin }) => {
                                         />
                                     </span>
                                 </h2>
-                                <p className="text-[12.5px] text-[var(--ink-soft)] mt-2">
+                                <p className="text-[15px] lg:text-[17px] text-[var(--ink-soft)] mt-2">
                                     登入後即可繼續你的評語工作
                                 </p>
                             </div>
@@ -267,24 +265,24 @@ const LoginPage = ({ onLogin }) => {
                             {/* App 內嵌瀏覽器警告 */}
                             {browserInfo.isInApp ? (
                                 <div
-                                    className="mt-5 b-ink r-card p-3.5"
+                                    className="mt-6 b-ink r-card p-4 lg:p-5"
                                     style={{ background: 'var(--peach-soft)' }}
                                     role="alert"
                                 >
                                     <div className="flex items-start gap-2 mb-2.5">
-                                        <AlertTriangle size={16} strokeWidth={1.8} className="shrink-0 mt-0.5" style={{ color: 'var(--coral)' }} />
+                                        <AlertTriangle size={20} strokeWidth={1.8} className="shrink-0 mt-0.5" style={{ color: 'var(--coral)' }} />
                                         <div>
-                                            <p className="font-bold text-[13px] text-[var(--ink)]">
+                                            <p className="font-bold text-[16px] lg:text-[17px] text-[var(--ink)]">
                                                 偵測到您使用 App 內建瀏覽器
                                             </p>
-                                            <p className="text-[11.5px] text-[var(--ink-soft)] mt-0.5">
+                                            <p className="text-[14px] lg:text-[15px] text-[var(--ink-soft)] mt-0.5">
                                                 Google 登入無法在 LINE / Facebook 等 App 內運作
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="bg-white b-soft r-btn p-2.5">
-                                        <p className="text-[11.5px] font-bold mb-1.5">📱 請以系統瀏覽器開啟：</p>
-                                        <ol className="text-[11.5px] text-[var(--ink-soft)] space-y-1 ml-4 list-decimal">
+                                    <div className="bg-white b-soft r-btn p-3">
+                                        <p className="text-[14px] lg:text-[15px] font-bold mb-1.5">📱 請以系統瀏覽器開啟：</p>
+                                        <ol className="text-[14px] lg:text-[15px] text-[var(--ink-soft)] space-y-1 ml-4 list-decimal">
                                             {browserInfo.isIOS ? (
                                                 <>
                                                     <li>點右上角 <strong>⋯ / ⋮</strong> 選單</li>
@@ -306,13 +304,13 @@ const LoginPage = ({ onLogin }) => {
                                     <button
                                         type="button"
                                         onClick={handleCopyUrl}
-                                        className="mt-3 w-full b-ink sh-sm r-btn h-10 inline-flex items-center justify-center gap-1.5 font-bold text-[12.5px] btn-press"
+                                        className="mt-3 w-full b-ink sh-sm r-btn h-12 inline-flex items-center justify-center gap-2 font-bold text-[15px] lg:text-[16px] btn-press"
                                         style={{ background: 'var(--coral)' }}
                                     >
                                         {copied ? (
-                                            <><Check size={13} strokeWidth={2.2} /> 已複製網址</>
+                                            <><Check size={16} strokeWidth={2.2} /> 已複製網址</>
                                         ) : (
-                                            <><Copy size={13} strokeWidth={1.8} /> 複製網址到外部瀏覽器</>
+                                            <><Copy size={16} strokeWidth={1.8} /> 複製網址到外部瀏覽器</>
                                         )}
                                     </button>
                                 </div>
@@ -320,11 +318,11 @@ const LoginPage = ({ onLogin }) => {
                                 <>
                                     {/* 說明 banner */}
                                     <div
-                                        className="mt-5 b-dash r-btn p-3 flex items-start gap-3"
+                                        className="mt-6 b-dash r-btn p-4 lg:p-5 flex items-start gap-3"
                                         style={{ background: 'var(--sky-soft)' }}
                                     >
-                                        <div className="text-[16px] leading-none mt-0.5" aria-hidden="true">📚</div>
-                                        <div className="text-[12px] leading-[1.7] text-[var(--ink)]">
+                                        <div className="text-[20px] lg:text-[22px] leading-none mt-0.5" aria-hidden="true">📚</div>
+                                        <div className="text-[15px] lg:text-[16px] leading-[1.75] text-[var(--ink)]">
                                             使用 <span className="font-bold">Google 帳號</span>登入後，填寫學校班級即可
                                             <span className="font-bold text-[var(--ink)]">立即開通</span>，無需等待審核。
                                         </div>
@@ -339,16 +337,16 @@ const LoginPage = ({ onLogin }) => {
                                         >
                                             {error === 'popup-blocked' ? (
                                                 <>
-                                                    <p className="font-bold text-[12.5px] mb-2" style={{ color: 'var(--coral)' }}>
+                                                    <p className="font-bold text-[15px] mb-2" style={{ color: 'var(--coral)' }}>
                                                         ⚠️ Google 登入彈出視窗被阻擋
                                                     </p>
-                                                    <p className="text-[11px] text-[var(--ink-soft)] mb-2">
+                                                    <p className="text-[14px] text-[var(--ink-soft)] mb-2">
                                                         請在系統瀏覽器（Safari / Chrome）重新開啟並登入
                                                     </p>
                                                     <button
                                                         type="button"
                                                         onClick={handleCopyUrl}
-                                                        className="w-full b-ink sh-sm r-btn h-9 inline-flex items-center justify-center gap-1.5 font-bold text-[12px] btn-press"
+                                                        className="w-full b-ink sh-sm r-btn h-11 inline-flex items-center justify-center gap-1.5 font-bold text-[15px] btn-press"
                                                         style={{ background: 'var(--coral)' }}
                                                     >
                                                         {copied
@@ -357,7 +355,7 @@ const LoginPage = ({ onLogin }) => {
                                                     </button>
                                                 </>
                                             ) : (
-                                                <p className="text-[12.5px] font-bold" style={{ color: 'var(--coral)' }}>⚠️ {error}</p>
+                                                <p className="text-[15px] font-bold" style={{ color: 'var(--coral)' }}>⚠️ {error}</p>
                                             )}
                                         </div>
                                     )}
@@ -367,7 +365,7 @@ const LoginPage = ({ onLogin }) => {
                                         type="button"
                                         onClick={handleGoogleLogin}
                                         disabled={isLoading}
-                                        className="mt-4 w-full b-ink sh-btn r-btn h-12 inline-flex items-center justify-center gap-3 font-bold text-[14px] btn-press bg-white disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft"
+                                        className="mt-5 w-full b-ink sh-btn r-btn h-14 lg:h-16 inline-flex items-center justify-center gap-3 font-bold text-[17px] lg:text-[19px] btn-press bg-white disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-soft"
                                     >
                                         {isLoading ? (
                                             <span className="text-2xl bee-bob inline-block" aria-hidden="true">🐝</span>
@@ -380,7 +378,7 @@ const LoginPage = ({ onLogin }) => {
                                     </button>
 
                                     {/* 條款 */}
-                                    <div className="mt-3 text-center text-[10.5px] text-[var(--ink-mute)]">
+                                    <div className="mt-4 text-center text-[13px] lg:text-[14px] text-[var(--ink-mute)]">
                                         登入即表示同意我們的
                                         <a className="text-[var(--ink-soft)] underline mx-1 cursor-pointer">服務條款</a>與
                                         <a className="text-[var(--ink-soft)] underline mx-1 cursor-pointer">隱私政策</a>
@@ -390,9 +388,9 @@ const LoginPage = ({ onLogin }) => {
                         </Card>
 
                         {/* 信任條 */}
-                        <div className="mt-4 flex items-center justify-center gap-3 text-[11px] font-mono text-[var(--ink-soft)] tracking-wider flex-wrap">
+                        <div className="mt-5 flex items-center justify-center gap-3 text-[14px] lg:text-[15px] text-[var(--ink-soft)] tracking-wide flex-wrap">
                             <span className="inline-flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--mint)' }} />
+                                <span className="w-2 h-2 rounded-full" style={{ background: 'var(--mint)' }} />
                                 老師專屬工具
                             </span>
                             <span className="text-[var(--ink-mute)]">·</span>
