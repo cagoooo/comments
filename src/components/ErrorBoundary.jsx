@@ -1,5 +1,6 @@
 import React from 'react';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
+import { isChunkError, canAttemptChunkRecovery, recoverFromChunkError } from '../utils/chunkRecovery';
 
 /**
  * 錯誤邊界元件
@@ -11,15 +12,24 @@ class ErrorBoundary extends React.Component {
         this.state = {
             hasError: false,
             error: null,
-            errorInfo: null
+            errorInfo: null,
+            recovering: false
         };
     }
 
     static getDerivedStateFromError(error) {
-        return { hasError: true, error };
+        // 網站換版造成的舊分塊 404：顯示「載入最新版本」而不是錯誤畫面（本分頁只自癒一次）
+        if (isChunkError(error) && canAttemptChunkRecovery()) {
+            return { hasError: true, error, recovering: true };
+        }
+        return { hasError: true, error, recovering: false };
     }
 
     componentDidCatch(error, errorInfo) {
+        if (this.state.recovering || (isChunkError(error) && canAttemptChunkRecovery())) {
+            void recoverFromChunkError(error?.message);
+            return;
+        }
         this.setState({ errorInfo });
         console.error('🐝 ErrorBoundary 捕捉到錯誤:', error, errorInfo);
 
@@ -34,10 +44,21 @@ class ErrorBoundary extends React.Component {
     };
 
     handleReset = () => {
-        this.setState({ hasError: false, error: null, errorInfo: null });
+        this.setState({ hasError: false, error: null, errorInfo: null, recovering: false });
     };
 
     render() {
+        if (this.state.hasError && this.state.recovering) {
+            return (
+                <div className="min-h-screen flex items-center justify-center p-4" role="status">
+                    <div className="text-center">
+                        <div className="text-5xl mb-4" aria-hidden="true">🐝</div>
+                        <p className="text-[18px] font-black">網站剛更新，正在載入最新版本…</p>
+                    </div>
+                </div>
+            );
+        }
+
         if (this.state.hasError) {
             return (
                 <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#FFF9E6] to-[#FFE4E1] p-4">

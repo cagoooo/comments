@@ -1,12 +1,15 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { versionDefine, versionJsonPlugin } from './vite.version.js'
 
 // GitHub Pages 專用配置
 export default defineConfig({
     base: '/comments/',
+    define: versionDefine,
     plugins: [
         react(),
+        versionJsonPlugin(),
         VitePWA({
             // prompt 模式：新版 SW 進 waiting 後不自動接管，改由 PWAUpdatePrompt 元件
             // 跳通知讓使用者自己點「更新」，不打斷正在打字的老師。

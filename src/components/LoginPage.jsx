@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Copy, Check, AlertTriangle } from 'lucide-react';
 import { authService } from '../firebase';
 import { Btn, Card } from './atoms';
+import { DISPLAY_VERSION } from '../utils/appVersion';
 
 /**
  * 偵測 App 內嵌瀏覽器（LINE / FB / IG / WeChat / 通用 WebView）
@@ -162,7 +163,7 @@ const LoginPage = ({ onLogin }) => {
                         {/* 版本小 chip */}
                         <div className="inline-flex items-center gap-2 b-ink r-btn sh-sm bg-white px-4 h-10 text-[14px] lg:text-[15px] font-bold mb-6">
                             <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--mint)' }} />
-                            v2.15 · AI 智慧期末評語產生器
+                            {DISPLAY_VERSION} · AI 智慧期末評語產生器
                         </div>
 
                         {/* 大標 */}

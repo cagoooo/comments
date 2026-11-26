@@ -1,8 +1,9 @@
 import React from 'react';
 import { Heart } from 'lucide-react';
+import { DISPLAY_VERSION, BUILD_SHA } from '../utils/appVersion';
 
-// 從 package.json 讀版本（Vite 會在 build time inline 替換）
-const VERSION = 'v2.9.1';
+// 版本號單一來源：package.json（vite.version.js 在 build 時注入），不要再手寫
+const VERSION = DISPLAY_VERSION;
 
 /**
  * 頁尾
@@ -24,7 +25,7 @@ const Footer = () => {
                     <div className="flex items-center gap-2 text-[var(--ink-soft)]">
                         <span className="text-[14px]" aria-hidden="true">🐝</span>
                         <span className="font-bold text-[var(--ink)]">點石成金蜂</span>
-                        <span className="font-mono text-[11px] text-[var(--ink-mute)]">{VERSION}</span>
+                        <span className="font-mono text-[11px] text-[var(--ink-mute)]" title={`版本 ${VERSION}（${BUILD_SHA.slice(0, 7)}）`}>{VERSION}</span>
                     </div>
 
                     {/* 中：阿凱老師署名（akai-author-footer skill 要求） */}

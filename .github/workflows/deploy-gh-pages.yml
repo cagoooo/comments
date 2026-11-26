@@ -3,6 +3,13 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [ main ]
+    # 只改後端 / 文件時不重建網站：網站每次重建都會換版本身分（commit sha），
+    # 會讓老師收到「有新版本」通知卻什麼都沒變（見 skill sw-update-prompt-version-gate）
+    paths-ignore:
+      - 'functions/**'
+      - 'docs/**'
+      - '**.md'
+      - 'LICENSE'
   workflow_dispatch:
 
 permissions:
